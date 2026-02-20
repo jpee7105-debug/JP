@@ -79,10 +79,10 @@ export default function Home() {
             INVESTIGATIVE RESEARCH PLATFORM
           </div>
           <h2 className="font-display text-5xl md:text-7xl font-bold mb-6 tracking-tighter uppercase">
-            RED <span className="text-primary">THREAD</span>
+            RABBIT <span className="text-primary">HOLE</span>
           </h2>
           <p className="text-lg text-muted-foreground font-light mb-10">
-            Follow the thread. Structured deep-dives into the world's most complex narratives. AI-verified sources. Community-driven analysis.
+            Go deeper. Structured rabbit holes into the world's most complex narratives. AI-verified sources. Community-driven analysis.
           </p>
           <form onSubmit={handleSearch} className="relative max-w-xl mx-auto">
             <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
@@ -279,7 +279,7 @@ export default function Home() {
           style={{ backgroundImage: `url(${networkBg})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
         />
         <div className="relative z-10 font-mono text-xs text-muted-foreground/50 tracking-widest uppercase">
-          SECURE CONNECTION ESTABLISHED // RED_THREAD V2.0.0
+          SECURE CONNECTION ESTABLISHED // RABBIT_HOLE V2.0.0
         </div>
       </footer>
     </div>

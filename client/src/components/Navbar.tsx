@@ -1,10 +1,11 @@
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
-import { Search, Home, Compass, User, Menu, X } from "lucide-react";
+import { Search, Home, Compass, User, Menu, X, Network } from "lucide-react";
 
 const navLinks = [
   { href: "/", label: "HOME", icon: Home },
   { href: "/discover", label: "DISCOVER", icon: Compass },
+  { href: "/connections", label: "CONNECTIONS", icon: Network },
   { href: "/search", label: "SEARCH", icon: Search },
   { href: "/profile", label: "PROFILE", icon: User },
 ];
@@ -15,13 +16,9 @@ export default function Navbar() {
 
   return (
     <nav className="border-b border-white/5 bg-background/80 backdrop-blur-md sticky top-0 z-50" data-testid="navbar">
-      <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-3" data-testid="link-logo">
-          <div className="w-6 h-6 relative">
-            <div className="absolute inset-0 border-2 border-primary rounded-full" />
-            <div className="absolute top-1/2 left-1/2 w-2 h-2 bg-primary rounded-full -translate-x-1/2 -translate-y-1/2" />
-          </div>
-          <span className="font-display font-bold text-xl tracking-wider uppercase">RED<span className="text-primary">_THREAD</span></span>
+      <div className="container mx-auto px-6 h-14 flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-2" data-testid="link-logo">
+          <span className="font-display font-bold text-lg tracking-wider uppercase">RABBIT<span className="text-primary"> HOLE</span></span>
         </Link>
 
         <div className="hidden md:flex items-center gap-1">
@@ -31,10 +28,10 @@ export default function Navbar() {
               <Link
                 key={href}
                 href={href}
-                className={`flex items-center gap-2 px-4 py-2 text-xs font-mono uppercase transition-colors ${isActive ? "text-primary bg-primary/10 border border-primary/20" : "text-muted-foreground hover:text-white border border-transparent"}`}
+                className={`flex items-center gap-2 px-3 py-1.5 text-xs font-mono uppercase transition-colors ${isActive ? "text-primary bg-primary/10 border border-primary/20" : "text-muted-foreground hover:text-white border border-transparent"}`}
                 data-testid={`nav-${label.toLowerCase()}`}
               >
-                <Icon className="w-4 h-4" />
+                <Icon className="w-3.5 h-3.5" />
                 {label}
               </Link>
             );

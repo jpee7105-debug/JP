@@ -10,15 +10,21 @@ import Discover from "@/pages/Discover";
 import RabbitHole from "@/pages/RabbitHole";
 import Search from "@/pages/Search";
 import Profile from "@/pages/Profile";
+import Connections from "@/pages/Connections";
+import DepthReader from "@/pages/DepthReader";
+import Admin from "@/pages/Admin";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/discover" component={Discover} />
-      <Route path="/rabbithole/:id" component={RabbitHole} />
+      <Route path="/rabbithole/:slug/read" component={DepthReader} />
+      <Route path="/rabbithole/:slug" component={RabbitHole} />
       <Route path="/search" component={Search} />
       <Route path="/profile" component={Profile} />
+      <Route path="/connections" component={Connections} />
+      <Route path="/admin" component={Admin} />
       <Route component={NotFound} />
     </Switch>
   );

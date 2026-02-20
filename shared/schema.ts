@@ -23,6 +23,8 @@ export const rabbitHoles = pgTable("rabbit_holes", {
   categorySlug: text("category_slug").default("").notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   timeline: jsonb("timeline").$type<{ year: string; event: string; type: string }[]>().default([]).notNull(),
+  labels: jsonb("labels").$type<string[]>().default([]).notNull(),
+  connectedSlugs: jsonb("connected_slugs").$type<string[]>().default([]).notNull(),
 });
 
 export const depthNodes = pgTable("depth_nodes", {

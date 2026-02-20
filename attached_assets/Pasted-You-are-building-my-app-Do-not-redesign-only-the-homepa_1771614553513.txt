@@ -1,0 +1,137 @@
+You are building my app. Do not redesign only the homepage. Implement a real multi-page, data-driven app with a backend CMS.
+
+App name: Rabbit Hole
+
+GOAL
+Rabbit Hole is a structured “rabbit hole” exploration platform. Users browse topics, go deeper via “Depth Nodes,” view claims + evidence, and follow red-thread connections to other rabbit holes.
+
+REQUIREMENTS (DO IN THIS ORDER)
+
+1) Rename + Branding
+- Replace “Red Thread” with “Rabbit Hole” everywhere (UI text, metadata/title, nav labels).
+- Dark investigative theme:
+  - Background: #0E0E0E
+  - Text: #EDEDED
+  - Accent red: #8B0000
+- Add a simple wordmark/logo text: “Rabbit Hole”.
+
+2) Pages / Routes (must be real routes, clickable, and work by direct URL)
+Create these routes:
+- /                (Home)
+- /discover        (Discover list with search + category filter)
+- /rabbithole/:slug (Rabbit Hole Detail, dynamic)
+- /rabbithole/:slug/read (Depth Mode reader)
+- /profile         (progress + saved)
+- /connections     (graph/map view of linked rabbit holes)
+- /admin           (CMS dashboard)
+- /admin/login     (simple login)
+- 404 page for unknown routes
+
+3) Data-Driven Content (NO hardcoded rabbit hole pages)
+Create a /data folder and store content in JSON files:
+- /data/rabbitHoles.json
+- /data/sources.json
+- /data/media.json
+
+Data model requirements:
+
+RabbitHole object must contain:
+- id (string)
+- slug (string)
+- title (string)
+- summary (string)
+- category (string)
+- labels (array: Verified/Disputed/Speculative/Archived)
+- depthNodes (array of DepthNode)
+- claims (array of Claim)
+- sources (array of sourceIds)
+- media (array of mediaIds)
+- connections (array of rabbitHoleIds)
+
+DepthNode:
+- id
+- title
+- body (markdown or rich text)
+- sourceIds (array)
+- mediaIds (array)
+- nextNodeId (string or null)
+- branchLinks (array of { label, targetRabbitHoleId })
+
+Claim:
+- id
+- statement
+- label (Verified/Disputed/Speculative/Archived)
+- confidence (0-100)
+- evidenceSourceIds (array)
+- counterSourceIds (array)
+
+Source:
+- id
+- title
+- publisher
+- country
+- date
+- urlOrFile
+- summary
+- stance (supporting/critical/neutral)
+- credibility (0-100)
+
+Media:
+- id
+- type (image/video/pdf)
+- title
+- caption
+- origin
+- date
+- urlOrFile
+- linkedRabbitHoleIds
+
+Populate the JSON with at least 5 sample rabbit holes with realistic placeholder content, connected to each other.
+
+4) Rabbit Hole Detail Page ( /rabbithole/:slug )
+Must render from JSON and include:
+- title + summary + category
+- labels + confidence styling
+- depth progress bar (based on completed nodes)
+- sections: Timeline (optional), Claims, Evidence/Sources, Media, Books/Podcasts (placeholder), Connected Rabbit Holes, Comments
+- Connected Rabbit Holes show as clickable red-thread links
+
+5) Depth Mode Reader ( /rabbithole/:slug/read )
+- Show one depth node at a time with Next/Back
+- Mark node complete
+- Save completion in localStorage (for now)
+- Update progress bar
+
+6) Red Thread Connections
+- Implement connection navigation animations (simple red line/transition is fine)
+- /connections page displays a simple node graph of rabbit holes and their connections (basic SVG/canvas is fine)
+- Clicking a node opens that rabbit hole
+
+7) Profile ( /profile )
+- Show completed rabbit holes, nodes completed, progress %
+- Saved rabbit holes (store in localStorage)
+- Simple reputation tier based on rabbit holes completed
+
+8) Admin CMS Backend (must exist so a team can add content easily)
+Create an admin dashboard that edits the JSON data files (no code edits needed to add content).
+- /admin/login: simple password gate (env var or config)
+- /admin: dashboard with tabs:
+  - Rabbit Holes: create/edit/delete rabbit holes
+  - Depth Nodes: manage nodes inside each rabbit hole
+  - Claims: add/edit claims and attach sources
+  - Sources: add/edit sources library
+  - Media: upload/add media and attach to rabbit holes
+  - Connections: connect rabbit holes by selecting from dropdowns
+- Admin changes must persist by writing back to the JSON files on the server.
+
+9) Technical
+- If this is React+Vite: use react-router-dom for routing.
+- If this is Next.js: use file-based routes in app/ with dynamic slug route.
+- Ensure deployed app supports direct URL navigation (no “everything becomes homepage” issue).
+- After finishing, print a short “What I changed” list including file paths created/modified and where routing is defined.
+
+IMPORTANT
+- Do not keep rebuilding only the homepage.
+- Do not hardcode rabbit hole pages.
+- Make navigation actually clickable and routes functional.
+- Prioritize working functionality over fancy visuals.

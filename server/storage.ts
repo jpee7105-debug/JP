@@ -30,8 +30,11 @@ export interface IStorage {
   getSpecialistHoles(): Promise<RabbitHole[]>;
   getCommunityHoles(): Promise<RabbitHole[]>;
   getHoleBySlug(slug: string): Promise<RabbitHole | undefined>;
+  getHoleById(id: number): Promise<RabbitHole | undefined>;
   getHolesByCategory(categorySlug: string): Promise<RabbitHole[]>;
   createHole(hole: InsertRabbitHole): Promise<RabbitHole>;
+  updateHole(id: number, data: Partial<InsertRabbitHole>): Promise<RabbitHole | undefined>;
+  deleteHole(id: number): Promise<boolean>;
 
   getCommentsByHoleId(holeId: number): Promise<Comment[]>;
   createComment(comment: InsertComment): Promise<Comment>;
@@ -41,13 +44,21 @@ export interface IStorage {
   getDepthNodesByHoleId(holeId: number): Promise<DepthNode[]>;
   getDepthNode(id: number): Promise<DepthNode | undefined>;
   createDepthNode(node: InsertDepthNode): Promise<DepthNode>;
+  updateDepthNode(id: number, data: Partial<InsertDepthNode>): Promise<DepthNode | undefined>;
+  deleteDepthNode(id: number): Promise<boolean>;
 
   getClaimsByHoleId(holeId: number): Promise<Claim[]>;
+  getClaim(id: number): Promise<Claim | undefined>;
   createClaim(claim: InsertClaim): Promise<Claim>;
+  updateClaim(id: number, data: Partial<InsertClaim>): Promise<Claim | undefined>;
+  deleteClaim(id: number): Promise<boolean>;
 
   getSourcesByHoleId(holeId: number): Promise<Source[]>;
+  getAllSources(): Promise<Source[]>;
   getSource(id: number): Promise<Source | undefined>;
   createSource(source: InsertSource): Promise<Source>;
+  updateSource(id: number, data: Partial<InsertSource>): Promise<Source | undefined>;
+  deleteSource(id: number): Promise<boolean>;
   searchSources(query: string): Promise<Source[]>;
 
   getAllCategories(): Promise<Category[]>;
@@ -78,9 +89,28 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(rabbitHoles).where(eq(rabbitHoles.categorySlug, categorySlug)).orderBy(desc(rabbitHoles.updatedAt));
   }
 
+  async getHoleById(id: number): Promise<RabbitHole | undefined> {
+    const [hole] = await db.select().from(rabbitHoles).where(eq(rabbitHoles.id, id));
+    return hole;
+  }
+
   async createHole(hole: InsertRabbitHole): Promise<RabbitHole> {
     const [created] = await db.insert(rabbitHoles).values(hole).returning();
     return created;
+  }
+
+  async updateHole(id: number, data: Partial<InsertRabbitHole>): Promise<RabbitHole | undefined> {
+    const [updated] = await db.update(rabbitHoles).set({ ...data, updatedAt: new Date() }).where(eq(rabbitHoles.id, id)).returning();
+    return updated;
+  }
+
+  async deleteHole(id: number): Promise<boolean> {
+    await db.delete(depthNodes).where(eq(depthNodes.holeId, id));
+    await db.delete(claims).where(eq(claims.holeId, id));
+    await db.delete(sources).where(eq(sources.holeId, id));
+    await db.delete(comments).where(eq(comments.holeId, id));
+    const result = await db.delete(rabbitHoles).where(eq(rabbitHoles.id, id)).returning();
+    return result.length > 0;
   }
 
   async getCommentsByHoleId(holeId: number): Promise<Comment[]> {
@@ -120,13 +150,38 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
+  async updateDepthNode(id: number, data: Partial<InsertDepthNode>): Promise<DepthNode | undefined> {
+    const [updated] = await db.update(depthNodes).set(data).where(eq(depthNodes.id, id)).returning();
+    return updated;
+  }
+
+  async deleteDepthNode(id: number): Promise<boolean> {
+    const result = await db.delete(depthNodes).where(eq(depthNodes.id, id)).returning();
+    return result.length > 0;
+  }
+
   async getClaimsByHoleId(holeId: number): Promise<Claim[]> {
     return db.select().from(claims).where(eq(claims.holeId, holeId)).orderBy(desc(claims.confidence));
+  }
+
+  async getClaim(id: number): Promise<Claim | undefined> {
+    const [claim] = await db.select().from(claims).where(eq(claims.id, id));
+    return claim;
   }
 
   async createClaim(claim: InsertClaim): Promise<Claim> {
     const [created] = await db.insert(claims).values(claim).returning();
     return created;
+  }
+
+  async updateClaim(id: number, data: Partial<InsertClaim>): Promise<Claim | undefined> {
+    const [updated] = await db.update(claims).set(data).where(eq(claims.id, id)).returning();
+    return updated;
+  }
+
+  async deleteClaim(id: number): Promise<boolean> {
+    const result = await db.delete(claims).where(eq(claims.id, id)).returning();
+    return result.length > 0;
   }
 
   async getSourcesByHoleId(holeId: number): Promise<Source[]> {
@@ -138,9 +193,23 @@ export class DatabaseStorage implements IStorage {
     return source;
   }
 
+  async getAllSources(): Promise<Source[]> {
+    return db.select().from(sources).orderBy(desc(sources.credibility));
+  }
+
   async createSource(source: InsertSource): Promise<Source> {
     const [created] = await db.insert(sources).values(source).returning();
     return created;
+  }
+
+  async updateSource(id: number, data: Partial<InsertSource>): Promise<Source | undefined> {
+    const [updated] = await db.update(sources).set(data).where(eq(sources.id, id)).returning();
+    return updated;
+  }
+
+  async deleteSource(id: number): Promise<boolean> {
+    const result = await db.delete(sources).where(eq(sources.id, id)).returning();
+    return result.length > 0;
   }
 
   async searchSources(query: string): Promise<Source[]> {

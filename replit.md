@@ -1,15 +1,16 @@
-# Red Thread - AI-Powered Investigative Research Platform
+# Rabbit Hole - AI-Powered Investigative Research Platform
 
 ## Overview
 
-Red Thread is an AI-powered investigative research platform built around structured deep-dives into complex narratives. Users explore investigations through guided "Depth Nodes" (step-by-step reading), structured claims with evidence/counterpoints, normalized source libraries with credibility scores, and timeline visualizations. The platform features anonymous participation through a "Red Thread" comment system with upvote/downvote mechanics and inter-topic linking. Content is organized into categories (Intelligence, Geopolitics, History, Technology, Finance, Mysteries, Media Narratives) with a two-tier system: Specialist Intel (curated) and Active Investigations (community-driven).
+Rabbit Hole is an AI-powered investigative research platform built around structured deep-dives into complex narratives. Users explore investigations through guided "Depth Nodes" (step-by-step reading), structured claims with evidence/counterpoints, normalized source libraries with credibility scores, and timeline visualizations. The platform features anonymous participation through a comment system with upvote/downvote mechanics and inter-topic linking. Content is organized into categories (Intelligence, Geopolitics, History, Technology, Finance, Mysteries, Media Narratives) with a two-tier system: Specialist Intel (curated) and Active Investigations (community-driven).
 
 The application follows a monorepo structure with a React frontend (Vite), an Express backend, and a PostgreSQL database using Drizzle ORM.
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
-App name: Red Thread (not Rabbit Hole)
+App name: Rabbit Hole (rebranded from Red Thread)
+Design theme: Dark (#0E0E0E background), deep red accent (#8B0000), light text (#EDEDED)
 
 ## System Architecture
 
@@ -24,23 +25,33 @@ App name: Red Thread (not Rabbit Hole)
 ### Frontend Architecture
 - **Framework**: React 18 with TypeScript
 - **Bundler**: Vite with HMR support, configured for Replit deployment
-- **Routing**: Wouter with routes: Home (`/`), Discover (`/discover`), RabbitHole (`/rabbithole/:id`), Search (`/search`), Profile (`/profile`)
+- **Routing**: Wouter with routes:
+  - Home (`/`)
+  - Discover (`/discover`)
+  - RabbitHole (`/rabbithole/:id`)
+  - DepthReader (`/rabbithole/:slug/read`) — one-node-at-a-time reader with localStorage progress
+  - Search (`/search`)
+  - Profile (`/profile`)
+  - Connections (`/connections`) — interactive graph visualization of rabbit hole relationships
+  - Admin (`/admin`) — CMS with password auth for managing all content
 - **State Management**: TanStack React Query for server state (data fetching, caching, mutations)
 - **UI Components**: shadcn/ui (new-york style) built on Radix UI primitives with Tailwind CSS
 - **Styling**: Tailwind CSS v4 with CSS variables for theming, dark mode by default, custom fonts (Inter, Space Grotesk, JetBrains Mono)
 - **Path Aliases**: `@/` maps to `client/src/`, `@shared/` maps to `shared/`
-- **Key Custom Components**:
-  - `Navbar` — Persistent top navigation bar with links to Home, Discover, Search, Profile (with mobile hamburger menu)
-  - `RedThread` — Threaded comment component with upvote/downvote and inter-topic links
-  - Home page with hero section, category filters, sorting (trending/new/verified), functional search
-  - Discover page with full investigation browser, category/view mode/sort filters
-  - RabbitHole detail with 4 tabs: Go Deeper (depth nodes), Timeline, Claims, Sources
-  - Search page with tabbed results across investigations/sources/claims
-  - Profile page with anonymous operative stats, bookmarks, and activity placeholders
+- **Key Pages**:
+  - `Home` — Hero section, category filters, sorting (trending/new/verified), functional search
+  - `Discover` — Full investigation browser, category/view mode/sort filters
+  - `RabbitHole` — Detail with 4 tabs: Go Deeper (depth nodes), Timeline, Claims, Sources + "Start Reading" button
+  - `DepthReader` — Sequential reading mode with sidebar navigation, keyboard controls (arrow keys), localStorage progress tracking
+  - `Connections` — Canvas-based force-directed graph showing relationships between rabbit holes with drag/click interaction
+  - `Search` — Tabbed results across investigations/sources/claims
+  - `Profile` — Anonymous operative stats, bookmarks, and activity placeholders
+  - `Admin` — Password-protected CMS for CRUD on rabbit holes, depth nodes, claims, sources
 
 ### Backend Architecture
 - **Framework**: Express 5 on Node.js with TypeScript (via tsx)
 - **API Pattern**: RESTful JSON API under `/api/` prefix
+- **Admin Auth**: Simple bearer token auth via ADMIN_PASSWORD env var (default: "rabbithole2024")
 - **Key Endpoints**:
   - `GET /api/holes` — List all rabbit holes
   - `GET /api/holes/specialist` — List specialist-curated holes
@@ -56,6 +67,9 @@ App name: Red Thread (not Rabbit Hole)
   - `GET /api/holes/:slug/sources` — Get normalized sources
   - `GET /api/categories` — List all categories
   - `GET /api/search?q=` — Search across holes, sources, and claims
+  - `GET /api/sources` — List all sources
+  - Admin CRUD: `POST/PUT/DELETE /api/admin/holes|depth-nodes|claims|sources`
+  - `POST /api/admin/login` — Admin password authentication
 - **Validation**: Zod schemas generated from Drizzle schema via `drizzle-zod`
 
 ### Database
@@ -64,17 +78,17 @@ App name: Red Thread (not Rabbit Hole)
 - **Schema Location**: `shared/schema.ts`
 - **Tables**:
   - `categories` — id, name, slug (unique), description, icon
-  - `rabbit_holes` — id, slug (unique), title, summary, status, completion, isSpecialist, connections, sourceCount, categorySlug, updatedAt, timeline (JSONB)
+  - `rabbit_holes` — id, slug (unique), title, summary, status, completion, isSpecialist, connections, sourceCount, categorySlug, updatedAt, timeline (JSONB), labels (JSONB), connectedSlugs (JSONB)
   - `depth_nodes` — id, holeId (FK), title, summary, content, position, status (locked/unlocked), mediaUrl, branchLinks (JSONB)
   - `claims` — id, holeId (FK), nodeId (FK nullable), statement, stance, confidence (0-100), evidence (JSONB), counterpoints (JSONB)
   - `sources` — id, holeId (FK), title, author, origin, publishedDate, url, summary, type, stanceTag, credibility (0-100)
   - `comments` — id, holeId (FK), username, reputation, content, upvotes, links (JSONB), createdAt
-- **Seeding**: `server/seed.ts` contains initial data (MKUltra, Vatican Archives, Steppe Pathogens, Cicada 3301, Numbers Stations) with depth nodes, claims, and normalized sources
+- **Seeding**: `server/seed.ts` contains initial data (MKUltra, Vatican Archives, Steppe Pathogens, Cicada 3301, Numbers Stations) with depth nodes, claims, sources, and connections
 
 ### Storage Layer
 - `server/storage.ts` defines an `IStorage` interface and `DatabaseStorage` implementation
-- CRUD operations for all entities plus search with ILIKE queries
-- Pattern supports swapping storage implementations if needed
+- Full CRUD operations for all entities (create, read, update, delete) plus search with ILIKE queries
+- Admin operations include cascade deletes (deleting a hole removes its nodes, claims, sources, comments)
 
 ### Development vs Production
 - **Dev**: `npm run dev` starts tsx with Express + Vite middleware, HMR on port 5000
@@ -82,27 +96,18 @@ App name: Red Thread (not Rabbit Hole)
 - **Production**: `npm start` runs the compiled `dist/index.cjs`
 
 ## Design Aesthetic
-- Dark classified/tactical theme (#0A0A0A background)
-- Primary: Red (#E02424), Accent: Green (#22C55E) for verified status
+- Dark theme (#0E0E0E background)
+- Primary: Deep Red (#8B0000), Accent: Green (#22C55E) for verified status
 - Corner accents, grain overlays, terminal-style fonts
 - Space Grotesk for display, JetBrains Mono for metadata, Inter for body
 
 ## Recent Changes (Feb 2026)
-- Phase 1: Expanded from basic rabbit holes to full investigative platform
-- Added Depth Nodes for guided "Go Deeper" reading mode
-- Added Claims system with evidence/counterpoints and confidence scores
-- Normalized Sources into separate table with credibility scores and stance tags
-- Added Categories (Intelligence, Geopolitics, History, Technology, Finance, Mysteries, Media)
-- Added Search across holes, sources, and claims
-- Rebranded from "Rabbit Hole" to "Red Thread"
-- Category filter bar on Home page
-- Sorting: trending/new/verified for community investigations
-
-## Planned Future Phases
-- Admin CMS backend for research team
-- User authentication and roles (Anonymous, Moderator, Research Editor, Admin)
-- Media gallery and uploads
-- Connected Rabbit Holes graph/network visualization
-- International Lens (how different countries frame topics)
-- Library/Bookshelf page
-- Monetization (sponsored podcast slots)
+- Rebranded from "Red Thread" back to "Rabbit Hole"
+- Updated color theme: deep red primary (#8B0000), darker background
+- Added `labels` and `connectedSlugs` fields to rabbit_holes for graph connections
+- Built Connections page with interactive force-directed graph visualization
+- Built Depth Reader page with sequential reading, sidebar nav, keyboard controls, localStorage progress
+- Built Admin CMS with password auth for full CRUD on holes, nodes, claims, sources
+- Added "Start Reading" button to RabbitHole detail page
+- Updated Navbar with Connections link
+- Full admin API with bearer token auth (CRUD for all content types)

@@ -42,8 +42,8 @@ function sourceTypeColor(type: string) {
 }
 
 export default function RabbitHolePage() {
-  const params = useParams<{ id: string }>();
-  const slug = params.id;
+  const params = useParams<{ slug: string }>();
+  const slug = params.slug;
   const [activeTab, setActiveTab] = useState("depth");
   const [commentText, setCommentText] = useState("");
   const [expandedNode, setExpandedNode] = useState<number | null>(null);
@@ -173,10 +173,17 @@ export default function RabbitHolePage() {
                   style={{ width: `${hole.completion}%` }}
                 />
               </div>
-              <div className="flex items-center gap-6 text-xs font-mono text-muted-foreground">
-                <span className="flex items-center gap-1"><Layers className="w-3 h-3" /> {depthNodesList.length} Depth Nodes</span>
-                <span className="flex items-center gap-1"><Scale className="w-3 h-3" /> {claimsList.length} Claims</span>
-                <span className="flex items-center gap-1"><Database className="w-3 h-3" /> {sourcesList.length} Sources</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-6 text-xs font-mono text-muted-foreground">
+                  <span className="flex items-center gap-1"><Layers className="w-3 h-3" /> {depthNodesList.length} Depth Nodes</span>
+                  <span className="flex items-center gap-1"><Scale className="w-3 h-3" /> {claimsList.length} Claims</span>
+                  <span className="flex items-center gap-1"><Database className="w-3 h-3" /> {sourcesList.length} Sources</span>
+                </div>
+                {depthNodesList.length > 0 && (
+                  <Link href={`/rabbithole/${slug}/read`} className="flex items-center gap-2 bg-primary/10 border border-primary/30 text-primary px-4 py-2 font-mono text-xs hover:bg-primary/20 transition-colors" data-testid="button-start-reading">
+                    <BookOpen className="w-3 h-3" /> START READING
+                  </Link>
+                )}
               </div>
             </div>
           </header>
@@ -402,7 +409,7 @@ export default function RabbitHolePage() {
               <div className="absolute inset-0 border-2 border-primary rounded-full" />
               <div className="absolute top-1/2 left-1/2 w-1.5 h-1.5 bg-primary rounded-full -translate-x-1/2 -translate-y-1/2" />
             </div>
-            RED THREAD
+            RABBIT HOLE
           </h3>
           <p className="text-xs font-mono text-muted-foreground mt-1">{holeComments.length} contributions</p>
         </div>
