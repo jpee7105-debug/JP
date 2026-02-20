@@ -1,0 +1,54 @@
+Implement editorial workflow + podcasts end-to-end (admin + public), integrated with roles.
+
+A) Workflow (must be enforced)
+1) Add status to rabbit holes and podcast episodes: Draft / Review / Published
+- Default new content = Draft
+- Public Home/Discover/Search/Connections show ONLY Published
+- Public direct URL access to Draft/Review returns Not Found
+- Admin preview: logged-in employees can preview Draft/Review and see a small status badge (only in admin preview)
+
+2) Editorial dashboard /admin/dashboard
+- tabs: My Drafts, In Review, Needs Fixes, Published, Recently Edited
+- filters: status, category, editor, updated date
+- search by title/slug
+- Editors can move Draft -> Review
+- Only Admin can move Review -> Published
+
+3) Publish checklist (must block publishing)
+Block publish unless:
+- required fields exist (title, summary, slug, category)
+- minimum depth nodes (default 5)
+- every claim has >= 1 evidence source
+- all referenced sourceIds/mediaIds/nodeIds exist
+- all connections reference real rabbit holes
+
+B) Podcasts feature
+1) Database tables
+Create:
+- podcasts (id, title, description, platform, show_url, cover_image_url, created_at, updated_at)
+- podcast_episodes (id, podcast_id, title, description, published_date, duration_seconds, episode_url, embed_type, embed_url, status, created_by, updated_by, created_at, updated_at)
+- rabbit_hole_podcast_episodes (id, rabbit_hole_id, episode_id, sort_order, pinned)
+- sponsored_podcast_slots (id, rabbit_hole_id, sponsor_name, sponsor_url, disclosure_text REQUIRED, episode_id optional, start_date, end_date, active, created_at, updated_at)
+
+2) Permissions
+- Editor can create/edit podcasts + episodes and move Draft->Review
+- Admin can publish episodes and manage sponsored slots
+- Sponsored slots must always show disclosure publicly
+
+3) Admin UI
+Add /admin/podcasts:
+- manage podcasts + episodes
+- attach episodes to rabbit holes
+- reorder + pin episodes per rabbit hole
+Admin-only Sponsored manager:
+- create sponsored slots per rabbit hole with disclosure and date window
+
+4) Public UI
+On /rabbithole/:slug add Podcasts section:
+- show active sponsored slot at top with “Sponsored” + disclosure text
+- show pinned then newest published episodes
+- embed player
+
+After completion:
+- list DB schema changes + routes added
+- explain Editor->Review->Admin Publish flow for rabbit holes and podcast episodes.

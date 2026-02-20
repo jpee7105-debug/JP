@@ -5,10 +5,10 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { 
   GitBranch, ChevronLeft, CheckCircle2, AlertTriangle, FileText, 
   Loader2, ChevronRight, ChevronDown, Shield, BookOpen, ExternalLink,
-  Layers, Scale, Database, Tag
+  Layers, Scale, Database, Tag, Headphones, DollarSign, Play
 } from "lucide-react";
 import ThreadComment from "@/components/RedThread";
-import type { RabbitHole as RabbitHoleType, Comment, DepthNode, Claim, Source } from "@shared/schema";
+import type { RabbitHole as RabbitHoleType, Comment, DepthNode, Claim, Source, PodcastEpisode, Podcast, SponsoredPodcastSlot } from "@shared/schema";
 
 function statusBadge(status: string) {
   switch (status) {
@@ -73,6 +73,11 @@ export default function RabbitHolePage() {
     enabled: !!hole,
   });
 
+  const { data: podcastData } = useQuery<{ episodes: (PodcastEpisode & { podcast?: Podcast })[]; sponsoredSlot: SponsoredPodcastSlot | null }>({
+    queryKey: [`/api/holes/${slug}/podcasts`],
+    enabled: !!hole,
+  });
+
   const addComment = useMutation({
     mutationFn: async (data: { username: string; content: string; reputation: number }) => {
       const res = await apiRequest("POST", `/api/holes/${slug}/comments`, data);
@@ -129,11 +134,15 @@ export default function RabbitHolePage() {
     });
   };
 
+  const podcastEpisodes = podcastData?.episodes || [];
+  const sponsoredSlot = podcastData?.sponsoredSlot || null;
+
   const tabs = [
     { id: "depth", label: "Go Deeper", icon: <Layers className="w-3.5 h-3.5" />, count: depthNodesList.length },
     { id: "overview", label: "Timeline", icon: <GitBranch className="w-3.5 h-3.5" />, count: timeline.length },
     { id: "claims", label: "Claims", icon: <Scale className="w-3.5 h-3.5" />, count: claimsList.length },
     { id: "sources", label: "Sources", icon: <Database className="w-3.5 h-3.5" />, count: sourcesList.length },
+    ...(podcastEpisodes.length > 0 ? [{ id: "podcasts", label: "Podcasts", icon: <Headphones className="w-3.5 h-3.5" />, count: podcastEpisodes.length }] : []),
   ];
 
   return (
@@ -393,6 +402,68 @@ export default function RabbitHolePage() {
                         <ExternalLink className="w-3 h-3" /> VIEW SOURCE
                       </a>
                     )}
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {activeTab === 'podcasts' && (
+            <div className="space-y-4 mb-20">
+              {sponsoredSlot && (
+                <div className="border border-yellow-500/20 bg-yellow-500/5 p-4 mb-4" data-testid="sponsored-slot">
+                  <div className="flex items-center gap-2 mb-2">
+                    <DollarSign className="w-3 h-3 text-yellow-500" />
+                    <span className="text-[10px] font-mono text-yellow-500 uppercase">Sponsored</span>
+                  </div>
+                  <p className="text-xs font-mono text-yellow-500/80">{sponsoredSlot.disclosureText}</p>
+                  {sponsoredSlot.sponsorUrl && (
+                    <a href={sponsoredSlot.sponsorUrl} target="_blank" rel="noopener noreferrer sponsored" className="inline-flex items-center gap-1 text-xs font-mono text-yellow-500 mt-2 hover:underline" data-testid="link-sponsor">
+                      <ExternalLink className="w-3 h-3" /> {sponsoredSlot.sponsorName}
+                    </a>
+                  )}
+                </div>
+              )}
+              {podcastEpisodes.length === 0 ? (
+                <div className="text-center py-16 font-mono text-sm text-muted-foreground border border-dashed border-white/10 p-8">
+                  <Headphones className="w-8 h-8 mx-auto mb-4 opacity-30" />
+                  NO PODCAST EPISODES AVAILABLE
+                </div>
+              ) : (
+                podcastEpisodes.map(ep => (
+                  <div key={ep.id} className="border border-white/10 bg-white/[0.01] p-5 group hover:border-primary/20 transition-colors" data-testid={`podcast-ep-${ep.id}`}>
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
+                        <Play className="w-5 h-5 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-display font-bold text-base mb-1">{ep.title}</h4>
+                        {(ep as any).podcast && <p className="text-[10px] font-mono text-primary/60 mb-1">{(ep as any).podcast.title}{(ep as any).podcast.platform && ` on ${(ep as any).podcast.platform}`}</p>}
+                        <div className="flex items-center gap-3 text-[10px] font-mono text-muted-foreground mb-2">
+                          {ep.publishedDate && <span>{ep.publishedDate}</span>}
+                          {ep.durationSeconds > 0 && <span>{Math.floor(ep.durationSeconds / 60)} min</span>}
+                        </div>
+                        {ep.description && <p className="text-sm text-foreground/60 leading-relaxed mb-3">{ep.description}</p>}
+                        <div className="flex items-center gap-3">
+                          {ep.embedUrl && (
+                            <div className="w-full mt-2">
+                              {ep.embedType === "spotify" ? (
+                                <iframe src={ep.embedUrl} width="100%" height="152" frameBorder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" className="rounded" data-testid={`embed-spotify-${ep.id}`} />
+                              ) : ep.embedType === "youtube" ? (
+                                <iframe src={ep.embedUrl} width="100%" height="200" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen loading="lazy" className="rounded" data-testid={`embed-youtube-${ep.id}`} />
+                              ) : (
+                                <iframe src={ep.embedUrl} width="100%" height="152" frameBorder="0" loading="lazy" className="rounded" data-testid={`embed-iframe-${ep.id}`} />
+                              )}
+                            </div>
+                          )}
+                          {ep.episodeUrl && !ep.embedUrl && (
+                            <a href={ep.episodeUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-mono text-primary hover:underline" data-testid={`link-listen-${ep.id}`}>
+                              <ExternalLink className="w-3 h-3" /> LISTEN
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 ))
               )}

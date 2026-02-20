@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
-import { Loader2, Plus, Trash2, Edit3, Save, X, Lock, LogOut, Shield, GripVertical, Image, Link2, History, Download, Upload, AlertTriangle, CheckCircle2, Clock, Settings, Users, Eye, EyeOff, RotateCcw, UserCheck, UserX } from "lucide-react";
-import type { RabbitHole, DepthNode, Claim, Source, Category, Media, AuditLog, Employee } from "@shared/schema";
+import { Loader2, Plus, Trash2, Edit3, Save, X, Lock, LogOut, Shield, GripVertical, Image, Link2, History, Download, Upload, AlertTriangle, CheckCircle2, Clock, Settings, Users, Eye, EyeOff, RotateCcw, UserCheck, UserX, FileText, Headphones, DollarSign, Pin, ArrowUp, ArrowDown, Search, LayoutDashboard } from "lucide-react";
+import type { RabbitHole, DepthNode, Claim, Source, Category, Media, AuditLog, Employee, Podcast, PodcastEpisode, RabbitHolePodcastEpisode, SponsoredPodcastSlot } from "@shared/schema";
 
 type AdminEmployee = Omit<Employee, "passwordHash">;
 
@@ -25,7 +25,7 @@ function adminQueryFetch(url: string) {
   });
 }
 
-type Tab = "holes" | "nodes" | "claims" | "sources" | "media" | "tools" | "history" | "employees";
+type Tab = "dashboard" | "holes" | "nodes" | "claims" | "sources" | "media" | "podcasts" | "tools" | "history" | "employees";
 
 export default function Admin() {
   const [employee, setEmployee] = useState<AdminEmployee | null>(null);
@@ -34,7 +34,7 @@ export default function Admin() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState("");
-  const [activeTab, setActiveTab] = useState<Tab>("holes");
+  const [activeTab, setActiveTab] = useState<Tab>("dashboard");
 
   useEffect(() => {
     fetch("/api/admin/me", { credentials: "include" })
@@ -127,11 +127,13 @@ export default function Admin() {
   const isAdmin = role === "Admin";
 
   const tabs: { id: Tab; label: string; visible: boolean }[] = [
+    { id: "dashboard", label: "Dashboard", visible: canEditContent },
     { id: "holes", label: "Rabbit Holes", visible: canEditContent },
     { id: "nodes", label: "Depth Nodes", visible: canEditContent },
     { id: "claims", label: "Claims", visible: canEditContent },
     { id: "sources", label: "Sources", visible: canEditContent },
     { id: "media", label: "Media", visible: canEditContent },
+    { id: "podcasts", label: "Podcasts", visible: canEditContent },
     { id: "history", label: "History", visible: canEditContent },
     { id: "tools", label: "Tools", visible: isAdmin },
     { id: "employees", label: "Employees", visible: isAdmin },
@@ -176,11 +178,13 @@ export default function Admin() {
       </div>
 
       <div className="container mx-auto px-6 py-8">
-        {activeTab === "holes" && <HolesManager />}
+        {activeTab === "dashboard" && <EditorialDashboard role={role} />}
+        {activeTab === "holes" && <HolesManager role={role} />}
         {activeTab === "nodes" && <NodesManager />}
         {activeTab === "claims" && <ClaimsManager />}
         {activeTab === "sources" && <SourcesManager />}
         {activeTab === "media" && <MediaManager />}
+        {activeTab === "podcasts" && <PodcastsManager role={role} />}
         {activeTab === "history" && <HistoryPanel />}
         {activeTab === "tools" && <ToolsPanel />}
         {activeTab === "employees" && <EmployeesManager />}
@@ -259,7 +263,7 @@ function StatusBadge({ status }: { status: string }) {
   return <span className={`font-mono text-[10px] px-1.5 py-0.5 border ${colors[status] || "text-muted-foreground bg-white/5 border-white/10"}`}>{status.toUpperCase()}</span>;
 }
 
-function HolesManager() {
+function HolesManager({ role }: { role: string }) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [formData, setFormData] = useState<any>({});
   const [showCreate, setShowCreate] = useState(false);
@@ -1247,6 +1251,639 @@ function EmployeesManager() {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function EditorialDashboard({ role }: { role: string }) {
+  const [dashTab, setDashTab] = useState("myDrafts");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [editorFilter, setEditorFilter] = useState("");
+  const [checklistHoleId, setChecklistHoleId] = useState<number | null>(null);
+
+  const { data: dashboard, isLoading } = useQuery<{
+    myDrafts: RabbitHole[];
+    inReview: RabbitHole[];
+    needsFixes: RabbitHole[];
+    published: RabbitHole[];
+    recentlyEdited: RabbitHole[];
+  }>({
+    queryKey: ["/api/admin/dashboard"],
+    queryFn: () => adminFetch("/api/admin/dashboard").then(r => r.json()),
+  });
+
+  const { data: categories = [] } = useQuery<Category[]>({ queryKey: ["/api/categories"] });
+
+  const { data: checklist } = useQuery<{ passed: boolean; checks: { check: string; passed: boolean; message: string }[] }>({
+    queryKey: ["/api/admin/publish-checklist", checklistHoleId],
+    queryFn: () => adminFetch(`/api/admin/publish-checklist/${checklistHoleId}`).then(r => r.json()),
+    enabled: !!checklistHoleId,
+  });
+
+  const statusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: number; status: string }) => {
+      const res = await adminFetch(`/api/admin/holes/${id}`, { method: "PUT", body: JSON.stringify({ status }) });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.message || "Failed"); }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/holes?admin=true"] });
+    },
+  });
+
+  if (isLoading) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
+  if (!dashboard) return null;
+
+  const dashTabs = [
+    { id: "myDrafts", label: "My Drafts", count: dashboard.myDrafts.length },
+    { id: "inReview", label: "In Review", count: dashboard.inReview.length },
+    { id: "needsFixes", label: "Needs Fixes", count: dashboard.needsFixes.length },
+    { id: "published", label: "Published", count: dashboard.published.length },
+    { id: "recentlyEdited", label: "Recently Edited", count: dashboard.recentlyEdited.length },
+  ];
+
+  const currentList = (dashboard as any)[dashTab] as RabbitHole[] || [];
+  const filtered = currentList.filter(h => {
+    if (searchQuery && !h.title.toLowerCase().includes(searchQuery.toLowerCase()) && !h.slug.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (categoryFilter && h.categorySlug !== categoryFilter) return false;
+    if (editorFilter && h.lastEditedBy !== editorFilter) return false;
+    return true;
+  });
+
+  const allEditors = Array.from(new Set(currentList.map(h => h.lastEditedBy).filter(Boolean)));
+
+  return (
+    <div data-testid="editorial-dashboard">
+      <div className="flex items-center gap-3 mb-6">
+        <LayoutDashboard className="w-5 h-5 text-primary" />
+        <h2 className="font-display text-lg font-bold uppercase">Editorial Dashboard</h2>
+      </div>
+
+      <div className="flex gap-2 mb-4 flex-wrap">
+        {dashTabs.map(t => (
+          <button key={t.id} onClick={() => setDashTab(t.id)}
+            className={`px-4 py-2 font-mono text-xs uppercase border transition-colors ${dashTab === t.id ? "border-primary text-primary bg-primary/10" : "border-white/10 text-muted-foreground hover:text-white"}`}
+            data-testid={`dash-tab-${t.id}`}
+          >
+            {t.label} <span className="ml-1 opacity-60">({t.count})</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="flex gap-3 mb-4 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search by title or slug..."
+            className="w-full bg-white/5 border border-white/10 pl-10 pr-3 py-2 text-sm font-mono focus:outline-none focus:border-primary/50"
+            data-testid="input-dash-search"
+          />
+        </div>
+        <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}
+          className="bg-white/5 border border-white/10 px-3 py-2 text-sm font-mono focus:outline-none focus:border-primary/50"
+          data-testid="select-dash-category"
+        >
+          <option value="">All Categories</option>
+          {categories.map(c => <option key={c.slug} value={c.slug}>{c.name}</option>)}
+        </select>
+        {allEditors.length > 0 && (
+          <select value={editorFilter} onChange={e => setEditorFilter(e.target.value)}
+            className="bg-white/5 border border-white/10 px-3 py-2 text-sm font-mono focus:outline-none focus:border-primary/50"
+            data-testid="select-dash-editor"
+          >
+            <option value="">All Editors</option>
+            {allEditors.map(e => <option key={e} value={e!}>{e}</option>)}
+          </select>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        {filtered.length === 0 && <p className="text-sm font-mono text-muted-foreground py-4">No items found.</p>}
+        {filtered.map(hole => (
+          <div key={hole.id} className="border border-white/10 bg-white/[0.02] p-4 flex items-center justify-between gap-4" data-testid={`dash-hole-${hole.id}`}>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <StatusBadge status={hole.status} />
+                <span className="font-mono text-sm font-bold truncate">{hole.title}</span>
+              </div>
+              <div className="flex items-center gap-3 text-[10px] font-mono text-muted-foreground">
+                <span>{hole.slug}</span>
+                {hole.categorySlug && <span className="text-primary/60">{hole.categorySlug}</span>}
+                {hole.lastEditedBy && <span>by {hole.lastEditedBy}</span>}
+                <span>{new Date(hole.updatedAt).toLocaleDateString()}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {hole.status === "Draft" && (
+                <button onClick={() => statusMutation.mutate({ id: hole.id, status: "Review" })}
+                  className="px-3 py-1.5 text-[10px] font-mono uppercase border border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/10 transition-colors"
+                  data-testid={`button-to-review-${hole.id}`}
+                >Submit for Review</button>
+              )}
+              {hole.status === "Review" && role === "Admin" && (
+                <>
+                  <button onClick={() => setChecklistHoleId(checklistHoleId === hole.id ? null : hole.id)}
+                    className="px-3 py-1.5 text-[10px] font-mono uppercase border border-white/10 text-muted-foreground hover:text-white transition-colors"
+                    data-testid={`button-checklist-${hole.id}`}
+                  >Checklist</button>
+                  <button onClick={() => statusMutation.mutate({ id: hole.id, status: "Published" })}
+                    className="px-3 py-1.5 text-[10px] font-mono uppercase border border-green-500/30 text-green-500 hover:bg-green-500/10 transition-colors"
+                    data-testid={`button-publish-${hole.id}`}
+                  >Publish</button>
+                </>
+              )}
+              {hole.status === "Review" && role !== "Admin" && (
+                <span className="text-[10px] font-mono text-yellow-500/60">Awaiting Admin review</span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {checklistHoleId && checklist && (
+        <div className="mt-4 border border-white/10 bg-white/[0.02] p-4" data-testid="publish-checklist">
+          <h3 className="font-mono text-sm font-bold mb-3 flex items-center gap-2">
+            {checklist.passed ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : <AlertTriangle className="w-4 h-4 text-yellow-500" />}
+            Publish Checklist
+          </h3>
+          <div className="space-y-1">
+            {checklist.checks.map((c, i) => (
+              <div key={i} className="flex items-center gap-2 text-xs font-mono">
+                {c.passed ? <CheckCircle2 className="w-3 h-3 text-green-500 flex-shrink-0" /> : <X className="w-3 h-3 text-red-500 flex-shrink-0" />}
+                <span className={c.passed ? "text-muted-foreground" : "text-red-400"}>{c.message}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {statusMutation.isError && (
+        <div className="mt-3 bg-red-500/10 border border-red-500/20 p-3">
+          <p className="text-xs font-mono text-red-500">{(statusMutation.error as Error).message}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PodcastsManager({ role }: { role: string }) {
+  const isAdmin = role === "Admin";
+  const [podView, setPodView] = useState<"podcasts" | "episodes" | "links" | "sponsored">("podcasts");
+  const [showCreate, setShowCreate] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [formData, setFormData] = useState<any>({});
+  const [selectedPodcastId, setSelectedPodcastId] = useState<number | null>(null);
+  const [selectedHoleId, setSelectedHoleId] = useState<number | null>(null);
+
+  const { data: allPodcasts = [] } = useQuery<Podcast[]>({
+    queryKey: ["/api/admin/podcasts"],
+    queryFn: () => adminFetch("/api/admin/podcasts").then(r => r.json()),
+  });
+
+  const { data: allEpisodes = [] } = useQuery<PodcastEpisode[]>({
+    queryKey: ["/api/admin/podcast-episodes", selectedPodcastId],
+    queryFn: () => adminFetch(`/api/admin/podcast-episodes${selectedPodcastId ? `?podcastId=${selectedPodcastId}` : ""}`).then(r => r.json()),
+  });
+
+  const { data: holes = [] } = useQuery<RabbitHole[]>({
+    queryKey: ["/api/holes?admin=true"],
+    queryFn: () => adminQueryFetch("/api/holes"),
+  });
+
+  const { data: holeLinks = [] } = useQuery<RabbitHolePodcastEpisode[]>({
+    queryKey: ["/api/admin/hole-episodes", selectedHoleId],
+    queryFn: () => adminFetch(`/api/admin/hole-episodes/${selectedHoleId}`).then(r => r.json()),
+    enabled: !!selectedHoleId,
+  });
+
+  const { data: sponsoredSlots = [] } = useQuery<SponsoredPodcastSlot[]>({
+    queryKey: ["/api/admin/sponsored-slots", selectedHoleId],
+    queryFn: () => adminFetch(`/api/admin/sponsored-slots${selectedHoleId ? `?holeId=${selectedHoleId}` : ""}`).then(r => r.json()),
+    enabled: isAdmin,
+  });
+
+  const createPodcast = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await adminFetch("/api/admin/podcasts", { method: "POST", body: JSON.stringify(data) });
+      if (!res.ok) throw new Error((await res.json()).message);
+      return res.json();
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/admin/podcasts"] }); setShowCreate(false); setFormData({}); },
+  });
+
+  const updatePodcast = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      const res = await adminFetch(`/api/admin/podcasts/${id}`, { method: "PUT", body: JSON.stringify(data) });
+      if (!res.ok) throw new Error((await res.json()).message);
+      return res.json();
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/admin/podcasts"] }); setEditingId(null); setFormData({}); },
+  });
+
+  const deletePodcast = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await adminFetch(`/api/admin/podcasts/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error((await res.json()).message);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/admin/podcasts"] }),
+  });
+
+  const createEpisode = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await adminFetch("/api/admin/podcast-episodes", { method: "POST", body: JSON.stringify(data) });
+      if (!res.ok) throw new Error((await res.json()).message);
+      return res.json();
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/admin/podcast-episodes"] }); setShowCreate(false); setFormData({}); },
+  });
+
+  const updateEpisode = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      const res = await adminFetch(`/api/admin/podcast-episodes/${id}`, { method: "PUT", body: JSON.stringify(data) });
+      if (!res.ok) throw new Error((await res.json()).message);
+      return res.json();
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/admin/podcast-episodes"] }); setEditingId(null); setFormData({}); },
+  });
+
+  const deleteEpisode = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await adminFetch(`/api/admin/podcast-episodes/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error((await res.json()).message);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/admin/podcast-episodes"] }),
+  });
+
+  const createLink = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await adminFetch("/api/admin/hole-episodes", { method: "POST", body: JSON.stringify(data) });
+      if (!res.ok) throw new Error((await res.json()).message);
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/admin/hole-episodes"] }),
+  });
+
+  const updateLinkMut = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      const res = await adminFetch(`/api/admin/hole-episodes/${id}`, { method: "PUT", body: JSON.stringify(data) });
+      if (!res.ok) throw new Error((await res.json()).message);
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/admin/hole-episodes"] }),
+  });
+
+  const deleteLink = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await adminFetch(`/api/admin/hole-episodes/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error((await res.json()).message);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/admin/hole-episodes"] }),
+  });
+
+  const createSlot = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await adminFetch("/api/admin/sponsored-slots", { method: "POST", body: JSON.stringify(data) });
+      if (!res.ok) throw new Error((await res.json()).message);
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/admin/sponsored-slots"] }),
+  });
+
+  const updateSlot = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      const res = await adminFetch(`/api/admin/sponsored-slots/${id}`, { method: "PUT", body: JSON.stringify(data) });
+      if (!res.ok) throw new Error((await res.json()).message);
+      return res.json();
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/admin/sponsored-slots"] }); setEditingId(null); setFormData({}); },
+  });
+
+  const deleteSlot = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await adminFetch(`/api/admin/sponsored-slots/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error((await res.json()).message);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/admin/sponsored-slots"] }),
+  });
+
+  const podSubTabs = [
+    { id: "podcasts" as const, label: "Shows" },
+    { id: "episodes" as const, label: "Episodes" },
+    { id: "links" as const, label: "Attach to Holes" },
+    ...(isAdmin ? [{ id: "sponsored" as const, label: "Sponsored" }] : []),
+  ];
+
+  return (
+    <div data-testid="podcasts-manager">
+      <div className="flex items-center gap-3 mb-6">
+        <Headphones className="w-5 h-5 text-primary" />
+        <h2 className="font-display text-lg font-bold uppercase">Podcasts</h2>
+      </div>
+
+      <div className="flex gap-2 mb-4">
+        {podSubTabs.map(t => (
+          <button key={t.id} onClick={() => { setPodView(t.id); setShowCreate(false); setEditingId(null); setFormData({}); }}
+            className={`px-4 py-2 font-mono text-xs uppercase border transition-colors ${podView === t.id ? "border-primary text-primary bg-primary/10" : "border-white/10 text-muted-foreground hover:text-white"}`}
+            data-testid={`pod-tab-${t.id}`}
+          >{t.label}</button>
+        ))}
+      </div>
+
+      {podView === "podcasts" && (
+        <div>
+          <button onClick={() => { setShowCreate(!showCreate); setFormData({}); }} className="flex items-center gap-2 text-primary font-mono text-xs mb-4 hover:text-primary/80" data-testid="button-create-podcast">
+            <Plus className="w-4 h-4" /> ADD PODCAST SHOW
+          </button>
+          {showCreate && (
+            <div className="border border-primary/20 bg-primary/5 p-4 mb-4 space-y-3">
+              <FormInput label="Title" required value={formData.title || ""} onChange={e => setFormData({ ...formData, title: e.target.value })} data-testid="input-podcast-title" />
+              <FormTextarea label="Description" value={formData.description || ""} onChange={e => setFormData({ ...formData, description: e.target.value })} rows={3} data-testid="input-podcast-description" />
+              <FormInput label="Platform" value={formData.platform || ""} onChange={e => setFormData({ ...formData, platform: e.target.value })} placeholder="Spotify, Apple, etc." data-testid="input-podcast-platform" />
+              <FormInput label="Show URL" value={formData.showUrl || ""} onChange={e => setFormData({ ...formData, showUrl: e.target.value })} data-testid="input-podcast-showurl" />
+              <FormInput label="Cover Image URL" value={formData.coverImageUrl || ""} onChange={e => setFormData({ ...formData, coverImageUrl: e.target.value })} data-testid="input-podcast-cover" />
+              <button onClick={() => createPodcast.mutate(formData)} disabled={!formData.title || createPodcast.isPending}
+                className="flex items-center gap-2 bg-primary/10 border border-primary/30 text-primary px-4 py-2 font-mono text-xs uppercase hover:bg-primary/20 disabled:opacity-50"
+                data-testid="button-save-podcast"
+              ><Save className="w-3 h-3" /> {createPodcast.isPending ? "Saving..." : "Save"}</button>
+            </div>
+          )}
+          <div className="space-y-2">
+            {allPodcasts.map(p => (
+              <div key={p.id} className="border border-white/10 bg-white/[0.02] p-3 flex items-center justify-between" data-testid={`podcast-${p.id}`}>
+                {editingId === p.id ? (
+                  <div className="flex-1 space-y-2 mr-4">
+                    <FormInput label="Title" value={formData.title || ""} onChange={e => setFormData({ ...formData, title: e.target.value })} />
+                    <FormInput label="Platform" value={formData.platform || ""} onChange={e => setFormData({ ...formData, platform: e.target.value })} />
+                    <FormInput label="Show URL" value={formData.showUrl || ""} onChange={e => setFormData({ ...formData, showUrl: e.target.value })} />
+                    <div className="flex gap-2">
+                      <button onClick={() => updatePodcast.mutate({ id: p.id, data: formData })} className="text-primary text-xs font-mono"><Save className="w-3 h-3 inline mr-1" />Save</button>
+                      <button onClick={() => { setEditingId(null); setFormData({}); }} className="text-muted-foreground text-xs font-mono"><X className="w-3 h-3 inline mr-1" />Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <span className="font-mono text-sm font-bold">{p.title}</span>
+                      {p.platform && <span className="ml-2 text-[10px] font-mono text-primary/60">{p.platform}</span>}
+                      <p className="text-[10px] font-mono text-muted-foreground mt-0.5">{p.description?.slice(0, 80)}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => { setEditingId(p.id); setFormData({ title: p.title, description: p.description, platform: p.platform, showUrl: p.showUrl, coverImageUrl: p.coverImageUrl }); }}
+                        className="text-muted-foreground hover:text-white" data-testid={`button-edit-podcast-${p.id}`}><Edit3 className="w-4 h-4" /></button>
+                      {isAdmin && <button onClick={() => { if (confirm("Delete this podcast and all its episodes?")) deletePodcast.mutate(p.id); }}
+                        className="text-red-400 hover:text-red-300" data-testid={`button-delete-podcast-${p.id}`}><Trash2 className="w-4 h-4" /></button>}
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {podView === "episodes" && (
+        <div>
+          <div className="flex items-center gap-3 mb-4">
+            <select value={selectedPodcastId || ""} onChange={e => setSelectedPodcastId(e.target.value ? parseInt(e.target.value) : null)}
+              className="bg-white/5 border border-white/10 px-3 py-2 text-sm font-mono focus:outline-none focus:border-primary/50"
+              data-testid="select-podcast-filter"
+            >
+              <option value="">All Shows</option>
+              {allPodcasts.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+            </select>
+            <button onClick={() => { setShowCreate(!showCreate); setFormData({}); }} className="flex items-center gap-2 text-primary font-mono text-xs hover:text-primary/80" data-testid="button-create-episode">
+              <Plus className="w-4 h-4" /> ADD EPISODE
+            </button>
+          </div>
+          {showCreate && (
+            <div className="border border-primary/20 bg-primary/5 p-4 mb-4 space-y-3">
+              <FormSelect label="Podcast Show" required value={formData.podcastId || ""} onChange={e => setFormData({ ...formData, podcastId: parseInt(e.target.value) })} data-testid="select-episode-podcast">
+                <option value="">Select...</option>
+                {allPodcasts.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+              </FormSelect>
+              <FormInput label="Title" required value={formData.title || ""} onChange={e => setFormData({ ...formData, title: e.target.value })} data-testid="input-episode-title" />
+              <FormTextarea label="Description" value={formData.description || ""} onChange={e => setFormData({ ...formData, description: e.target.value })} rows={3} />
+              <div className="grid grid-cols-2 gap-3">
+                <FormInput label="Published Date" value={formData.publishedDate || ""} onChange={e => setFormData({ ...formData, publishedDate: e.target.value })} placeholder="2026-01-15" />
+                <FormInput label="Duration (seconds)" type="number" value={formData.durationSeconds || 0} onChange={e => setFormData({ ...formData, durationSeconds: parseInt(e.target.value) || 0 })} />
+              </div>
+              <FormInput label="Episode URL" value={formData.episodeUrl || ""} onChange={e => setFormData({ ...formData, episodeUrl: e.target.value })} />
+              <div className="grid grid-cols-2 gap-3">
+                <FormSelect label="Embed Type" value={formData.embedType || "iframe"} onChange={e => setFormData({ ...formData, embedType: e.target.value })}>
+                  <option value="iframe">iFrame</option>
+                  <option value="spotify">Spotify</option>
+                  <option value="apple">Apple Podcasts</option>
+                  <option value="youtube">YouTube</option>
+                </FormSelect>
+                <FormInput label="Embed URL" value={formData.embedUrl || ""} onChange={e => setFormData({ ...formData, embedUrl: e.target.value })} placeholder="Embed player URL" />
+              </div>
+              <button onClick={() => createEpisode.mutate(formData)} disabled={!formData.title || !formData.podcastId || createEpisode.isPending}
+                className="flex items-center gap-2 bg-primary/10 border border-primary/30 text-primary px-4 py-2 font-mono text-xs uppercase hover:bg-primary/20 disabled:opacity-50"
+                data-testid="button-save-episode"
+              ><Save className="w-3 h-3" /> {createEpisode.isPending ? "Saving..." : "Save"}</button>
+            </div>
+          )}
+          <div className="space-y-2">
+            {allEpisodes.map(ep => {
+              const podTitle = allPodcasts.find(p => p.id === ep.podcastId)?.title || "";
+              return (
+                <div key={ep.id} className="border border-white/10 bg-white/[0.02] p-3 flex items-center justify-between" data-testid={`episode-${ep.id}`}>
+                  {editingId === ep.id ? (
+                    <div className="flex-1 space-y-2 mr-4">
+                      <FormInput label="Title" value={formData.title || ""} onChange={e => setFormData({ ...formData, title: e.target.value })} />
+                      <FormInput label="Embed URL" value={formData.embedUrl || ""} onChange={e => setFormData({ ...formData, embedUrl: e.target.value })} />
+                      <FormSelect label="Status" value={formData.status || "Draft"} onChange={e => setFormData({ ...formData, status: e.target.value })}>
+                        <option value="Draft">Draft</option>
+                        <option value="Review">Review</option>
+                        {isAdmin && <option value="Published">Published</option>}
+                      </FormSelect>
+                      <div className="flex gap-2">
+                        <button onClick={() => updateEpisode.mutate({ id: ep.id, data: formData })} className="text-primary text-xs font-mono"><Save className="w-3 h-3 inline mr-1" />Save</button>
+                        <button onClick={() => { setEditingId(null); setFormData({}); }} className="text-muted-foreground text-xs font-mono"><X className="w-3 h-3 inline mr-1" />Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <StatusBadge status={ep.status} />
+                          <span className="font-mono text-sm font-bold truncate">{ep.title}</span>
+                        </div>
+                        <div className="text-[10px] font-mono text-muted-foreground mt-0.5 flex gap-3">
+                          <span>{podTitle}</span>
+                          {ep.publishedDate && <span>{ep.publishedDate}</span>}
+                          {ep.durationSeconds > 0 && <span>{Math.floor(ep.durationSeconds / 60)}m</span>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {ep.status === "Draft" && (
+                          <button onClick={() => updateEpisode.mutate({ id: ep.id, data: { status: "Review" } })}
+                            className="text-yellow-500 text-[10px] font-mono border border-yellow-500/30 px-2 py-1 hover:bg-yellow-500/10" data-testid={`button-episode-review-${ep.id}`}>→ Review</button>
+                        )}
+                        {ep.status === "Review" && isAdmin && (
+                          <button onClick={() => updateEpisode.mutate({ id: ep.id, data: { status: "Published" } })}
+                            className="text-green-500 text-[10px] font-mono border border-green-500/30 px-2 py-1 hover:bg-green-500/10" data-testid={`button-episode-publish-${ep.id}`}>Publish</button>
+                        )}
+                        <button onClick={() => { setEditingId(ep.id); setFormData({ title: ep.title, description: ep.description, embedUrl: ep.embedUrl, embedType: ep.embedType, episodeUrl: ep.episodeUrl, status: ep.status, publishedDate: ep.publishedDate, durationSeconds: ep.durationSeconds }); }}
+                          className="text-muted-foreground hover:text-white" data-testid={`button-edit-episode-${ep.id}`}><Edit3 className="w-4 h-4" /></button>
+                        {isAdmin && <button onClick={() => { if (confirm("Delete this episode?")) deleteEpisode.mutate(ep.id); }}
+                          className="text-red-400 hover:text-red-300" data-testid={`button-delete-episode-${ep.id}`}><Trash2 className="w-4 h-4" /></button>}
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {podView === "links" && (
+        <div>
+          <div className="flex items-center gap-3 mb-4">
+            <select value={selectedHoleId || ""} onChange={e => setSelectedHoleId(e.target.value ? parseInt(e.target.value) : null)}
+              className="bg-white/5 border border-white/10 px-3 py-2 text-sm font-mono focus:outline-none focus:border-primary/50"
+              data-testid="select-hole-for-links"
+            >
+              <option value="">Select Rabbit Hole...</option>
+              {holes.map(h => <option key={h.id} value={h.id}>{h.title}</option>)}
+            </select>
+          </div>
+          {selectedHoleId && (
+            <>
+              <div className="mb-3">
+                <FieldLabel>Attach Episode</FieldLabel>
+                <div className="flex gap-2">
+                  <select value={formData.episodeId || ""} onChange={e => setFormData({ ...formData, episodeId: parseInt(e.target.value) })}
+                    className="flex-1 bg-white/5 border border-white/10 px-3 py-2 text-sm font-mono focus:outline-none focus:border-primary/50"
+                    data-testid="select-link-episode"
+                  >
+                    <option value="">Select Episode...</option>
+                    {allEpisodes.filter(e => e.status === "Published").map(e => <option key={e.id} value={e.id}>{e.title}</option>)}
+                  </select>
+                  <button onClick={() => { if (formData.episodeId) createLink.mutate({ rabbitHoleId: selectedHoleId, episodeId: formData.episodeId, sortOrder: holeLinks.length, pinned: false }); setFormData({}); }}
+                    disabled={!formData.episodeId}
+                    className="px-3 py-2 bg-primary/10 border border-primary/30 text-primary font-mono text-xs hover:bg-primary/20 disabled:opacity-50"
+                    data-testid="button-attach-episode"
+                  ><Plus className="w-4 h-4" /></button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {holeLinks.map(link => {
+                  const ep = allEpisodes.find(e => e.id === link.episodeId);
+                  return (
+                    <div key={link.id} className="border border-white/10 bg-white/[0.02] p-3 flex items-center justify-between" data-testid={`link-${link.id}`}>
+                      <div className="flex items-center gap-3">
+                        {link.pinned && <Pin className="w-3 h-3 text-primary" />}
+                        <span className="font-mono text-sm">{ep?.title || `Episode #${link.episodeId}`}</span>
+                        <span className="text-[10px] font-mono text-muted-foreground">Order: {link.sortOrder}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => updateLinkMut.mutate({ id: link.id, data: { pinned: !link.pinned } })}
+                          className={`text-[10px] font-mono ${link.pinned ? "text-primary" : "text-muted-foreground"} hover:text-white`}
+                          data-testid={`button-pin-${link.id}`}
+                        ><Pin className="w-3 h-3" /></button>
+                        <button onClick={() => updateLinkMut.mutate({ id: link.id, data: { sortOrder: Math.max(0, link.sortOrder - 1) } })}
+                          className="text-muted-foreground hover:text-white" data-testid={`button-move-up-${link.id}`}><ArrowUp className="w-3 h-3" /></button>
+                        <button onClick={() => updateLinkMut.mutate({ id: link.id, data: { sortOrder: link.sortOrder + 1 } })}
+                          className="text-muted-foreground hover:text-white" data-testid={`button-move-down-${link.id}`}><ArrowDown className="w-3 h-3" /></button>
+                        <button onClick={() => deleteLink.mutate(link.id)}
+                          className="text-red-400 hover:text-red-300" data-testid={`button-remove-link-${link.id}`}><Trash2 className="w-3 h-3" /></button>
+                      </div>
+                    </div>
+                  );
+                })}
+                {holeLinks.length === 0 && <p className="text-sm font-mono text-muted-foreground py-3">No episodes attached to this rabbit hole.</p>}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {podView === "sponsored" && isAdmin && (
+        <div>
+          <div className="flex items-center gap-3 mb-4">
+            <select value={selectedHoleId || ""} onChange={e => setSelectedHoleId(e.target.value ? parseInt(e.target.value) : null)}
+              className="bg-white/5 border border-white/10 px-3 py-2 text-sm font-mono focus:outline-none focus:border-primary/50"
+              data-testid="select-hole-for-sponsored"
+            >
+              <option value="">Select Rabbit Hole...</option>
+              {holes.map(h => <option key={h.id} value={h.id}>{h.title}</option>)}
+            </select>
+            <button onClick={() => { setShowCreate(!showCreate); setFormData({}); }} className="flex items-center gap-2 text-primary font-mono text-xs hover:text-primary/80" data-testid="button-create-sponsored">
+              <Plus className="w-4 h-4" /> ADD SPONSORED SLOT
+            </button>
+          </div>
+          {showCreate && selectedHoleId && (
+            <div className="border border-primary/20 bg-primary/5 p-4 mb-4 space-y-3">
+              <FormInput label="Sponsor Name" required value={formData.sponsorName || ""} onChange={e => setFormData({ ...formData, sponsorName: e.target.value })} data-testid="input-sponsor-name" />
+              <FormInput label="Sponsor URL" value={formData.sponsorUrl || ""} onChange={e => setFormData({ ...formData, sponsorUrl: e.target.value })} />
+              <FormTextarea label="Disclosure Text" required value={formData.disclosureText || ""} onChange={e => setFormData({ ...formData, disclosureText: e.target.value })} rows={2} placeholder="Required FTC disclosure text" data-testid="input-disclosure" />
+              <FormSelect label="Linked Episode (optional)" value={formData.episodeId || ""} onChange={e => setFormData({ ...formData, episodeId: e.target.value ? parseInt(e.target.value) : null })}>
+                <option value="">None</option>
+                {allEpisodes.filter(e => e.status === "Published").map(e => <option key={e.id} value={e.id}>{e.title}</option>)}
+              </FormSelect>
+              <div className="grid grid-cols-2 gap-3">
+                <FormInput label="Start Date" value={formData.startDate || ""} onChange={e => setFormData({ ...formData, startDate: e.target.value })} placeholder="2026-01-01" />
+                <FormInput label="End Date" value={formData.endDate || ""} onChange={e => setFormData({ ...formData, endDate: e.target.value })} placeholder="2026-12-31" />
+              </div>
+              <button onClick={() => createSlot.mutate({ ...formData, rabbitHoleId: selectedHoleId, active: true })}
+                disabled={!formData.sponsorName || !formData.disclosureText || createSlot.isPending}
+                className="flex items-center gap-2 bg-primary/10 border border-primary/30 text-primary px-4 py-2 font-mono text-xs uppercase hover:bg-primary/20 disabled:opacity-50"
+                data-testid="button-save-sponsored"
+              ><Save className="w-3 h-3" /> {createSlot.isPending ? "Saving..." : "Save"}</button>
+            </div>
+          )}
+          <div className="space-y-2">
+            {sponsoredSlots.map(slot => (
+              <div key={slot.id} className="border border-white/10 bg-white/[0.02] p-3 flex items-center justify-between" data-testid={`sponsored-${slot.id}`}>
+                {editingId === slot.id ? (
+                  <div className="flex-1 space-y-2 mr-4">
+                    <FormInput label="Sponsor Name" value={formData.sponsorName || ""} onChange={e => setFormData({ ...formData, sponsorName: e.target.value })} />
+                    <FormInput label="Disclosure" value={formData.disclosureText || ""} onChange={e => setFormData({ ...formData, disclosureText: e.target.value })} />
+                    <div className="grid grid-cols-2 gap-3">
+                      <FormInput label="Start" value={formData.startDate || ""} onChange={e => setFormData({ ...formData, startDate: e.target.value })} />
+                      <FormInput label="End" value={formData.endDate || ""} onChange={e => setFormData({ ...formData, endDate: e.target.value })} />
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => updateSlot.mutate({ id: slot.id, data: formData })} className="text-primary text-xs font-mono"><Save className="w-3 h-3 inline mr-1" />Save</button>
+                      <button onClick={() => { setEditingId(null); setFormData({}); }} className="text-muted-foreground text-xs font-mono"><X className="w-3 h-3 inline mr-1" />Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <DollarSign className="w-3 h-3 text-yellow-500" />
+                        <span className="font-mono text-sm font-bold">{slot.sponsorName}</span>
+                        <span className={`text-[10px] font-mono px-1.5 py-0.5 border ${slot.active ? "text-green-500 border-green-500/20" : "text-red-400 border-red-500/20"}`}>{slot.active ? "ACTIVE" : "INACTIVE"}</span>
+                      </div>
+                      <p className="text-[10px] font-mono text-muted-foreground mt-0.5">{slot.disclosureText.slice(0, 80)}</p>
+                      <div className="text-[10px] font-mono text-muted-foreground flex gap-2 mt-0.5">
+                        {slot.startDate && <span>From: {slot.startDate}</span>}
+                        {slot.endDate && <span>To: {slot.endDate}</span>}
+                        {holes.find(h => h.id === slot.rabbitHoleId) && <span className="text-primary/60">→ {holes.find(h => h.id === slot.rabbitHoleId)?.title}</span>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => updateSlot.mutate({ id: slot.id, data: { active: !slot.active } })}
+                        className={`text-[10px] font-mono ${slot.active ? "text-red-400" : "text-green-400"}`}
+                        data-testid={`button-toggle-slot-${slot.id}`}
+                      >{slot.active ? "Deactivate" : "Activate"}</button>
+                      <button onClick={() => { setEditingId(slot.id); setFormData({ sponsorName: slot.sponsorName, sponsorUrl: slot.sponsorUrl, disclosureText: slot.disclosureText, startDate: slot.startDate, endDate: slot.endDate }); }}
+                        className="text-muted-foreground hover:text-white" data-testid={`button-edit-slot-${slot.id}`}><Edit3 className="w-4 h-4" /></button>
+                      <button onClick={() => { if (confirm("Delete this sponsored slot?")) deleteSlot.mutate(slot.id); }}
+                        className="text-red-400 hover:text-red-300" data-testid={`button-delete-slot-${slot.id}`}><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+            {sponsoredSlots.length === 0 && <p className="text-sm font-mono text-muted-foreground py-3">No sponsored slots configured.</p>}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

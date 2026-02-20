@@ -12,6 +12,10 @@ import {
   auditLogs,
   users,
   employees,
+  podcasts,
+  podcastEpisodes,
+  rabbitHolePodcastEpisodes,
+  sponsoredPodcastSlots,
   type RabbitHole,
   type InsertRabbitHole,
   type Comment,
@@ -32,6 +36,14 @@ import {
   type InsertUser,
   type Employee,
   type InsertEmployee,
+  type Podcast,
+  type InsertPodcast,
+  type PodcastEpisode,
+  type InsertPodcastEpisode,
+  type RabbitHolePodcastEpisode,
+  type InsertRabbitHolePodcastEpisode,
+  type SponsoredPodcastSlot,
+  type InsertSponsoredPodcastSlot,
 } from "@shared/schema";
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
@@ -126,6 +138,36 @@ export interface IStorage {
   getAllEmployees(): Promise<Employee[]>;
   updateEmployee(id: string, data: Partial<Employee>): Promise<Employee | undefined>;
   getEmployeeCount(): Promise<number>;
+
+  getAllPodcasts(): Promise<Podcast[]>;
+  getPodcast(id: number): Promise<Podcast | undefined>;
+  createPodcast(p: InsertPodcast): Promise<Podcast>;
+  updatePodcast(id: number, data: Partial<InsertPodcast>): Promise<Podcast | undefined>;
+  deletePodcast(id: number): Promise<boolean>;
+
+  getAllPodcastEpisodes(): Promise<PodcastEpisode[]>;
+  getPodcastEpisodesByPodcastId(podcastId: number): Promise<PodcastEpisode[]>;
+  getPodcastEpisode(id: number): Promise<PodcastEpisode | undefined>;
+  createPodcastEpisode(ep: InsertPodcastEpisode): Promise<PodcastEpisode>;
+  updatePodcastEpisode(id: number, data: Partial<InsertPodcastEpisode>): Promise<PodcastEpisode | undefined>;
+  deletePodcastEpisode(id: number): Promise<boolean>;
+
+  getLinksForHole(holeId: number): Promise<RabbitHolePodcastEpisode[]>;
+  createLink(link: InsertRabbitHolePodcastEpisode): Promise<RabbitHolePodcastEpisode>;
+  updateLink(id: number, data: Partial<InsertRabbitHolePodcastEpisode>): Promise<RabbitHolePodcastEpisode | undefined>;
+  deleteLink(id: number): Promise<boolean>;
+
+  getSponsoredSlotsForHole(holeId: number): Promise<SponsoredPodcastSlot[]>;
+  getAllSponsoredSlots(): Promise<SponsoredPodcastSlot[]>;
+  getSponsoredSlot(id: number): Promise<SponsoredPodcastSlot | undefined>;
+  createSponsoredSlot(slot: InsertSponsoredPodcastSlot): Promise<SponsoredPodcastSlot>;
+  updateSponsoredSlot(id: number, data: Partial<InsertSponsoredPodcastSlot>): Promise<SponsoredPodcastSlot | undefined>;
+  deleteSponsoredSlot(id: number): Promise<boolean>;
+
+  getPublishChecklist(holeId: number): Promise<{ passed: boolean; checks: { check: string; passed: boolean; message: string }[] }>;
+
+  getPublishedEpisodesForHole(holeId: number): Promise<(PodcastEpisode & { pinned: boolean; sortOrder: number; podcastTitle: string })[]>;
+  getActiveSponsoredSlotForHole(holeId: number): Promise<(SponsoredPodcastSlot & { episodeTitle?: string }) | null>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -182,6 +224,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteHole(id: number): Promise<boolean> {
+    await db.delete(sponsoredPodcastSlots).where(eq(sponsoredPodcastSlots.rabbitHoleId, id));
+    await db.delete(rabbitHolePodcastEpisodes).where(eq(rabbitHolePodcastEpisodes.rabbitHoleId, id));
     await db.delete(depthNodes).where(eq(depthNodes.holeId, id));
     await db.delete(claims).where(eq(claims.holeId, id));
     await db.delete(sources).where(eq(sources.holeId, id));
@@ -444,43 +488,30 @@ export class DatabaseStorage implements IStorage {
     const allSources = await db.select().from(sources);
     const allClaims = await db.select().from(claims);
     const allNodes = await db.select().from(depthNodes);
+    const allMedia = await db.select().from(media);
     const sourceIds = new Set(allSources.map(s => s.id));
     const nodeIds = new Set(allNodes.map(n => n.id));
+    const mediaIds = new Set(allMedia.map(m => m.id));
 
     for (const claim of allClaims) {
       const hole = allHoles.find(h => h.id === claim.holeId);
       const holeTitle = hole?.title || `Unknown (ID: ${claim.holeId})`;
 
       if (claim.nodeId && !nodeIds.has(claim.nodeId)) {
-        issues.push({
-          holeId: claim.holeId,
-          holeTitle,
-          type: "broken_node_ref",
-          message: `Claim #${claim.id} "${claim.statement.slice(0, 40)}..." references missing depth node #${claim.nodeId}`,
-        });
+        issues.push({ holeId: claim.holeId, holeTitle, type: "broken_node_ref", message: `Claim #${claim.id} "${claim.statement.slice(0, 40)}..." references missing depth node #${claim.nodeId}` });
       }
 
       const evidence = (claim.evidence as { sourceId: number; excerpt: string }[]) || [];
       for (const ev of evidence) {
         if (ev.sourceId && !sourceIds.has(ev.sourceId)) {
-          issues.push({
-            holeId: claim.holeId,
-            holeTitle,
-            type: "broken_source_ref",
-            message: `Claim #${claim.id} evidence references missing source #${ev.sourceId}`,
-          });
+          issues.push({ holeId: claim.holeId, holeTitle, type: "broken_source_ref", message: `Claim #${claim.id} evidence references missing source #${ev.sourceId}` });
         }
       }
 
       const counterpoints = (claim.counterpoints as { sourceId: number; excerpt: string }[]) || [];
       for (const cp of counterpoints) {
         if (cp.sourceId && !sourceIds.has(cp.sourceId)) {
-          issues.push({
-            holeId: claim.holeId,
-            holeTitle,
-            type: "broken_source_ref",
-            message: `Claim #${claim.id} counterpoint references missing source #${cp.sourceId}`,
-          });
+          issues.push({ holeId: claim.holeId, holeTitle, type: "broken_source_ref", message: `Claim #${claim.id} counterpoint references missing source #${cp.sourceId}` });
         }
       }
     }
@@ -490,27 +521,62 @@ export class DatabaseStorage implements IStorage {
       const connected = (hole.connectedSlugs as string[]) || [];
       for (const cs of connected) {
         if (!holeSlugs.has(cs)) {
-          issues.push({
-            holeId: hole.id,
-            holeTitle: hole.title,
-            type: "broken_connection",
-            message: `Connected slug "${cs}" does not exist`,
-          });
+          issues.push({ holeId: hole.id, holeTitle: hole.title, type: "broken_connection", message: `Connected slug "${cs}" does not exist` });
         }
       }
 
       const holeNodes = allNodes.filter(n => n.holeId === hole.id);
       if (hole.status === "Published" && holeNodes.length === 0) {
-        issues.push({
-          holeId: hole.id,
-          holeTitle: hole.title,
-          type: "no_depth_nodes",
-          message: `Published investigation has no depth nodes`,
-        });
+        issues.push({ holeId: hole.id, holeTitle: hole.title, type: "no_depth_nodes", message: `Published investigation has no depth nodes` });
       }
     }
 
     return { issues };
+  }
+
+  async getPublishChecklist(holeId: number): Promise<{ passed: boolean; checks: { check: string; passed: boolean; message: string }[] }> {
+    const checks: { check: string; passed: boolean; message: string }[] = [];
+    const hole = await this.getHoleById(holeId);
+    if (!hole) return { passed: false, checks: [{ check: "exists", passed: false, message: "Rabbit hole not found" }] };
+
+    checks.push({ check: "title", passed: !!hole.title?.trim(), message: hole.title?.trim() ? "Title exists" : "Title is required" });
+    checks.push({ check: "summary", passed: !!hole.summary?.trim(), message: hole.summary?.trim() ? "Summary exists" : "Summary is required" });
+    checks.push({ check: "slug", passed: !!hole.slug?.trim(), message: hole.slug?.trim() ? "Slug exists" : "Slug is required" });
+    checks.push({ check: "category", passed: !!hole.categorySlug?.trim(), message: hole.categorySlug?.trim() ? "Category set" : "Category is required" });
+
+    const nodes = await this.getDepthNodesByHoleId(holeId);
+    checks.push({ check: "min_nodes", passed: nodes.length >= 5, message: nodes.length >= 5 ? `${nodes.length} depth nodes` : `Need at least 5 depth nodes (currently ${nodes.length})` });
+
+    const holeClaims = await this.getClaimsByHoleId(holeId);
+    const holeSources = await this.getSourcesByHoleId(holeId);
+    const sourceIdSet = new Set(holeSources.map(s => s.id));
+    const allSources = await this.getAllSources();
+    const globalSourceIds = new Set(allSources.map(s => s.id));
+    const nodeIdSet = new Set(nodes.map(n => n.id));
+    let claimsOk = true;
+    let claimMsg = "All claims have evidence";
+    for (const claim of holeClaims) {
+      const ev = (claim.evidence as { sourceId: number; excerpt: string }[]) || [];
+      if (ev.length === 0) { claimsOk = false; claimMsg = `Claim #${claim.id} has no evidence sources`; break; }
+      for (const e of ev) {
+        if (e.sourceId && !globalSourceIds.has(e.sourceId)) { claimsOk = false; claimMsg = `Claim #${claim.id} references missing source #${e.sourceId}`; break; }
+      }
+      if (!claimsOk) break;
+      if (claim.nodeId && !nodeIdSet.has(claim.nodeId)) { claimsOk = false; claimMsg = `Claim #${claim.id} references missing node #${claim.nodeId}`; break; }
+    }
+    checks.push({ check: "claims_evidence", passed: claimsOk, message: claimMsg });
+
+    const holeSlugs = await db.select({ slug: rabbitHoles.slug }).from(rabbitHoles);
+    const slugSet = new Set(holeSlugs.map(s => s.slug));
+    const connected = (hole.connectedSlugs as string[]) || [];
+    let connectionsOk = true;
+    let connMsg = "All connections valid";
+    for (const cs of connected) {
+      if (!slugSet.has(cs)) { connectionsOk = false; connMsg = `Connected slug "${cs}" does not exist`; break; }
+    }
+    checks.push({ check: "connections", passed: connectionsOk, message: connMsg });
+
+    return { passed: checks.every(c => c.passed), checks };
   }
 
   async createUser(user: InsertUser): Promise<User> {
@@ -560,6 +626,149 @@ export class DatabaseStorage implements IStorage {
   async getEmployeeCount(): Promise<number> {
     const result = await db.select({ count: sql<number>`count(*)` }).from(employees);
     return Number(result[0].count);
+  }
+
+  async getAllPodcasts(): Promise<Podcast[]> {
+    return db.select().from(podcasts).orderBy(desc(podcasts.updatedAt));
+  }
+
+  async getPodcast(id: number): Promise<Podcast | undefined> {
+    const [p] = await db.select().from(podcasts).where(eq(podcasts.id, id));
+    return p;
+  }
+
+  async createPodcast(p: InsertPodcast): Promise<Podcast> {
+    const [created] = await db.insert(podcasts).values(p).returning();
+    return created;
+  }
+
+  async updatePodcast(id: number, data: Partial<InsertPodcast>): Promise<Podcast | undefined> {
+    const [updated] = await db.update(podcasts).set({ ...data, updatedAt: new Date() }).where(eq(podcasts.id, id)).returning();
+    return updated;
+  }
+
+  async deletePodcast(id: number): Promise<boolean> {
+    const eps = await db.select({ id: podcastEpisodes.id }).from(podcastEpisodes).where(eq(podcastEpisodes.podcastId, id));
+    for (const ep of eps) {
+      await db.delete(rabbitHolePodcastEpisodes).where(eq(rabbitHolePodcastEpisodes.episodeId, ep.id));
+      await db.delete(sponsoredPodcastSlots).where(eq(sponsoredPodcastSlots.episodeId, ep.id));
+    }
+    await db.delete(podcastEpisodes).where(eq(podcastEpisodes.podcastId, id));
+    const result = await db.delete(podcasts).where(eq(podcasts.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getAllPodcastEpisodes(): Promise<PodcastEpisode[]> {
+    return db.select().from(podcastEpisodes).orderBy(desc(podcastEpisodes.updatedAt));
+  }
+
+  async getPodcastEpisodesByPodcastId(podcastId: number): Promise<PodcastEpisode[]> {
+    return db.select().from(podcastEpisodes).where(eq(podcastEpisodes.podcastId, podcastId)).orderBy(desc(podcastEpisodes.updatedAt));
+  }
+
+  async getPodcastEpisode(id: number): Promise<PodcastEpisode | undefined> {
+    const [ep] = await db.select().from(podcastEpisodes).where(eq(podcastEpisodes.id, id));
+    return ep;
+  }
+
+  async createPodcastEpisode(ep: InsertPodcastEpisode): Promise<PodcastEpisode> {
+    const [created] = await db.insert(podcastEpisodes).values({ ...ep, status: ep.status || "Draft" }).returning();
+    return created;
+  }
+
+  async updatePodcastEpisode(id: number, data: Partial<InsertPodcastEpisode>): Promise<PodcastEpisode | undefined> {
+    const [updated] = await db.update(podcastEpisodes).set({ ...data, updatedAt: new Date() }).where(eq(podcastEpisodes.id, id)).returning();
+    return updated;
+  }
+
+  async deletePodcastEpisode(id: number): Promise<boolean> {
+    await db.delete(rabbitHolePodcastEpisodes).where(eq(rabbitHolePodcastEpisodes.episodeId, id));
+    await db.delete(sponsoredPodcastSlots).where(eq(sponsoredPodcastSlots.episodeId, id));
+    const result = await db.delete(podcastEpisodes).where(eq(podcastEpisodes.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getLinksForHole(holeId: number): Promise<RabbitHolePodcastEpisode[]> {
+    return db.select().from(rabbitHolePodcastEpisodes).where(eq(rabbitHolePodcastEpisodes.rabbitHoleId, holeId)).orderBy(asc(rabbitHolePodcastEpisodes.sortOrder));
+  }
+
+  async createLink(link: InsertRabbitHolePodcastEpisode): Promise<RabbitHolePodcastEpisode> {
+    const [created] = await db.insert(rabbitHolePodcastEpisodes).values(link).returning();
+    return created;
+  }
+
+  async updateLink(id: number, data: Partial<InsertRabbitHolePodcastEpisode>): Promise<RabbitHolePodcastEpisode | undefined> {
+    const [updated] = await db.update(rabbitHolePodcastEpisodes).set(data).where(eq(rabbitHolePodcastEpisodes.id, id)).returning();
+    return updated;
+  }
+
+  async deleteLink(id: number): Promise<boolean> {
+    const result = await db.delete(rabbitHolePodcastEpisodes).where(eq(rabbitHolePodcastEpisodes.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getSponsoredSlotsForHole(holeId: number): Promise<SponsoredPodcastSlot[]> {
+    return db.select().from(sponsoredPodcastSlots).where(eq(sponsoredPodcastSlots.rabbitHoleId, holeId)).orderBy(desc(sponsoredPodcastSlots.createdAt));
+  }
+
+  async getAllSponsoredSlots(): Promise<SponsoredPodcastSlot[]> {
+    return db.select().from(sponsoredPodcastSlots).orderBy(desc(sponsoredPodcastSlots.createdAt));
+  }
+
+  async getSponsoredSlot(id: number): Promise<SponsoredPodcastSlot | undefined> {
+    const [slot] = await db.select().from(sponsoredPodcastSlots).where(eq(sponsoredPodcastSlots.id, id));
+    return slot;
+  }
+
+  async createSponsoredSlot(slot: InsertSponsoredPodcastSlot): Promise<SponsoredPodcastSlot> {
+    const [created] = await db.insert(sponsoredPodcastSlots).values(slot).returning();
+    return created;
+  }
+
+  async updateSponsoredSlot(id: number, data: Partial<InsertSponsoredPodcastSlot>): Promise<SponsoredPodcastSlot | undefined> {
+    const [updated] = await db.update(sponsoredPodcastSlots).set({ ...data, updatedAt: new Date() }).where(eq(sponsoredPodcastSlots.id, id)).returning();
+    return updated;
+  }
+
+  async deleteSponsoredSlot(id: number): Promise<boolean> {
+    const result = await db.delete(sponsoredPodcastSlots).where(eq(sponsoredPodcastSlots.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getPublishedEpisodesForHole(holeId: number): Promise<(PodcastEpisode & { pinned: boolean; sortOrder: number; podcastTitle: string })[]> {
+    const links = await db.select().from(rabbitHolePodcastEpisodes).where(eq(rabbitHolePodcastEpisodes.rabbitHoleId, holeId)).orderBy(asc(rabbitHolePodcastEpisodes.sortOrder));
+    const results: (PodcastEpisode & { pinned: boolean; sortOrder: number; podcastTitle: string })[] = [];
+    for (const link of links) {
+      const [ep] = await db.select().from(podcastEpisodes).where(and(eq(podcastEpisodes.id, link.episodeId), eq(podcastEpisodes.status, "Published")));
+      if (ep) {
+        const [pod] = await db.select().from(podcasts).where(eq(podcasts.id, ep.podcastId));
+        results.push({ ...ep, pinned: link.pinned, sortOrder: link.sortOrder, podcastTitle: pod?.title || "" });
+      }
+    }
+    results.sort((a, b) => {
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return 1;
+      return a.sortOrder - b.sortOrder;
+    });
+    return results;
+  }
+
+  async getActiveSponsoredSlotForHole(holeId: number): Promise<(SponsoredPodcastSlot & { episodeTitle?: string }) | null> {
+    const slots = await db.select().from(sponsoredPodcastSlots).where(and(eq(sponsoredPodcastSlots.rabbitHoleId, holeId), eq(sponsoredPodcastSlots.active, true))).orderBy(desc(sponsoredPodcastSlots.createdAt));
+    const now = new Date().toISOString().split("T")[0];
+    for (const slot of slots) {
+      const start = slot.startDate || "";
+      const end = slot.endDate || "";
+      if (start && now < start) continue;
+      if (end && now > end) continue;
+      let episodeTitle: string | undefined;
+      if (slot.episodeId) {
+        const [ep] = await db.select().from(podcastEpisodes).where(eq(podcastEpisodes.id, slot.episodeId));
+        episodeTitle = ep?.title;
+      }
+      return { ...slot, episodeTitle };
+    }
+    return null;
   }
 }
 

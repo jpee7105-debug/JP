@@ -2,164 +2,63 @@
 
 ## Overview
 
-Rabbit Hole is an AI-powered investigative research platform built around structured deep-dives into complex narratives. Users explore investigations through guided "Depth Nodes" (step-by-step reading), structured claims with evidence/counterpoints, normalized source libraries with credibility scores, and timeline visualizations. The platform features anonymous participation through a comment system with upvote/downvote mechanics and inter-topic linking. Content is organized into categories (Intelligence, Geopolitics, History, Technology, Finance, Mysteries, Media Narratives) with a two-tier system: Specialist Intel (curated) and Active Investigations (community-driven).
-
-The application follows a monorepo structure with a React frontend (Vite), an Express backend, and a PostgreSQL database using Drizzle ORM.
+Rabbit Hole is an AI-powered investigative research platform designed for structured deep-dives into complex narratives. It enables users to explore investigations through guided "Depth Nodes," structured claims with evidence, normalized source libraries, and timeline visualizations. The platform supports anonymous community participation via comments with upvote/downvote mechanics and inter-topic linking. Content is categorized into "Specialist Intel" (curated) and "Active Investigations" (community-driven). The business vision is to provide a comprehensive tool for understanding complex information, fostering critical thinking, and empowering users to navigate intricate topics effectively.
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
-App name: Rabbit Hole (rebranded from Red Thread)
+App name: Rabbit Hole
 Design theme: Dark (#0E0E0E background), deep red accent (#8B0000), light text (#EDEDED)
 
 ## System Architecture
 
-### Directory Structure
-- `client/` — React frontend (Vite-powered SPA)
-- `server/` — Express backend API
-- `shared/` — Shared code (database schema, types) used by both client and server
-- `migrations/` — Drizzle-generated database migration files
-- `script/` — Build scripts
-- `attached_assets/` — Reference documents and design specs
+### Monorepo Structure
+The application follows a monorepo structure, separating the frontend (`client/`), backend (`server/`), and shared code (`shared/`).
 
 ### Frontend Architecture
-- **Framework**: React 18 with TypeScript
-- **Bundler**: Vite with HMR support, configured for Replit deployment
-- **Routing**: Wouter with routes:
-  - Home (`/`)
-  - Discover (`/discover`)
-  - RabbitHole (`/rabbithole/:id`)
-  - DepthReader (`/rabbithole/:slug/read`) — one-node-at-a-time reader with localStorage progress
-  - Search (`/search`)
-  - Profile (`/profile`)
-  - Connections (`/connections`) — interactive graph visualization of rabbit hole relationships
-  - Admin (`/admin`) — CMS with password auth for managing all content
-- **State Management**: TanStack React Query for server state (data fetching, caching, mutations)
-- **UI Components**: shadcn/ui (new-york style) built on Radix UI primitives with Tailwind CSS
-- **Styling**: Tailwind CSS v4 with CSS variables for theming, dark mode by default, custom fonts (Inter, Space Grotesk, JetBrains Mono)
-- **Path Aliases**: `@/` maps to `client/src/`, `@shared/` maps to `shared/`
-- **Key Pages**:
-  - `Home` — Hero section, category filters, sorting (trending/new/verified), functional search
-  - `Discover` — Full investigation browser, category/view mode/sort filters
-  - `RabbitHole` — Detail with 4 tabs: Go Deeper (depth nodes), Timeline, Claims, Sources + "Start Reading" button
-  - `DepthReader` — Sequential reading mode with sidebar navigation, keyboard controls (arrow keys), localStorage progress tracking
-  - `Connections` — Canvas-based force-directed graph showing relationships between rabbit holes with drag/click interaction
-  - `Search` — Tabbed results across investigations/sources/claims
-  - `Profile` — Anonymous operative stats, bookmarks, and activity placeholders
-  - `Admin` — Employee-authenticated CMS with role-based access for managing content and employees
+- **Framework**: React 18 with TypeScript, using Vite for bundling and HMR.
+- **Routing**: Wouter handles client-side navigation with routes for Home, Discover, RabbitHole details, DepthReader, Search, Profile, Connections, and an Admin CMS.
+- **State Management**: TanStack React Query manages server state, data fetching, and caching.
+- **UI/UX**: shadcn/ui (New York style) built on Radix UI primitives, styled with Tailwind CSS v4. Features a dark mode by default, custom fonts (Inter, Space Grotesk, JetBrains Mono), and a deep red accent color.
+- **Key Features**:
+    - **Home & Discover**: Entry points for exploring investigations with filtering and sorting.
+    - **RabbitHole Detail**: Displays investigation overview with tabs for Depth Nodes, Timeline, Claims, and Sources.
+    - **DepthReader**: A sequential reading experience for depth nodes, with progress tracking and keyboard controls.
+    - **Connections**: An interactive force-directed graph visualizing relationships between investigations.
+    - **Admin CMS**: A password-authenticated system for content management (holes, nodes, claims, sources, media, podcasts, employees) with role-based access control, workflow management (Draft, Review, Published), and integrity validation.
 
 ### Backend Architecture
-- **Framework**: Express 5 on Node.js with TypeScript (via tsx)
-- **API Pattern**: RESTful JSON API under `/api/` prefix
-- **Admin Auth**: Employee session auth (email+password) with role-based access control (Admin/Editor/Moderator)
-- **Key Endpoints**:
-  - `GET /api/holes` — List all rabbit holes
-  - `GET /api/holes/specialist` — List specialist-curated holes
-  - `GET /api/holes/community` — List community holes
-  - `GET /api/holes/category/:slug` — List holes by category
-  - `GET /api/holes/:slug` — Get single rabbit hole by slug
-  - `GET /api/holes/:slug/comments` — Get comments for a hole
-  - `POST /api/holes/:slug/comments` — Create a comment
-  - `POST /api/comments/:id/upvote` — Upvote a comment
-  - `POST /api/comments/:id/downvote` — Downvote a comment
-  - `GET /api/holes/:slug/depth-nodes` — Get depth nodes for guided reading
-  - `GET /api/holes/:slug/claims` — Get claims with evidence/counterpoints
-  - `GET /api/holes/:slug/sources` — Get normalized sources
-  - `GET /api/categories` — List all categories
-  - `GET /api/search?q=` — Search across holes, sources, and claims
-  - `GET /api/sources` — List all sources
-  - Admin CRUD: `POST/PUT/DELETE /api/admin/holes|depth-nodes|claims|sources`
-  - `POST /api/admin/login` — Employee login (email+password, session-based)
-  - `POST /api/admin/logout` — Employee logout
-  - `GET /api/admin/me` — Get current employee session
-  - `GET /api/admin/employees` — List all employees (Admin only)
-  - `POST /api/admin/employees` — Create employee (Admin only)
-  - `PUT /api/admin/employees/:id` — Update employee role/status (Admin only)
-  - `POST /api/admin/employees/:id/reset-password` — Reset employee password (Admin only)
-- **Validation**: Zod schemas generated from Drizzle schema via `drizzle-zod`
+- **Framework**: Express 5 on Node.js with TypeScript.
+- **API Pattern**: RESTful JSON API.
+- **Authentication**: Separate session-based authentication for regular users (signup, login, logout, profile) and employees (admin login with role-based access). bcryptjs is used for password hashing.
+- **Authorization**: Role-based access control (Admin, Editor, Moderator) for the Admin CMS, enforcing permissions on content creation, editing, publishing, and employee management.
+- **Validation**: Zod schemas are used for API request validation.
+- **Storage Layer**: Implements full CRUD operations for all entities, including search capabilities and cascade deletes for related content.
+- **Content Workflow**: Investigations support `Draft`, `Review`, `Published` statuses. Public APIs only expose `Published` content, while admin APIs can access all statuses with appropriate authentication.
+- **Paywall**: Free users are limited to a preview of depth nodes; Pro users with an active subscription gain full access.
+- **Podcast System**: Manages podcast shows, episodes, their attachment to investigations, and sponsored slots, exposing them on investigation detail pages.
 
 ### Database
-- **Database**: PostgreSQL (required via `DATABASE_URL` environment variable)
-- **ORM**: Drizzle ORM with `node-postgres` driver
-- **Schema Location**: `shared/schema.ts`
-- **Tables**:
-  - `categories` — id, name, slug (unique), description, icon
-  - `rabbit_holes` — id, slug (unique), title, summary, status, completion, isSpecialist, connections, sourceCount, categorySlug, updatedAt, timeline (JSONB), labels (JSONB), connectedSlugs (JSONB)
-  - `depth_nodes` — id, holeId (FK), title, summary, content, position, status (locked/unlocked), mediaUrl, branchLinks (JSONB)
-  - `claims` — id, holeId (FK), nodeId (FK nullable), statement, stance, confidence (0-100), evidence (JSONB), counterpoints (JSONB)
-  - `sources` — id, holeId (FK), title, author, origin, publishedDate, url, summary, type, stanceTag, credibility (0-100)
-  - `comments` — id, holeId (FK), username, reputation, content, upvotes, links (JSONB), createdAt
-  - `employees` — id (uuid), email (unique), password_hash, name, role (Admin/Editor/Moderator), is_active, created_at, updated_at, last_login_at
-- **Seeding**: `server/seed.ts` contains initial data (MKUltra, Vatican Archives, Steppe Pathogens, Cicada 3301, Numbers Stations) with depth nodes, claims, sources, and connections
-- **Auto-seed**: If no employees exist, creates default Admin employee (admin@rabbithole.io) on startup
+- **Type**: PostgreSQL.
+- **ORM**: Drizzle ORM with `node-postgres` driver.
+- **Schema**: Defined in `shared/schema.ts`, including tables for `categories`, `rabbit_holes`, `depth_nodes`, `claims`, `sources`, `comments`, `employees`, `users`, `podcasts`, `podcast_episodes`, `rabbit_hole_podcast_episodes`, `sponsored_podcast_slots`, `audit_logs`, and `user_sessions`.
+- **Seeding**: Initial data is provided for development, and a default Admin employee is created if none exists.
 
-### Storage Layer
-- `server/storage.ts` defines an `IStorage` interface and `DatabaseStorage` implementation
-- Full CRUD operations for all entities (create, read, update, delete) plus search with ILIKE queries
-- Admin operations include cascade deletes (deleting a hole removes its nodes, claims, sources, comments)
+## External Dependencies
 
-### Development vs Production
-- **Dev**: `npm run dev` starts tsx with Express + Vite middleware, HMR on port 5000
-- **Build**: `npm run build` compiles client (Vite) and server (esbuild) to `dist/`
-- **Production**: `npm start` runs the compiled `dist/index.cjs`
-
-## Design Aesthetic
-- Dark theme (#0E0E0E background)
-- Primary: Deep Red (#8B0000), Accent: Green (#22C55E) for verified status
-- Corner accents, grain overlays, terminal-style fonts
-- Space Grotesk for display, JetBrains Mono for metadata, Inter for body
-
-## Recent Changes (Feb 2026)
-- Rebranded from "Red Thread" back to "Rabbit Hole"
-- Updated color theme: deep red primary (#8B0000), darker background
-- Added `labels` and `connectedSlugs` fields to rabbit_holes for graph connections
-- Built Connections page with interactive force-directed graph visualization
-- Built Depth Reader page with sequential reading, sidebar nav, keyboard controls, localStorage progress
-- Built Admin CMS with password auth for full CRUD on holes, nodes, claims, sources
-- Added "Start Reading" button to RabbitHole detail page
-- Updated Navbar with Connections link
-- Full admin API with bearer token auth (CRUD for all content types)
-- Added `media` table to schema with full CRUD (storage, API routes, DB table)
-- Upgraded Admin CMS with form validation, labels editor, connections selector, evidence editor, media management tab
-- Enhanced DepthReader with sequential node locking, animated slide transitions, completion overlay badge
-- Built reputation system: localStorage-based points (2pts/node, 10pts/investigation), 5 tier levels (Observer → Deep Diver)
-- Updated Profile page with reputation tier display, progress bar, reading progress section, stats grid
-- Enhanced Connections graph with pulsing node glows, gradient edges, particle animation on hover, radial gradient node fills
-
-### Production Hardening (Feb 2026)
-- **Content Workflow**: rabbit_holes.status now supports Draft/Review/Published, defaults to Draft
-- **Published-Only Filtering**: All public API endpoints filter to Published-only; admin endpoints accept `?admin=true` with auth to see all statuses
-- **Audit Logging**: `audit_logs` table tracks all admin creates/updates/deletes with editor name, entity type, changes JSONB, timestamps
-- **Admin CMS Enhancements**: Status filter (All/Draft/Review/Published), editor name setting (persisted in localStorage), per-hole change history panel, Tools tab with Export/Import/Validation
-- **Data Integrity Validation**: `validateIntegrity()` checks broken source/node references in claims, broken connection slugs, published holes without depth nodes
-- **Publish Gate**: Attempting to publish a hole with integrity issues returns 400 with detailed issue list
-- **Export/Import**: Full JSON export of all tables, import with data replacement (destructive import with confirmation)
-- **QA Dashboard**: `/qa` route with automated endpoint tests — checks published-only filtering, data integrity, auth blocking, connection validity
-- **Routes**: Added `/qa` page, admin tools endpoints (`/api/admin/audit-logs`, `/api/admin/export`, `/api/admin/import`, `/api/admin/validate`)
-
-### User Authentication & Paywall (Feb 2026)
-- **Users Table**: `users` table with uuid id, email (unique), password_hash, name, plan (Free/Pro), subscription_status (none/active/past_due/canceled), timestamps
-- **Session Auth**: express-session with connect-pg-simple PostgreSQL session store (httpOnly cookies, `user_sessions` table auto-created)
-- **Auth Endpoints**: `POST /api/auth/signup`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me` — completely separate from admin auth
-- **Password Security**: bcryptjs with 12 rounds for hashing
-- **Frontend Auth Hook**: `useAuth()` hook in `client/src/hooks/useAuth.ts` — provides user, isAuthenticated, login/signup/logout mutations
-- **Paywall Gating**: Free users limited to first 2 depth nodes per investigation; Pro users with active subscription get full access
-  - Backend: `GET /api/holes/:slug/depth-nodes` returns only 2 nodes for non-Pro users
-  - Backend: `GET /api/holes/:slug/access` returns access info (totalNodes, previewLimit, hasFullAccess, loggedIn, plan)
-  - Frontend: DepthReader shows upgrade prompt with login/signup CTAs at end of preview content
-- **Auth Pages**: `/login` (with small Admin Login link), `/signup`, `/account` (profile + plan + upgrade placeholder)
-- **Navbar**: Shows Login/Sign Up when logged out; Account/Logout when logged in
-- **Admin Auth**: Completely separate — employee session auth with role-based access control, accessed via `/admin` page
-
-### Employee Authentication & Roles (Feb 2026)
-- **Employees Table**: `employees` table with uuid id, email (unique), password_hash, name, role (Admin/Editor/Moderator), is_active, timestamps
-- **Session Auth**: Shared express-session store (employeeId in session, separate from user userId)
-- **Auth Endpoints**: `POST /api/admin/login` (email+password), `POST /api/admin/logout`, `GET /api/admin/me`
-- **Role-Based Access Control**:
-  - Admin: Full access (employees, publish, delete, tools/export/import, all content CRUD)
-  - Editor: Can create/edit rabbit holes, depth nodes, claims, sources, media; can move Draft→Review; cannot publish, delete, or manage employees/tools
-  - Moderator: Can view admin panel but cannot edit core content; comment moderation only
-- **Employee Management**: `/admin` page "Employees" tab (Admin only) — create employees with temp password, reset passwords, activate/deactivate, role changes, last login display
-- **Publish Gate**: Only Admin role can change status to "Published"
-- **Auto-Seed**: Creates default Admin employee (admin@rabbithole.io) on first startup if no employees exist
-- **Middleware**: `requireEmployee` (session check) + `requireRole(...roles)` (role gate) replace old bearer token auth
+- **PostgreSQL**: Primary database for all application data.
+- **Vite**: Frontend build tool.
+- **TanStack React Query**: For data fetching and state management.
+- **shadcn/ui & Radix UI**: UI component libraries.
+- **Tailwind CSS**: Utility-first CSS framework.
+- **Wouter**: Client-side routing.
+- **Express**: Backend web application framework.
+- **Drizzle ORM**: TypeScript ORM for PostgreSQL.
+- **node-postgres**: PostgreSQL client for Node.js.
+- **bcryptjs**: For password hashing.
+- **express-session**: Session management middleware.
+- **connect-pg-simple**: PostgreSQL session store.
+- **Zod**: Schema validation library.
+- **tsx**: TypeScript execution for Node.js development.
+- **esbuild**: Server-side bundling.
+- **Spotify/YouTube**: For embedding podcast players.

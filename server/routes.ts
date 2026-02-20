@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertCommentSchema, insertDepthNodeSchema, insertClaimSchema, insertSourceSchema, insertCategorySchema, insertRabbitHoleSchema, insertMediaSchema } from "@shared/schema";
+import { insertCommentSchema, insertDepthNodeSchema, insertClaimSchema, insertSourceSchema, insertCategorySchema, insertRabbitHoleSchema, insertMediaSchema, insertPodcastSchema, insertPodcastEpisodeSchema, insertRabbitHolePodcastEpisodeSchema, insertSponsoredPodcastSlotSchema } from "@shared/schema";
 import { ZodError } from "zod";
 import bcrypt from "bcryptjs";
 import type { Employee } from "@shared/schema";
@@ -408,7 +408,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/holes", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
     try {
-      const parsed = insertRabbitHoleSchema.parse({ ...req.body, status: req.body.status || "Draft" });
+      const parsed = insertRabbitHoleSchema.parse({ ...req.body, status: req.body.status || "Draft", lastEditedBy: getEditorName(req) });
       const hole = await storage.createHole(parsed);
       await storage.createAuditLog({
         holeId: hole.id, entityType: "rabbit_hole", entityId: hole.id,
@@ -431,17 +431,26 @@ export async function registerRoutes(
         if (req.employee?.role !== "Admin") {
           return res.status(403).json({ message: "Only Admin can publish investigations" });
         }
-        const validation = await storage.validateIntegrity();
-        const holeIssues = validation.issues.filter(i => i.holeId === id);
-        if (holeIssues.length > 0) {
+        const checklist = await storage.getPublishChecklist(id);
+        if (!checklist.passed) {
+          const failedChecks = checklist.checks.filter(c => !c.passed);
           return res.status(400).json({
-            message: "Cannot publish: integrity issues found",
-            issues: holeIssues,
+            message: "Cannot publish: checklist requirements not met",
+            checks: checklist.checks,
+            failedChecks,
           });
         }
       }
 
-      const hole = await storage.updateHole(id, req.body);
+      if (req.body.status === "Review" && before.status === "Draft") {
+        // Editor can move Draft -> Review (or Admin)
+      } else if (req.body.status && req.body.status !== before.status) {
+        if (req.body.status === "Published" && req.employee?.role !== "Admin") {
+          return res.status(403).json({ message: "Only Admin can publish investigations" });
+        }
+      }
+
+      const hole = await storage.updateHole(id, { ...req.body, lastEditedBy: getEditorName(req) });
       if (!hole) return res.status(404).json({ message: "Not found" });
       await storage.createAuditLog({
         holeId: hole.id, entityType: "rabbit_hole", entityId: hole.id,
@@ -799,6 +808,260 @@ export async function registerRoutes(
       res.json({ message: "Password reset successfully" });
     } catch (err) {
       res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+
+  // ===== EDITORIAL DASHBOARD =====
+
+  app.get("/api/admin/dashboard", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
+    try {
+      const allHoles = await storage.getAllHoles();
+      const editorName = getEditorName(req);
+      const myDrafts = allHoles.filter(h => h.status === "Draft" && h.lastEditedBy === editorName);
+      const inReview = allHoles.filter(h => h.status === "Review");
+      const published = allHoles.filter(h => h.status === "Published");
+      const recentlyEdited = [...allHoles].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).slice(0, 20);
+
+      const needsFixesIds = new Set<number>();
+      const integrity = await storage.validateIntegrity();
+      for (const issue of integrity.issues) {
+        needsFixesIds.add(issue.holeId);
+      }
+      const needsFixes = allHoles.filter(h => needsFixesIds.has(h.id));
+
+      res.json({ myDrafts, inReview, needsFixes, published, recentlyEdited });
+    } catch (err) {
+      res.status(500).json({ message: "Failed to load dashboard" });
+    }
+  });
+
+  app.get("/api/admin/publish-checklist/:id", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const checklist = await storage.getPublishChecklist(id);
+      res.json(checklist);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to check publish readiness" });
+    }
+  });
+
+  // ===== PODCAST ROUTES =====
+
+  app.get("/api/admin/podcasts", requireEmployee, requireRole("Admin", "Editor"), async (_req, res) => {
+    try {
+      const all = await storage.getAllPodcasts();
+      res.json(all);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch podcasts" });
+    }
+  });
+
+  app.post("/api/admin/podcasts", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
+    try {
+      const parsed = insertPodcastSchema.parse(req.body);
+      const podcast = await storage.createPodcast(parsed);
+      await storage.createAuditLog({
+        holeId: null as any, entityType: "podcast", entityId: podcast.id,
+        action: "create", editorName: getEditorName(req), changes: { title: podcast.title },
+      });
+      res.status(201).json(podcast);
+    } catch (err) {
+      if (err instanceof ZodError) return res.status(400).json({ message: "Invalid data", errors: err.errors });
+      res.status(500).json({ message: "Failed to create podcast" });
+    }
+  });
+
+  app.put("/api/admin/podcasts/:id", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const podcast = await storage.updatePodcast(id, req.body);
+      if (!podcast) return res.status(404).json({ message: "Not found" });
+      await storage.createAuditLog({
+        holeId: null as any, entityType: "podcast", entityId: podcast.id,
+        action: "update", editorName: getEditorName(req), changes: { title: podcast.title },
+      });
+      res.json(podcast);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to update podcast" });
+    }
+  });
+
+  app.delete("/api/admin/podcasts/:id", requireEmployee, requireRole("Admin"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const ok = await storage.deletePodcast(id);
+      if (!ok) return res.status(404).json({ message: "Not found" });
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ message: "Failed to delete podcast" });
+    }
+  });
+
+  // Podcast Episodes
+  app.get("/api/admin/podcast-episodes", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
+    try {
+      const podcastId = req.query.podcastId ? parseInt(req.query.podcastId as string) : null;
+      const episodes = podcastId ? await storage.getPodcastEpisodesByPodcastId(podcastId) : await storage.getAllPodcastEpisodes();
+      res.json(episodes);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch episodes" });
+    }
+  });
+
+  app.post("/api/admin/podcast-episodes", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
+    try {
+      const parsed = insertPodcastEpisodeSchema.parse({ ...req.body, status: req.body.status || "Draft", createdBy: getEditorName(req), updatedBy: getEditorName(req) });
+      const episode = await storage.createPodcastEpisode(parsed);
+      await storage.createAuditLog({
+        holeId: null as any, entityType: "podcast_episode", entityId: episode.id,
+        action: "create", editorName: getEditorName(req), changes: { title: episode.title },
+      });
+      res.status(201).json(episode);
+    } catch (err) {
+      if (err instanceof ZodError) return res.status(400).json({ message: "Invalid data", errors: err.errors });
+      res.status(500).json({ message: "Failed to create episode" });
+    }
+  });
+
+  app.put("/api/admin/podcast-episodes/:id", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const before = await storage.getPodcastEpisode(id);
+      if (!before) return res.status(404).json({ message: "Not found" });
+
+      if (req.body.status === "Published" && req.employee?.role !== "Admin") {
+        return res.status(403).json({ message: "Only Admin can publish episodes" });
+      }
+      if (req.body.status === "Review" && before.status !== "Draft" && req.employee?.role !== "Admin") {
+        return res.status(403).json({ message: "Can only move Draft to Review" });
+      }
+
+      const episode = await storage.updatePodcastEpisode(id, { ...req.body, updatedBy: getEditorName(req) });
+      if (!episode) return res.status(404).json({ message: "Not found" });
+      await storage.createAuditLog({
+        holeId: null as any, entityType: "podcast_episode", entityId: episode.id,
+        action: "update", editorName: getEditorName(req), changes: { title: episode.title, status: episode.status },
+      });
+      res.json(episode);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to update episode" });
+    }
+  });
+
+  app.delete("/api/admin/podcast-episodes/:id", requireEmployee, requireRole("Admin"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const ok = await storage.deletePodcastEpisode(id);
+      if (!ok) return res.status(404).json({ message: "Not found" });
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ message: "Failed to delete episode" });
+    }
+  });
+
+  // Rabbit Hole <-> Episode Links
+  app.get("/api/admin/hole-episodes/:holeId", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
+    try {
+      const holeId = parseInt(req.params.holeId);
+      const links = await storage.getLinksForHole(holeId);
+      res.json(links);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch episode links" });
+    }
+  });
+
+  app.post("/api/admin/hole-episodes", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
+    try {
+      const parsed = insertRabbitHolePodcastEpisodeSchema.parse(req.body);
+      const link = await storage.createLink(parsed);
+      res.status(201).json(link);
+    } catch (err) {
+      if (err instanceof ZodError) return res.status(400).json({ message: "Invalid data", errors: err.errors });
+      res.status(500).json({ message: "Failed to link episode" });
+    }
+  });
+
+  app.put("/api/admin/hole-episodes/:id", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const link = await storage.updateLink(id, req.body);
+      if (!link) return res.status(404).json({ message: "Not found" });
+      res.json(link);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to update link" });
+    }
+  });
+
+  app.delete("/api/admin/hole-episodes/:id", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const ok = await storage.deleteLink(id);
+      if (!ok) return res.status(404).json({ message: "Not found" });
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ message: "Failed to remove link" });
+    }
+  });
+
+  // Sponsored Podcast Slots (Admin only)
+  app.get("/api/admin/sponsored-slots", requireEmployee, requireRole("Admin"), async (req, res) => {
+    try {
+      const holeId = req.query.holeId ? parseInt(req.query.holeId as string) : null;
+      const slots = holeId ? await storage.getSponsoredSlotsForHole(holeId) : await storage.getAllSponsoredSlots();
+      res.json(slots);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch sponsored slots" });
+    }
+  });
+
+  app.post("/api/admin/sponsored-slots", requireEmployee, requireRole("Admin"), async (req, res) => {
+    try {
+      const parsed = insertSponsoredPodcastSlotSchema.parse(req.body);
+      const slot = await storage.createSponsoredSlot(parsed);
+      await storage.createAuditLog({
+        holeId: slot.rabbitHoleId, entityType: "sponsored_slot", entityId: slot.id,
+        action: "create", editorName: getEditorName(req), changes: { sponsorName: slot.sponsorName },
+      });
+      res.status(201).json(slot);
+    } catch (err) {
+      if (err instanceof ZodError) return res.status(400).json({ message: "Invalid data", errors: err.errors });
+      res.status(500).json({ message: "Failed to create sponsored slot" });
+    }
+  });
+
+  app.put("/api/admin/sponsored-slots/:id", requireEmployee, requireRole("Admin"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const slot = await storage.updateSponsoredSlot(id, req.body);
+      if (!slot) return res.status(404).json({ message: "Not found" });
+      res.json(slot);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to update sponsored slot" });
+    }
+  });
+
+  app.delete("/api/admin/sponsored-slots/:id", requireEmployee, requireRole("Admin"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const ok = await storage.deleteSponsoredSlot(id);
+      if (!ok) return res.status(404).json({ message: "Not found" });
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ message: "Failed to delete sponsored slot" });
+    }
+  });
+
+  // ===== PUBLIC PODCAST ENDPOINTS =====
+
+  app.get("/api/holes/:slug/podcasts", async (req, res) => {
+    try {
+      const hole = await storage.getHoleBySlug(req.params.slug);
+      if (!hole || hole.status !== "Published") return res.status(404).json({ message: "Rabbit hole not found" });
+      const episodes = await storage.getPublishedEpisodesForHole(hole.id);
+      const sponsoredSlot = await storage.getActiveSponsoredSlotForHole(hole.id);
+      res.json({ episodes, sponsoredSlot });
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch podcasts" });
     }
   });
 

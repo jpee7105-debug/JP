@@ -22,6 +22,7 @@ export const rabbitHoles = pgTable("rabbit_holes", {
   connections: integer("connections").default(0).notNull(),
   sourceCount: integer("source_count").default(0).notNull(),
   categorySlug: text("category_slug").default("").notNull(),
+  lastEditedBy: text("last_edited_by"),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   timeline: jsonb("timeline").$type<{ year: string; event: string; type: string }[]>().default([]).notNull(),
   labels: jsonb("labels").$type<string[]>().default([]).notNull(),
@@ -154,3 +155,67 @@ export type InsertUser = z.infer<typeof insertUserSchema>;
 export const insertEmployeeSchema = createInsertSchema(employees).omit({ id: true, createdAt: true, updatedAt: true, lastLoginAt: true });
 export type Employee = typeof employees.$inferSelect;
 export type InsertEmployee = z.infer<typeof insertEmployeeSchema>;
+
+export const podcasts = pgTable("podcasts", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description").default("").notNull(),
+  platform: text("platform").default("").notNull(),
+  showUrl: text("show_url").default("").notNull(),
+  coverImageUrl: text("cover_image_url").default("").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const podcastEpisodes = pgTable("podcast_episodes", {
+  id: serial("id").primaryKey(),
+  podcastId: integer("podcast_id").references(() => podcasts.id).notNull(),
+  title: text("title").notNull(),
+  description: text("description").default("").notNull(),
+  publishedDate: text("published_date").default("").notNull(),
+  durationSeconds: integer("duration_seconds").default(0).notNull(),
+  episodeUrl: text("episode_url").default("").notNull(),
+  embedType: text("embed_type").default("iframe").notNull(),
+  embedUrl: text("embed_url").default("").notNull(),
+  status: text("status").default("Draft").notNull(),
+  createdBy: text("created_by"),
+  updatedBy: text("updated_by"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const rabbitHolePodcastEpisodes = pgTable("rabbit_hole_podcast_episodes", {
+  id: serial("id").primaryKey(),
+  rabbitHoleId: integer("rabbit_hole_id").references(() => rabbitHoles.id).notNull(),
+  episodeId: integer("episode_id").references(() => podcastEpisodes.id).notNull(),
+  sortOrder: integer("sort_order").default(0).notNull(),
+  pinned: boolean("pinned").default(false).notNull(),
+});
+
+export const sponsoredPodcastSlots = pgTable("sponsored_podcast_slots", {
+  id: serial("id").primaryKey(),
+  rabbitHoleId: integer("rabbit_hole_id").references(() => rabbitHoles.id).notNull(),
+  sponsorName: text("sponsor_name").notNull(),
+  sponsorUrl: text("sponsor_url").default("").notNull(),
+  disclosureText: text("disclosure_text").notNull(),
+  episodeId: integer("episode_id").references(() => podcastEpisodes.id),
+  startDate: text("start_date").default("").notNull(),
+  endDate: text("end_date").default("").notNull(),
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertPodcastSchema = createInsertSchema(podcasts).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertPodcastEpisodeSchema = createInsertSchema(podcastEpisodes).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertRabbitHolePodcastEpisodeSchema = createInsertSchema(rabbitHolePodcastEpisodes).omit({ id: true });
+export const insertSponsoredPodcastSlotSchema = createInsertSchema(sponsoredPodcastSlots).omit({ id: true, createdAt: true, updatedAt: true });
+
+export type Podcast = typeof podcasts.$inferSelect;
+export type InsertPodcast = z.infer<typeof insertPodcastSchema>;
+export type PodcastEpisode = typeof podcastEpisodes.$inferSelect;
+export type InsertPodcastEpisode = z.infer<typeof insertPodcastEpisodeSchema>;
+export type RabbitHolePodcastEpisode = typeof rabbitHolePodcastEpisodes.$inferSelect;
+export type InsertRabbitHolePodcastEpisode = z.infer<typeof insertRabbitHolePodcastEpisodeSchema>;
+export type SponsoredPodcastSlot = typeof sponsoredPodcastSlots.$inferSelect;
+export type InsertSponsoredPodcastSlot = z.infer<typeof insertSponsoredPodcastSlotSchema>;
