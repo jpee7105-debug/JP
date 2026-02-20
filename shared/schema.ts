@@ -64,6 +64,15 @@ export const sources = pgTable("sources", {
   credibility: integer("credibility").default(50).notNull(),
 });
 
+export const media = pgTable("media", {
+  id: serial("id").primaryKey(),
+  holeId: integer("hole_id").references(() => rabbitHoles.id).notNull(),
+  title: text("title").notNull(),
+  url: text("url").notNull(),
+  type: text("type").default("image").notNull(),
+  caption: text("caption").default("").notNull(),
+});
+
 export const comments = pgTable("comments", {
   id: serial("id").primaryKey(),
   holeId: integer("hole_id").references(() => rabbitHoles.id).notNull(),
@@ -80,6 +89,7 @@ export const insertRabbitHoleSchema = createInsertSchema(rabbitHoles).omit({ id:
 export const insertDepthNodeSchema = createInsertSchema(depthNodes).omit({ id: true });
 export const insertClaimSchema = createInsertSchema(claims).omit({ id: true });
 export const insertSourceSchema = createInsertSchema(sources).omit({ id: true });
+export const insertMediaSchema = createInsertSchema(media).omit({ id: true });
 export const insertCommentSchema = createInsertSchema(comments).omit({ id: true, createdAt: true });
 
 export type Category = typeof categories.$inferSelect;
@@ -92,5 +102,7 @@ export type Claim = typeof claims.$inferSelect;
 export type InsertClaim = z.infer<typeof insertClaimSchema>;
 export type Source = typeof sources.$inferSelect;
 export type InsertSource = z.infer<typeof insertSourceSchema>;
+export type Media = typeof media.$inferSelect;
+export type InsertMedia = z.infer<typeof insertMediaSchema>;
 export type Comment = typeof comments.$inferSelect;
 export type InsertComment = z.infer<typeof insertCommentSchema>;

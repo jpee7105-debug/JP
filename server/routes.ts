@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertCommentSchema, insertDepthNodeSchema, insertClaimSchema, insertSourceSchema, insertCategorySchema, insertRabbitHoleSchema } from "@shared/schema";
+import { insertCommentSchema, insertDepthNodeSchema, insertClaimSchema, insertSourceSchema, insertCategorySchema, insertRabbitHoleSchema, insertMediaSchema } from "@shared/schema";
 import { ZodError } from "zod";
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "rabbithole2024";
@@ -171,6 +171,17 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/holes/:slug/media", async (req, res) => {
+    try {
+      const hole = await storage.getHoleBySlug(req.params.slug);
+      if (!hole) return res.status(404).json({ message: "Rabbit hole not found" });
+      const holeMedia = await storage.getMediaByHoleId(hole.id);
+      res.json(holeMedia);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch media" });
+    }
+  });
+
   app.get("/api/sources", async (_req, res) => {
     try {
       const allSources = await storage.getAllSources();
@@ -301,6 +312,37 @@ export async function registerRoutes(
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: "Failed to delete source" });
+    }
+  });
+
+  app.post("/api/admin/media", requireAdmin, async (req, res) => {
+    try {
+      const parsed = insertMediaSchema.parse(req.body);
+      const m = await storage.createMedia(parsed);
+      res.status(201).json(m);
+    } catch (err) {
+      if (err instanceof ZodError) return res.status(400).json({ message: "Invalid data", errors: err.errors });
+      res.status(500).json({ message: "Failed to create media" });
+    }
+  });
+
+  app.put("/api/admin/media/:id", requireAdmin, async (req, res) => {
+    try {
+      const m = await storage.updateMedia(parseInt(req.params.id), req.body);
+      if (!m) return res.status(404).json({ message: "Not found" });
+      res.json(m);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to update media" });
+    }
+  });
+
+  app.delete("/api/admin/media/:id", requireAdmin, async (req, res) => {
+    try {
+      const ok = await storage.deleteMedia(parseInt(req.params.id));
+      if (!ok) return res.status(404).json({ message: "Not found" });
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ message: "Failed to delete media" });
     }
   });
 

@@ -111,3 +111,9 @@ Design theme: Dark (#0E0E0E background), deep red accent (#8B0000), light text (
 - Added "Start Reading" button to RabbitHole detail page
 - Updated Navbar with Connections link
 - Full admin API with bearer token auth (CRUD for all content types)
+- Added `media` table to schema with full CRUD (storage, API routes, DB table)
+- Upgraded Admin CMS with form validation, labels editor, connections selector, evidence editor, media management tab
+- Enhanced DepthReader with sequential node locking, animated slide transitions, completion overlay badge
+- Built reputation system: localStorage-based points (2pts/node, 10pts/investigation), 5 tier levels (Observer → Deep Diver)
+- Updated Profile page with reputation tier display, progress bar, reading progress section, stats grid
+- Enhanced Connections graph with pulsing node glows, gradient edges, particle animation on hover, radial gradient node fills

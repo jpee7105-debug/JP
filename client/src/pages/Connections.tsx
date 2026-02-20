@@ -48,10 +48,21 @@ export default function Connections() {
   const animRef = useRef<number>(0);
   const mouseRef = useRef({ x: 0, y: 0 });
   const dragRef = useRef<{ node: GraphNode | null; offsetX: number; offsetY: number }>({ node: null, offsetX: 0, offsetY: 0 });
+  const timeRef = useRef(0);
+  const hoveredRef = useRef<string | null>(null);
+  const selectedRef = useRef<string | null>(null);
 
   const { data: holes = [], isLoading } = useQuery<RabbitHole[]>({
     queryKey: ["/api/holes"],
   });
+
+  useEffect(() => {
+    hoveredRef.current = hoveredNode?.id || null;
+  }, [hoveredNode]);
+
+  useEffect(() => {
+    selectedRef.current = selectedNode?.id || null;
+  }, [selectedNode]);
 
   useEffect(() => {
     if (holes.length === 0) return;
@@ -214,61 +225,95 @@ export default function Connections() {
 
     function draw() {
       if (!ctx || !canvas) return;
+      timeRef.current += 0.016;
       const w = canvas.offsetWidth;
       const h = canvas.offsetHeight;
       ctx.clearRect(0, 0, w, h);
 
       const ns = nodesRef.current;
       const es = edgesRef.current;
+      const hId = hoveredRef.current;
+      const sId = selectedRef.current;
 
       for (const e of es) {
         const s = ns.find(n => n.id === e.source)!;
         const t = ns.find(n => n.id === e.target)!;
+        const isHighlighted = hId && (hId === e.source || hId === e.target);
+
         ctx.beginPath();
         ctx.moveTo(s.x, s.y);
         ctx.lineTo(t.x, t.y);
-        const isHighlighted = hoveredNode && (hoveredNode.id === e.source || hoveredNode.id === e.target);
-        ctx.strokeStyle = isHighlighted ? "rgba(139, 0, 0, 0.6)" : "rgba(255,255,255,0.08)";
-        ctx.lineWidth = isHighlighted ? 2 : 1;
+
+        if (isHighlighted) {
+          const grad = ctx.createLinearGradient(s.x, s.y, t.x, t.y);
+          grad.addColorStop(0, "rgba(139, 0, 0, 0.6)");
+          grad.addColorStop(0.5, "rgba(139, 0, 0, 0.3)");
+          grad.addColorStop(1, "rgba(139, 0, 0, 0.6)");
+          ctx.strokeStyle = grad;
+          ctx.lineWidth = 2;
+        } else {
+          ctx.strokeStyle = "rgba(255,255,255,0.06)";
+          ctx.lineWidth = 1;
+        }
         ctx.stroke();
+
+        if (isHighlighted) {
+          const t2 = timeRef.current % 2 / 2;
+          const px = s.x + (t.x - s.x) * t2;
+          const py = s.y + (t.y - s.y) * t2;
+          ctx.beginPath();
+          ctx.arc(px, py, 3, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(139, 0, 0, 0.8)";
+          ctx.fill();
+        }
       }
 
       for (const n of ns) {
-        const isHovered = hoveredNode?.id === n.id;
-        const isSelected = selectedNode?.id === n.id;
+        const isHovered = hId === n.id;
+        const isSelected = sId === n.id;
         const r = isHovered || isSelected ? 24 : 18;
         const glow = statusGlow(n.status);
+        const pulse = Math.sin(timeRef.current * 2 + parseInt(n.id) * 1.5) * 0.3 + 0.7;
 
         if (isHovered || isSelected) {
           ctx.beginPath();
-          ctx.arc(n.x, n.y, r + 8, 0, Math.PI * 2);
-          ctx.fillStyle = `${glow}15`;
+          ctx.arc(n.x, n.y, r + 12, 0, Math.PI * 2);
+          const outerGlow = ctx.createRadialGradient(n.x, n.y, r, n.x, n.y, r + 12);
+          outerGlow.addColorStop(0, glow + "30");
+          outerGlow.addColorStop(1, glow + "00");
+          ctx.fillStyle = outerGlow;
           ctx.fill();
         }
 
+        const nodeGrad = ctx.createRadialGradient(n.x - r * 0.3, n.y - r * 0.3, 0, n.x, n.y, r);
+        nodeGrad.addColorStop(0, "#1a1a1a");
+        nodeGrad.addColorStop(1, "#0a0a0a");
         ctx.beginPath();
         ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
-        ctx.fillStyle = "#0e0e0e";
+        ctx.fillStyle = nodeGrad;
         ctx.fill();
-        ctx.strokeStyle = isSelected ? glow : isHovered ? glow : "rgba(255,255,255,0.15)";
+
+        const borderAlpha = isSelected ? 1 : isHovered ? 0.8 : pulse * 0.3;
+        ctx.strokeStyle = isSelected || isHovered ? glow : `rgba(255,255,255,${borderAlpha * 0.4})`;
         ctx.lineWidth = isSelected ? 2.5 : isHovered ? 2 : 1;
         ctx.stroke();
 
-        ctx.fillStyle = isHovered || isSelected ? "#ededed" : "rgba(255,255,255,0.7)";
-        ctx.font = "bold 9px 'JetBrains Mono', monospace";
+        ctx.fillStyle = isHovered || isSelected ? "#ededed" : `rgba(255,255,255,${0.5 + pulse * 0.3})`;
+        ctx.font = `bold ${isHovered || isSelected ? 10 : 9}px 'JetBrains Mono', monospace`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         const shortTitle = n.title.length > 12 ? n.title.slice(0, 10) + ".." : n.title;
         ctx.fillText(shortTitle.toUpperCase(), n.x, n.y);
 
         if (n.labels.length > 0) {
-          const labelY = n.y + r + 12;
+          const labelY = n.y + r + 14;
           n.labels.forEach((label, li) => {
-            const lx = n.x + (li - (n.labels.length - 1) / 2) * 50;
-            ctx.fillStyle = labelColor(label) + "30";
-            ctx.fillRect(lx - 22, labelY - 6, 44, 12);
-            ctx.fillStyle = labelColor(label);
-            ctx.font = "8px 'JetBrains Mono', monospace";
+            const lx = n.x + (li - (n.labels.length - 1) / 2) * 52;
+            const lc = labelColor(label);
+            ctx.fillStyle = lc + "20";
+            ctx.fillRect(lx - 24, labelY - 7, 48, 14);
+            ctx.fillStyle = lc;
+            ctx.font = "bold 7px 'JetBrains Mono', monospace";
             ctx.fillText(label.toUpperCase(), lx, labelY);
           });
         }
@@ -287,7 +332,7 @@ export default function Connections() {
       canvas.removeEventListener("mousedown", handleMouseDown);
       canvas.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [holes, hoveredNode, selectedNode]);
+  }, [holes]);
 
   if (isLoading) {
     return (
@@ -315,7 +360,7 @@ export default function Connections() {
         <canvas ref={canvasRef} className="w-full h-[calc(100vh-120px)]" data-testid="canvas-graph" />
 
         {selectedNode && (
-          <div className="absolute bottom-6 left-6 right-6 md:left-auto md:right-6 md:w-80 bg-card border border-white/10 p-6" data-testid="panel-node-detail">
+          <div className="absolute bottom-6 left-6 right-6 md:left-auto md:right-6 md:w-80 bg-card border border-white/10 p-6 backdrop-blur-sm" data-testid="panel-node-detail">
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h3 className="font-display text-lg font-bold">{selectedNode.title}</h3>

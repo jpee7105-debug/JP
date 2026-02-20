@@ -8,6 +8,7 @@ import {
   claims,
   sources,
   categories,
+  media,
   type RabbitHole,
   type InsertRabbitHole,
   type Comment,
@@ -20,6 +21,8 @@ import {
   type InsertSource,
   type Category,
   type InsertCategory,
+  type Media,
+  type InsertMedia,
 } from "@shared/schema";
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
@@ -60,6 +63,12 @@ export interface IStorage {
   updateSource(id: number, data: Partial<InsertSource>): Promise<Source | undefined>;
   deleteSource(id: number): Promise<boolean>;
   searchSources(query: string): Promise<Source[]>;
+
+  getMediaByHoleId(holeId: number): Promise<Media[]>;
+  getMedia(id: number): Promise<Media | undefined>;
+  createMedia(m: InsertMedia): Promise<Media>;
+  updateMedia(id: number, data: Partial<InsertMedia>): Promise<Media | undefined>;
+  deleteMedia(id: number): Promise<boolean>;
 
   getAllCategories(): Promise<Category[]>;
   createCategory(category: InsertCategory): Promise<Category>;
@@ -108,6 +117,7 @@ export class DatabaseStorage implements IStorage {
     await db.delete(depthNodes).where(eq(depthNodes.holeId, id));
     await db.delete(claims).where(eq(claims.holeId, id));
     await db.delete(sources).where(eq(sources.holeId, id));
+    await db.delete(media).where(eq(media.holeId, id));
     await db.delete(comments).where(eq(comments.holeId, id));
     const result = await db.delete(rabbitHoles).where(eq(rabbitHoles.id, id)).returning();
     return result.length > 0;
@@ -217,6 +227,30 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(sources).where(
       or(ilike(sources.title, pattern), ilike(sources.summary, pattern), ilike(sources.author, pattern))
     ).orderBy(desc(sources.credibility));
+  }
+
+  async getMediaByHoleId(holeId: number): Promise<Media[]> {
+    return db.select().from(media).where(eq(media.holeId, holeId));
+  }
+
+  async getMedia(id: number): Promise<Media | undefined> {
+    const [m] = await db.select().from(media).where(eq(media.id, id));
+    return m;
+  }
+
+  async createMedia(m: InsertMedia): Promise<Media> {
+    const [created] = await db.insert(media).values(m).returning();
+    return created;
+  }
+
+  async updateMedia(id: number, data: Partial<InsertMedia>): Promise<Media | undefined> {
+    const [updated] = await db.update(media).set(data).where(eq(media.id, id)).returning();
+    return updated;
+  }
+
+  async deleteMedia(id: number): Promise<boolean> {
+    const result = await db.delete(media).where(eq(media.id, id)).returning();
+    return result.length > 0;
   }
 
   async getAllCategories(): Promise<Category[]> {

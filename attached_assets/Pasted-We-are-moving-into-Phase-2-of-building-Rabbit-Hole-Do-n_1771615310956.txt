@@ -1,0 +1,97 @@
+We are moving into Phase 2 of building Rabbit Hole.
+
+Do not redesign the homepage. Do not rebuild UI randomly.
+We are strengthening the foundation and making this scalable.
+
+GOAL:
+Turn Rabbit Hole into a fully database-driven, CMS-controlled, scalable platform.
+
+Execute the following in order:
+
+1) Refactor for Clean Architecture
+- Remove all hardcoded rabbit hole content from UI components.
+- Ensure every rabbit hole renders dynamically from the central data source.
+- Separate:
+  - UI components
+  - Data models
+  - Routing
+  - Admin logic
+- Make adding a new rabbit hole require only adding data, not editing UI files.
+
+2) Strengthen the Data Model
+Confirm that the RabbitHole structure includes:
+- id
+- slug
+- title
+- summary
+- category
+- labels (Verified / Disputed / Speculative / Archived)
+- depthNodes (array)
+- claims (array)
+- sourceIds (array)
+- mediaIds (array)
+- connectionIds (array)
+
+Ensure:
+- Depth nodes are sequential and support branching.
+- Claims reference sourceIds.
+- Connections reference other rabbit hole IDs.
+
+3) Upgrade the Admin CMS (Critical)
+Improve /admin so non-technical users can:
+- Create, edit, delete rabbit holes
+- Add depth nodes with ordering
+- Add claims and assign evidence sources
+- Add and manage sources in a central library
+- Add media and attach it to rabbit holes
+- Connect rabbit holes to each other via dropdown selector
+
+Requirements:
+- Clean form UI
+- Validation on required fields
+- Save changes persistently to the JSON data files
+- No manual code edits required to add new content
+
+4) Improve Depth Progression System
+- Track depth node completion per rabbit hole
+- Save progress persistently (localStorage for now)
+- Lock depth nodes sequentially unless branched
+- Show animated transition between major depth sections
+- Add a completion badge when 100% is reached
+
+5) Reputation System
+Implement a basic reputation system:
+- Points for rabbit holes completed
+- Points for depth nodes completed
+- Tier levels:
+  - Observer
+  - Thread Follower
+  - Investigator
+  - Archivist
+  - Deep Diver
+Display tier visually in the profile page.
+
+6) Improve Connections Map
+Upgrade /connections page:
+- Use a graph visualization (SVG or lightweight graph library)
+- Nodes represent rabbit holes
+- Edges represent connections
+- Clicking a node navigates to its rabbit hole page
+- Add subtle motion or hover effects
+
+7) Deployment Safety
+Ensure:
+- Direct URL navigation works
+- No route falls back incorrectly to homepage
+- Admin route is protected by simple password gate
+
+After completion:
+- Print a short “System Update Summary”
+- List files created/modified
+- Confirm where routing is defined
+- Confirm where data persistence occurs
+
+Focus on functionality, structure, and scalability.
+Do not over-style.
+Do not simplify the architecture.
+Build it properly.
