@@ -1,0 +1,102 @@
+App Concept: Red Thread
+
+Core Concept
+Red Thread is an AI-powered investigative research platform built around structured “rabbit holes.” Each rabbit hole explores a controversial, historical, geopolitical, or conspiracy-adjacent topic using AI-verified summaries, ranked sources, media evidence, and multi-perspective framing. The experience should feel like navigating a digital conspiracy board, but organized, labeled, and credibility-ranked.
+
+Primary Goal
+Create a deep exploration system where users can follow connected ideas through interactive red thread links, track their progression into a topic, and engage anonymously in structured discussions.
+
+Core Features
+
+Rabbit Hole Structure
+Each rabbit hole page must include:
+• Neutral overview summary
+• Timeline of events
+• Key claims
+• Counter-arguments
+• Evidence and source section
+• Photos, documents, and videos
+• Related book and media library
+• Connected rabbit holes
+• Depth progression bar
+
+Anonymous User System
+• Anonymous username creation
+• No required public identity
+• Optional encrypted email login
+• Reputation score visible instead of personal identity
+
+Comment System
+• Vertical scroll bar styled as a red thread
+• Comments appear as notes pinned along the thread
+• Upvote and downvote system
+• Highly upvoted comments rise toward the top
+• Downvoted comments remain visible but rank lower
+
+Interactive Red Line Linking
+• Users can highlight text inside comments
+• Attach a red line to another rabbit hole
+• Clicking the red line jumps to the linked topic
+• Creates a dynamic idea-mapping network
+
+Rabbit Hole Progression Bar
+• Shows how deep a user has explored a topic
+• Tracks percentage completion
+• Progress based on articles read, documents viewed, media consumed, and linked threads explored
+• Completion contributes to user reputation
+
+Research and Verification Layer
+• AI-assisted fact checking
+• Source credibility ranking
+• Evidence confidence labeling
+• Content tags such as Verified, Disputed, Speculative, Archived Theory
+• Multi-perspective presentation of sensitive topics
+
+Book and Media Library
+Each rabbit hole includes a structured library with:
+• Related books
+• Academic sources
+• Government documents
+• Podcasts
+• Foreign publications
+Each source includes summary, origin, and AI-generated credibility indicator
+
+International Information Module
+• Section comparing how foreign media and governments cover the same events
+• Translated summaries
+• Narrative comparison system
+
+Monetization
+• Sponsored podcast placements inside rabbit holes
+• Clearly labeled sponsored sections
+• Limited slots per topic
+• Optional premium membership for deeper archives
+
+Reputation System
+Users earn rank by:
+• Completing rabbit holes
+• Creating high-quality thread connections
+• Posting highly upvoted comments
+• Contributing research
+
+Ranking tiers scale progressively and unlock features or visual badges.
+
+Technical Requirements
+• AI summarization engine
+• AI fact cross-referencing system
+• Graph-based thread visualization system
+• Scalable content database
+• Anonymous account encryption
+• AI moderation system
+• Reputation tracking algorithm
+
+Design Direction
+• Dark theme default
+• Black background
+• Subtle red and green accent highlights
+• Minimalist investigative aesthetic
+• Smooth transitions between linked rabbit holes
+• Animated red thread effect when connecting ideas
+
+Pre-Launch Requirement
+The app must launch with a substantial research base including dozens of fully built rabbit holes with media, sources, and structured explanations before opening to user-generated expansion.
