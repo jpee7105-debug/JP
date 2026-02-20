@@ -1,0 +1,425 @@
+App Name: Red Thread
+
+Build Type
+Mobile-first app (iOS/Android) + Web admin backend (CMS) for content/research team.
+
+User Roles
+
+Anonymous User (default)
+
+Moderator (can remove/flag content)
+
+Research Editor (can create/edit rabbit holes + sources)
+
+Admin (full permissions, monetization, users, settings)
+
+Pages to Build (Front-End)
+
+Onboarding / Entry
+
+App intro (what Red Thread is)
+
+“Continue Anonymously”
+
+Optional: create anonymous handle
+
+Optional: email login (kept private)
+
+Accept terms + content labeling disclaimer
+
+Home / Discover
+
+Search bar
+
+Featured rabbit holes
+
+Trending rabbit holes (based on views, completion, comment activity)
+
+Categories (Geopolitics, Intelligence, Finance, Tech, History, Mysteries, Media Narratives)
+
+“Continue where I left off”
+
+New / Recently updated rabbit holes
+
+Rabbit Hole Overview Page (Topic Landing)
+For a given rabbit hole:
+
+Title, short neutral summary
+
+Confidence labels (Verified / Disputed / Speculative / Archived Theory)
+
+Progress bar (“Depth Level” + % complete)
+
+Sections list (tap to jump)
+
+Quick buttons: Save, Share, Start/Continue, Discuss
+
+Sections inside this page:
+
+Timeline
+
+Claims
+
+Counterpoints
+
+Evidence & Sources
+
+Media (photos/docs/videos)
+
+Related Books & Podcasts
+
+Connected Rabbit Holes
+
+Comments (Red Thread)
+
+Rabbit Hole Reader Page (Step-by-Step Depth Mode)
+This is the guided “go deeper” mode:
+
+Content broken into “Depth Nodes” (step cards)
+
+Each node has: summary, sources, media, and next steps
+
+“Go deeper” button moves to next node
+
+Completion tracking per node
+
+“Branch” links to related nodes or other rabbit holes
+
+Evidence & Sources Page (for a Rabbit Hole)
+
+List of sources with credibility indicators
+
+Filters: Verified / Disputed / Speculative
+
+Source cards: title, origin, date, summary, link, bias/stance tag
+
+Each source can be opened into:
+
+Source Detail Page
+
+Full summary
+
+Key quotes/excerpts (short)
+
+Attachments (PDF/images)
+
+“Used in these claims” references
+
+“Community notes” section (moderated)
+
+Media Gallery Page
+
+Photos, documents, videos grouped by type
+
+Each item has caption + relevance label
+
+Tap opens Media Detail
+
+Media Detail Page
+
+Full image/video/doc viewer
+
+Caption, origin, date, how it relates
+
+“Referenced in” list (claims/nodes)
+
+Connected Rabbit Holes Map Page
+
+Graph/network view of linked topics
+
+Nodes = rabbit holes
+
+Edges = red thread links
+
+Tap node to open rabbit hole
+
+Toggle: show only verified links / show all
+
+Comments Page (Red Thread UI)
+
+Thread-styled scroll bar (red string)
+
+Comments displayed as pinned notes
+
+Upvote/downvote
+
+Reply threads
+
+“Create red line link” tool:
+
+select part of comment text
+
+choose a rabbit hole to link to
+
+optional label: “why connected”
+
+Clicking a red line jumps to linked rabbit hole and highlights referenced section
+
+Search Page
+
+Search rabbit holes, sources, claims
+
+Filters by category, label, popularity, recency
+
+Results grouped: Topics / Sources / Media
+
+Library / Book Shelf Page
+
+Books related to rabbit holes
+
+Each book has: summary + which rabbit holes reference it
+
+Book detail page:
+
+overview, author, publication date
+
+rabbit holes referencing it
+
+notable claims/chapters (optional)
+
+International Lens Page
+
+Select a topic
+
+Shows “How other countries framed it”
+
+Country filters (UK, Germany, Russia, China, Middle East, etc.)
+
+Side-by-side narrative summaries
+
+Source list per country
+
+Profile / Reputation Page (Anonymous)
+
+Anonymous handle + settings
+
+Reputation score + tier
+
+Rabbit holes completed list
+
+Saved rabbit holes
+
+Comment history (optional private)
+
+Progress stats (hours explored, nodes completed)
+
+Settings / Safety Page
+
+Content labeling explanation
+
+Report system
+
+Privacy controls
+
+Block words/topics (optional)
+
+Terms
+
+Backend (Admin + Research CMS)
+
+Goal
+A separate web backend where your research team can easily add rabbit holes, nodes, sources, media, and connections without touching code.
+
+Backend Pages to Build
+
+A) Admin Login + Role Management
+
+Create roles: Moderator, Research Editor, Admin
+
+Permissions per role
+
+Audit logs of edits
+
+B) Rabbit Hole Manager
+
+Create/edit rabbit hole
+Fields:
+
+Title
+
+Slug
+
+Category tags
+
+Summary
+
+Labels (Verified/Disputed/Speculative/Archived)
+
+Featured toggle
+
+Cover image
+
+Intro video (optional)
+
+Related rabbit holes
+
+Publish status: Draft / Review / Published
+
+Version history
+
+C) Depth Node Editor (the guided “step-by-step” content)
+
+Each rabbit hole has many nodes
+Each node includes:
+
+Node title
+
+Node summary/body
+
+Media attachments
+
+Source references (select from source library)
+
+Claim tags
+
+Next node links
+
+Branch links
+
+D) Claim Manager
+
+Create claims linked to a rabbit hole
+Each claim includes:
+
+Claim statement (one sentence)
+
+Label (Verified/Disputed/Speculative/Archived)
+
+Evidence list (sources)
+
+Counterpoints list (sources)
+
+Confidence score (0–100)
+
+E) Source Library
+
+Add/manage sources
+Fields:
+
+Title
+
+Author / org
+
+Origin country
+
+Publisher
+
+Date
+
+URL or uploaded file
+
+Summary
+
+Stance tag (supporting/critical/neutral)
+
+Credibility score (0–100)
+
+Notes for editors
+
+Where used (auto-generated)
+
+F) Media Library
+
+Upload images/videos/PDFs
+Fields:
+
+Type
+
+Caption
+
+Source/origin
+
+Date
+
+Rights/license note
+
+Linked rabbit hole(s)
+
+Linked node(s)
+
+Linked claim(s)
+
+G) Red Thread Link Moderation
+
+Review user-created red line links
+
+Approve / reject / edit label
+
+Flags for misinformation/hate/illegal content
+
+Auto-detection queue from AI moderation
+
+H) Comment Moderation Dashboard
+
+Filters by most reported, newest, most downvoted
+
+Remove/hide, warn user, ban handle
+
+I) Monetization Manager
+
+Create “sponsored podcast slots”
+Fields:
+
+Rabbit hole targeted
+
+Slot count
+
+Sponsor name
+
+Sponsor link
+
+Start/end date
+
+Disclosure text
+
+Placement rules (where it appears)
+
+J) Analytics Dashboard
+
+Most viewed rabbit holes
+
+Completion rates
+
+Comment activity
+
+Retention (day 1/7/30)
+
+Most linked rabbit hole connections
+
+Content update recency
+
+Data Model (Simple so the builder AI understands)
+
+Entities:
+
+RabbitHole
+
+DepthNode
+
+Claim
+
+Source
+
+Media
+
+Comment
+
+RedThreadLink
+
+User (anonymous)
+
+Role/Permissions
+
+SponsorSlot
+
+Relationships:
+
+RabbitHole has many DepthNodes, Claims, Media, Sources (via references)
+
+Claim references many Sources and Media
+
+DepthNode references many Sources and Media
+
+Comments belong to RabbitHole and can include RedThreadLinks
+
+RedThreadLinks connect CommentText → RabbitHole (target) and optionally a Node/Claim anchor
