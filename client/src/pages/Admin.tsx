@@ -1,87 +1,119 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
-import { Loader2, Plus, Trash2, Edit3, Save, X, Lock, LogOut, Shield, GripVertical, Image, Link2, History, Download, Upload, AlertTriangle, CheckCircle2, Clock, Settings } from "lucide-react";
-import type { RabbitHole, DepthNode, Claim, Source, Category, Media, AuditLog } from "@shared/schema";
+import { Loader2, Plus, Trash2, Edit3, Save, X, Lock, LogOut, Shield, GripVertical, Image, Link2, History, Download, Upload, AlertTriangle, CheckCircle2, Clock, Settings, Users, Eye, EyeOff, RotateCcw, UserCheck, UserX } from "lucide-react";
+import type { RabbitHole, DepthNode, Claim, Source, Category, Media, AuditLog, Employee } from "@shared/schema";
 
-function getEditorName(): string {
-  return localStorage.getItem("rh-editor-name") || "admin";
-}
+type AdminEmployee = Omit<Employee, "passwordHash">;
 
 function adminFetch(url: string, opts?: RequestInit) {
-  const token = localStorage.getItem("rh-admin-token");
   return fetch(url, {
     ...opts,
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-      "X-Editor-Name": getEditorName(),
       ...opts?.headers,
     },
   });
 }
 
 function adminQueryFetch(url: string) {
-  const token = localStorage.getItem("rh-admin-token");
   const sep = url.includes("?") ? "&" : "?";
-  return fetch(`${url}${sep}admin=true`, {
-    headers: { Authorization: `Bearer ${token}` },
-  }).then(r => r.json());
+  return fetch(`${url}${sep}admin=true`, { credentials: "include" }).then(r => {
+    if (!r.ok) throw new Error("Unauthorized");
+    return r.json();
+  });
 }
 
-type Tab = "holes" | "nodes" | "claims" | "sources" | "media" | "tools" | "history";
+type Tab = "holes" | "nodes" | "claims" | "sources" | "media" | "tools" | "history" | "employees";
 
 export default function Admin() {
-  const [isAuthed, setIsAuthed] = useState(false);
+  const [employee, setEmployee] = useState<AdminEmployee | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [activeTab, setActiveTab] = useState<Tab>("holes");
 
   useEffect(() => {
-    const token = localStorage.getItem("rh-admin-token");
-    if (token) setIsAuthed(true);
+    fetch("/api/admin/me", { credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setEmployee(data); })
+      .finally(() => setIsLoading(false));
   }, []);
 
   const handleLogin = async () => {
     setLoginError("");
-    const res = await fetch("/api/admin/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password }),
-    });
-    if (res.ok) {
-      const { token } = await res.json();
-      localStorage.setItem("rh-admin-token", token);
-      setIsAuthed(true);
-    } else {
-      setLoginError("Invalid password");
+    try {
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setEmployee(data);
+      } else {
+        const err = await res.json();
+        setLoginError(err.message || "Invalid credentials");
+      }
+    } catch {
+      setLoginError("Connection error");
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("rh-admin-token");
-    setIsAuthed(false);
+  const handleLogout = async () => {
+    await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
+    setEmployee(null);
+    setEmail("");
     setPassword("");
   };
 
-  if (!isAuthed) {
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!employee) {
     return (
       <div className="min-h-screen flex items-center justify-center" data-testid="page-admin-login">
         <div className="w-full max-w-sm border border-white/10 bg-card p-8">
           <div className="flex items-center gap-3 mb-6">
-            <Lock className="w-5 h-5 text-primary" />
+            <Shield className="w-5 h-5 text-primary" />
             <h1 className="font-display text-xl font-bold uppercase">Admin Access</h1>
           </div>
           <input
-            type="password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && handleLogin()}
-            placeholder="Enter admin password"
+            type="email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            placeholder="Email address"
             className="w-full bg-white/5 border border-white/10 p-3 text-sm font-mono mb-3 focus:outline-none focus:border-primary/50"
-            data-testid="input-admin-password"
+            data-testid="input-admin-email"
           />
-          {loginError && <p className="text-xs text-red-500 font-mono mb-3">{loginError}</p>}
+          <div className="relative mb-3">
+            <input
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleLogin()}
+              placeholder="Password"
+              className="w-full bg-white/5 border border-white/10 p-3 pr-10 text-sm font-mono focus:outline-none focus:border-primary/50"
+              data-testid="input-admin-password"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white"
+            >
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+          {loginError && <p className="text-xs text-red-500 font-mono mb-3" data-testid="text-admin-login-error">{loginError}</p>}
           <button onClick={handleLogin} className="w-full bg-primary/10 border border-primary/30 text-primary font-mono text-xs uppercase py-2.5 hover:bg-primary/20 transition-colors" data-testid="button-admin-login">
             AUTHENTICATE
           </button>
@@ -90,15 +122,28 @@ export default function Admin() {
     );
   }
 
-  const tabs: { id: Tab; label: string }[] = [
-    { id: "holes", label: "Rabbit Holes" },
-    { id: "nodes", label: "Depth Nodes" },
-    { id: "claims", label: "Claims" },
-    { id: "sources", label: "Sources" },
-    { id: "media", label: "Media" },
-    { id: "history", label: "History" },
-    { id: "tools", label: "Tools" },
+  const role = employee.role as "Admin" | "Editor" | "Moderator";
+  const canEditContent = role === "Admin" || role === "Editor";
+  const isAdmin = role === "Admin";
+
+  const tabs: { id: Tab; label: string; visible: boolean }[] = [
+    { id: "holes", label: "Rabbit Holes", visible: canEditContent },
+    { id: "nodes", label: "Depth Nodes", visible: canEditContent },
+    { id: "claims", label: "Claims", visible: canEditContent },
+    { id: "sources", label: "Sources", visible: canEditContent },
+    { id: "media", label: "Media", visible: canEditContent },
+    { id: "history", label: "History", visible: canEditContent },
+    { id: "tools", label: "Tools", visible: isAdmin },
+    { id: "employees", label: "Employees", visible: isAdmin },
   ];
+
+  const visibleTabs = tabs.filter(t => t.visible);
+
+  if (!visibleTabs.find(t => t.id === activeTab)) {
+    if (visibleTabs.length > 0 && activeTab !== visibleTabs[0].id) {
+      setActiveTab(visibleTabs[0].id);
+    }
+  }
 
   return (
     <div className="min-h-screen" data-testid="page-admin">
@@ -108,15 +153,17 @@ export default function Admin() {
           <h1 className="font-display text-xl font-bold uppercase tracking-wider">Admin CMS</h1>
         </div>
         <div className="flex items-center gap-4">
-          <EditorNameSetting />
-          <button onClick={handleLogout} className="flex items-center gap-2 text-muted-foreground hover:text-white font-mono text-xs transition-colors" data-testid="button-logout">
+          <span className="text-xs font-mono text-muted-foreground">
+            {employee.name} <span className="text-primary/60">({role})</span>
+          </span>
+          <button onClick={handleLogout} className="flex items-center gap-2 text-muted-foreground hover:text-white font-mono text-xs transition-colors" data-testid="button-admin-logout">
             <LogOut className="w-4 h-4" /> LOGOUT
           </button>
         </div>
       </div>
 
       <div className="flex border-b border-white/5 overflow-x-auto">
-        {tabs.map(tab => (
+        {visibleTabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
@@ -136,28 +183,8 @@ export default function Admin() {
         {activeTab === "media" && <MediaManager />}
         {activeTab === "history" && <HistoryPanel />}
         {activeTab === "tools" && <ToolsPanel />}
+        {activeTab === "employees" && <EmployeesManager />}
       </div>
-    </div>
-  );
-}
-
-function EditorNameSetting() {
-  const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(getEditorName());
-  const save = () => { localStorage.setItem("rh-editor-name", name); setEditing(false); };
-  return (
-    <div className="flex items-center gap-2">
-      {editing ? (
-        <>
-          <input value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key === "Enter" && save()} className="bg-white/5 border border-white/10 px-2 py-1 text-xs font-mono w-28 focus:outline-none focus:border-primary/50" />
-          <button onClick={save} className="text-primary text-xs font-mono">OK</button>
-          <button onClick={() => setEditing(false)} className="text-muted-foreground text-xs font-mono">X</button>
-        </>
-      ) : (
-        <button onClick={() => setEditing(true)} className="flex items-center gap-1 text-muted-foreground hover:text-white font-mono text-xs transition-colors" data-testid="button-editor-name">
-          <Settings className="w-3 h-3" /> {name}
-        </button>
-      )}
     </div>
   );
 }
@@ -1010,6 +1037,215 @@ function ToolsPanel() {
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function EmployeesManager() {
+  const [showCreate, setShowCreate] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [newName, setNewName] = useState("");
+  const [newRole, setNewRole] = useState("Editor");
+  const [newPassword, setNewPassword] = useState("");
+  const [resetId, setResetId] = useState<string | null>(null);
+  const [resetPassword, setResetPassword] = useState("");
+  const [error, setError] = useState("");
+
+  const { data: employees = [], isLoading } = useQuery<AdminEmployee[]>({
+    queryKey: ["/api/admin/employees"],
+    queryFn: () => adminFetch("/api/admin/employees").then(r => r.json()),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      const res = await adminFetch("/api/admin/employees", {
+        method: "POST",
+        body: JSON.stringify({ email: newEmail, name: newName, role: newRole, password: newPassword }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message);
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/employees"] });
+      setShowCreate(false);
+      setNewEmail("");
+      setNewName("");
+      setNewRole("Editor");
+      setNewPassword("");
+      setError("");
+    },
+    onError: (err: Error) => setError(err.message),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const res = await adminFetch(`/api/admin/employees/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Failed to update");
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/admin/employees"] }),
+  });
+
+  const resetMutation = useMutation({
+    mutationFn: async ({ id, password }: { id: string; password: string }) => {
+      const res = await adminFetch(`/api/admin/employees/${id}/reset-password`, {
+        method: "POST",
+        body: JSON.stringify({ password }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message);
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      setResetId(null);
+      setResetPassword("");
+    },
+    onError: (err: Error) => setError(err.message),
+  });
+
+  if (isLoading) return <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>;
+
+  return (
+    <div data-testid="admin-employees-panel">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="font-display text-lg font-bold uppercase flex items-center gap-2">
+          <Users className="w-5 h-5 text-primary" /> Employees
+        </h2>
+        <button
+          onClick={() => setShowCreate(!showCreate)}
+          className="flex items-center gap-2 bg-primary/10 border border-primary/30 text-primary font-mono text-xs uppercase px-4 py-2 hover:bg-primary/20 transition-colors"
+          data-testid="button-create-employee"
+        >
+          <Plus className="w-3 h-3" /> Add Employee
+        </button>
+      </div>
+
+      {error && <div className="mb-4 p-3 border border-red-500/30 bg-red-500/10 text-red-400 text-sm font-mono">{error}</div>}
+
+      {showCreate && (
+        <div className="border border-white/10 bg-white/[0.02] p-6 mb-6 space-y-4">
+          <h3 className="font-mono text-xs text-primary uppercase mb-2">Create New Employee</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block font-mono text-[10px] text-muted-foreground uppercase mb-1">Email <span className="text-primary">*</span></label>
+              <input value={newEmail} onChange={e => setNewEmail(e.target.value)} type="email" className="w-full bg-white/5 border border-white/10 p-2.5 text-sm font-mono focus:outline-none focus:border-primary/50" data-testid="input-employee-email" />
+            </div>
+            <div>
+              <label className="block font-mono text-[10px] text-muted-foreground uppercase mb-1">Name <span className="text-primary">*</span></label>
+              <input value={newName} onChange={e => setNewName(e.target.value)} className="w-full bg-white/5 border border-white/10 p-2.5 text-sm font-mono focus:outline-none focus:border-primary/50" data-testid="input-employee-name" />
+            </div>
+            <div>
+              <label className="block font-mono text-[10px] text-muted-foreground uppercase mb-1">Role <span className="text-primary">*</span></label>
+              <select value={newRole} onChange={e => setNewRole(e.target.value)} className="w-full bg-white/5 border border-white/10 p-2.5 text-sm font-mono focus:outline-none focus:border-primary/50" data-testid="select-employee-role">
+                <option value="Admin">Admin</option>
+                <option value="Editor">Editor</option>
+                <option value="Moderator">Moderator</option>
+              </select>
+            </div>
+            <div>
+              <label className="block font-mono text-[10px] text-muted-foreground uppercase mb-1">Temporary Password <span className="text-primary">*</span></label>
+              <input value={newPassword} onChange={e => setNewPassword(e.target.value)} type="password" className="w-full bg-white/5 border border-white/10 p-2.5 text-sm font-mono focus:outline-none focus:border-primary/50" data-testid="input-employee-password" />
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={() => createMutation.mutate()}
+              disabled={createMutation.isPending || !newEmail || !newName || !newPassword}
+              className="flex items-center gap-2 bg-primary/10 border border-primary/30 text-primary font-mono text-xs uppercase px-4 py-2 hover:bg-primary/20 transition-colors disabled:opacity-50"
+              data-testid="button-save-employee"
+            >
+              {createMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} Create
+            </button>
+            <button onClick={() => { setShowCreate(false); setError(""); }} className="text-muted-foreground font-mono text-xs uppercase px-4 py-2 hover:text-white transition-colors">
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        {employees.map((emp) => (
+          <div key={emp.id} className={`border border-white/10 p-4 flex items-center justify-between ${!emp.isActive ? "opacity-50" : ""}`} data-testid={`employee-row-${emp.id}`}>
+            <div className="flex items-center gap-4">
+              <div className={`w-2 h-2 rounded-full ${emp.isActive ? "bg-green-500" : "bg-red-500"}`} />
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-sm font-bold">{emp.name}</span>
+                  <span className={`px-2 py-0.5 text-[10px] font-mono uppercase border ${
+                    emp.role === "Admin" ? "border-primary/30 text-primary bg-primary/10" :
+                    emp.role === "Editor" ? "border-blue-500/30 text-blue-400 bg-blue-500/10" :
+                    "border-yellow-500/30 text-yellow-400 bg-yellow-500/10"
+                  }`}>{emp.role}</span>
+                </div>
+                <p className="font-mono text-xs text-muted-foreground mt-0.5">{emp.email}</p>
+                <p className="font-mono text-[10px] text-muted-foreground/60 mt-0.5">
+                  Last login: {emp.lastLoginAt ? new Date(emp.lastLoginAt).toLocaleString() : "Never"}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {resetId === emp.id ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="password"
+                    value={resetPassword}
+                    onChange={e => setResetPassword(e.target.value)}
+                    placeholder="New password"
+                    className="bg-white/5 border border-white/10 px-2 py-1 text-xs font-mono w-32 focus:outline-none focus:border-primary/50"
+                    data-testid="input-reset-password"
+                  />
+                  <button
+                    onClick={() => resetMutation.mutate({ id: emp.id, password: resetPassword })}
+                    disabled={resetMutation.isPending || resetPassword.length < 6}
+                    className="text-primary text-xs font-mono hover:text-primary/80 disabled:opacity-50"
+                    data-testid="button-confirm-reset"
+                  >
+                    {resetMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : "OK"}
+                  </button>
+                  <button onClick={() => { setResetId(null); setResetPassword(""); }} className="text-muted-foreground text-xs font-mono">
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setResetId(emp.id)}
+                  className="flex items-center gap-1 text-muted-foreground hover:text-white font-mono text-[10px] uppercase transition-colors"
+                  title="Reset password"
+                  data-testid={`button-reset-pw-${emp.id}`}
+                >
+                  <RotateCcw className="w-3 h-3" /> Reset PW
+                </button>
+              )}
+              <button
+                onClick={() => updateMutation.mutate({ id: emp.id, data: { isActive: !emp.isActive } })}
+                className={`flex items-center gap-1 font-mono text-[10px] uppercase transition-colors ${emp.isActive ? "text-red-400 hover:text-red-300" : "text-green-400 hover:text-green-300"}`}
+                title={emp.isActive ? "Deactivate" : "Reactivate"}
+                data-testid={`button-toggle-active-${emp.id}`}
+              >
+                {emp.isActive ? <><UserX className="w-3 h-3" /> Deactivate</> : <><UserCheck className="w-3 h-3" /> Activate</>}
+              </button>
+              <select
+                value={emp.role}
+                onChange={e => updateMutation.mutate({ id: emp.id, data: { role: e.target.value } })}
+                className="bg-white/5 border border-white/10 px-2 py-1 text-[10px] font-mono focus:outline-none focus:border-primary/50"
+                data-testid={`select-role-${emp.id}`}
+              >
+                <option value="Admin">Admin</option>
+                <option value="Editor">Editor</option>
+                <option value="Moderator">Moderator</option>
+              </select>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

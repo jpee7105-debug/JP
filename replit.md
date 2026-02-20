@@ -46,12 +46,12 @@ Design theme: Dark (#0E0E0E background), deep red accent (#8B0000), light text (
   - `Connections` — Canvas-based force-directed graph showing relationships between rabbit holes with drag/click interaction
   - `Search` — Tabbed results across investigations/sources/claims
   - `Profile` — Anonymous operative stats, bookmarks, and activity placeholders
-  - `Admin` — Password-protected CMS for CRUD on rabbit holes, depth nodes, claims, sources
+  - `Admin` — Employee-authenticated CMS with role-based access for managing content and employees
 
 ### Backend Architecture
 - **Framework**: Express 5 on Node.js with TypeScript (via tsx)
 - **API Pattern**: RESTful JSON API under `/api/` prefix
-- **Admin Auth**: Simple bearer token auth via ADMIN_PASSWORD env var (default: "rabbithole2024")
+- **Admin Auth**: Employee session auth (email+password) with role-based access control (Admin/Editor/Moderator)
 - **Key Endpoints**:
   - `GET /api/holes` — List all rabbit holes
   - `GET /api/holes/specialist` — List specialist-curated holes
@@ -69,7 +69,13 @@ Design theme: Dark (#0E0E0E background), deep red accent (#8B0000), light text (
   - `GET /api/search?q=` — Search across holes, sources, and claims
   - `GET /api/sources` — List all sources
   - Admin CRUD: `POST/PUT/DELETE /api/admin/holes|depth-nodes|claims|sources`
-  - `POST /api/admin/login` — Admin password authentication
+  - `POST /api/admin/login` — Employee login (email+password, session-based)
+  - `POST /api/admin/logout` — Employee logout
+  - `GET /api/admin/me` — Get current employee session
+  - `GET /api/admin/employees` — List all employees (Admin only)
+  - `POST /api/admin/employees` — Create employee (Admin only)
+  - `PUT /api/admin/employees/:id` — Update employee role/status (Admin only)
+  - `POST /api/admin/employees/:id/reset-password` — Reset employee password (Admin only)
 - **Validation**: Zod schemas generated from Drizzle schema via `drizzle-zod`
 
 ### Database
@@ -83,7 +89,9 @@ Design theme: Dark (#0E0E0E background), deep red accent (#8B0000), light text (
   - `claims` — id, holeId (FK), nodeId (FK nullable), statement, stance, confidence (0-100), evidence (JSONB), counterpoints (JSONB)
   - `sources` — id, holeId (FK), title, author, origin, publishedDate, url, summary, type, stanceTag, credibility (0-100)
   - `comments` — id, holeId (FK), username, reputation, content, upvotes, links (JSONB), createdAt
+  - `employees` — id (uuid), email (unique), password_hash, name, role (Admin/Editor/Moderator), is_active, created_at, updated_at, last_login_at
 - **Seeding**: `server/seed.ts` contains initial data (MKUltra, Vatican Archives, Steppe Pathogens, Cicada 3301, Numbers Stations) with depth nodes, claims, sources, and connections
+- **Auto-seed**: If no employees exist, creates default Admin employee (admin@rabbithole.io) on startup
 
 ### Storage Layer
 - `server/storage.ts` defines an `IStorage` interface and `DatabaseStorage` implementation
@@ -141,4 +149,17 @@ Design theme: Dark (#0E0E0E background), deep red accent (#8B0000), light text (
   - Frontend: DepthReader shows upgrade prompt with login/signup CTAs at end of preview content
 - **Auth Pages**: `/login` (with small Admin Login link), `/signup`, `/account` (profile + plan + upgrade placeholder)
 - **Navbar**: Shows Login/Sign Up when logged out; Account/Logout when logged in
-- **Admin Auth**: Completely separate — bearer token via ADMIN_PASSWORD env var, accessed via `/admin` page
+- **Admin Auth**: Completely separate — employee session auth with role-based access control, accessed via `/admin` page
+
+### Employee Authentication & Roles (Feb 2026)
+- **Employees Table**: `employees` table with uuid id, email (unique), password_hash, name, role (Admin/Editor/Moderator), is_active, timestamps
+- **Session Auth**: Shared express-session store (employeeId in session, separate from user userId)
+- **Auth Endpoints**: `POST /api/admin/login` (email+password), `POST /api/admin/logout`, `GET /api/admin/me`
+- **Role-Based Access Control**:
+  - Admin: Full access (employees, publish, delete, tools/export/import, all content CRUD)
+  - Editor: Can create/edit rabbit holes, depth nodes, claims, sources, media; can move Draft→Review; cannot publish, delete, or manage employees/tools
+  - Moderator: Can view admin panel but cannot edit core content; comment moderation only
+- **Employee Management**: `/admin` page "Employees" tab (Admin only) — create employees with temp password, reset passwords, activate/deactivate, role changes, last login display
+- **Publish Gate**: Only Admin role can change status to "Published"
+- **Auto-Seed**: Creates default Admin employee (admin@rabbithole.io) on first startup if no employees exist
+- **Middleware**: `requireEmployee` (session check) + `requireRole(...roles)` (role gate) replace old bearer token auth

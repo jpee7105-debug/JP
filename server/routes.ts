@@ -4,19 +4,44 @@ import { storage } from "./storage";
 import { insertCommentSchema, insertDepthNodeSchema, insertClaimSchema, insertSourceSchema, insertCategorySchema, insertRabbitHoleSchema, insertMediaSchema } from "@shared/schema";
 import { ZodError } from "zod";
 import bcrypt from "bcryptjs";
+import type { Employee } from "@shared/schema";
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "rabbithole2024";
-
-function requireAdmin(req: any, res: any, next: any) {
-  const auth = req.headers.authorization;
-  if (!auth || auth !== `Bearer ${ADMIN_PASSWORD}`) {
-    return res.status(401).json({ message: "Unauthorized" });
+declare global {
+  namespace Express {
+    interface Request {
+      employee?: Employee;
+    }
   }
+}
+
+type EmployeeRole = "Admin" | "Editor" | "Moderator";
+
+async function requireEmployee(req: any, res: any, next: any) {
+  if (!req.session.employeeId) {
+    return res.status(401).json({ message: "Employee authentication required" });
+  }
+  const emp = await storage.getEmployeeById(req.session.employeeId);
+  if (!emp || !emp.isActive) {
+    return res.status(401).json({ message: "Employee account not found or deactivated" });
+  }
+  req.employee = emp;
   next();
 }
 
+function requireRole(...roles: EmployeeRole[]) {
+  return (req: any, res: any, next: any) => {
+    if (!req.employee) {
+      return res.status(401).json({ message: "Employee authentication required" });
+    }
+    if (!roles.includes(req.employee.role as EmployeeRole)) {
+      return res.status(403).json({ message: `Requires one of: ${roles.join(", ")}` });
+    }
+    next();
+  };
+}
+
 function getEditorName(req: any): string {
-  return req.headers["x-editor-name"] || "admin";
+  return req.employee?.name || "admin";
 }
 
 export async function registerRoutes(
@@ -24,13 +49,61 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
 
-  app.post("/api/admin/login", (req, res) => {
-    const { password } = req.body;
-    if (password === ADMIN_PASSWORD) {
-      res.json({ token: ADMIN_PASSWORD });
-    } else {
-      res.status(401).json({ message: "Invalid password" });
+  const empCount = await storage.getEmployeeCount();
+  if (empCount === 0) {
+    const defaultPassword = process.env.ADMIN_PASSWORD || "rabbithole2024";
+    const passwordHash = await bcrypt.hash(defaultPassword, 12);
+    await storage.createEmployee({
+      email: "admin@rabbithole.io",
+      passwordHash,
+      name: "Admin",
+      role: "Admin",
+      isActive: true,
+    });
+    console.log(`[seed] Created default admin employee: admin@rabbithole.io (password: ${defaultPassword})`);
+  }
+
+  app.post("/api/admin/login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+      const emp = await storage.getEmployeeByEmail(email.toLowerCase());
+      if (!emp) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+      if (!emp.isActive) {
+        return res.status(401).json({ message: "Account has been deactivated" });
+      }
+      const valid = await bcrypt.compare(password, emp.passwordHash);
+      if (!valid) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+      await storage.updateEmployee(emp.id, { lastLoginAt: new Date() });
+      req.session.employeeId = emp.id;
+      const { passwordHash: _, ...safeEmp } = emp;
+      res.json(safeEmp);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to log in" });
     }
+  });
+
+  app.post("/api/admin/logout", (req, res) => {
+    req.session.employeeId = undefined;
+    res.json({ message: "Logged out" });
+  });
+
+  app.get("/api/admin/me", async (req, res) => {
+    if (!req.session.employeeId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    const emp = await storage.getEmployeeById(req.session.employeeId);
+    if (!emp || !emp.isActive) {
+      return res.status(401).json({ message: "Employee not found or deactivated" });
+    }
+    const { passwordHash: _, ...safeEmp } = emp;
+    res.json(safeEmp);
   });
 
   // ===== USER AUTH ROUTES =====
@@ -109,7 +182,8 @@ export async function registerRoutes(
 
   app.get("/api/holes", async (req, res) => {
     try {
-      const admin = req.query.admin === "true" && req.headers.authorization === `Bearer ${ADMIN_PASSWORD}`;
+      const isEmployeeSession = !!req.session.employeeId;
+      const admin = req.query.admin === "true" && isEmployeeSession;
       const holes = admin ? await storage.getAllHoles() : await storage.getPublishedHoles();
       res.json(holes);
     } catch (err) {
@@ -119,7 +193,8 @@ export async function registerRoutes(
 
   app.get("/api/holes/specialist", async (req, res) => {
     try {
-      const admin = req.query.admin === "true" && req.headers.authorization === `Bearer ${ADMIN_PASSWORD}`;
+      const isEmployeeSession = !!req.session.employeeId;
+      const admin = req.query.admin === "true" && isEmployeeSession;
       const holes = admin ? await storage.getSpecialistHoles() : await storage.getPublishedSpecialistHoles();
       res.json(holes);
     } catch (err) {
@@ -129,7 +204,8 @@ export async function registerRoutes(
 
   app.get("/api/holes/community", async (req, res) => {
     try {
-      const admin = req.query.admin === "true" && req.headers.authorization === `Bearer ${ADMIN_PASSWORD}`;
+      const isEmployeeSession = !!req.session.employeeId;
+      const admin = req.query.admin === "true" && isEmployeeSession;
       const holes = admin ? await storage.getCommunityHoles() : await storage.getPublishedCommunityHoles();
       res.json(holes);
     } catch (err) {
@@ -139,7 +215,8 @@ export async function registerRoutes(
 
   app.get("/api/holes/category/:slug", async (req, res) => {
     try {
-      const admin = req.query.admin === "true" && req.headers.authorization === `Bearer ${ADMIN_PASSWORD}`;
+      const isEmployeeSession = !!req.session.employeeId;
+      const admin = req.query.admin === "true" && isEmployeeSession;
       const holes = admin ? await storage.getHolesByCategory(req.params.slug) : await storage.getPublishedHolesByCategory(req.params.slug);
       res.json(holes);
     } catch (err) {
@@ -149,7 +226,8 @@ export async function registerRoutes(
 
   app.get("/api/holes/:slug", async (req, res) => {
     try {
-      const admin = req.query.admin === "true" && req.headers.authorization === `Bearer ${ADMIN_PASSWORD}`;
+      const isEmployeeSession = !!req.session.employeeId;
+      const admin = req.query.admin === "true" && isEmployeeSession;
       const hole = await storage.getHoleBySlug(req.params.slug);
       if (!hole) return res.status(404).json({ message: "Rabbit hole not found" });
       if (!admin && hole.status !== "Published") return res.status(404).json({ message: "Rabbit hole not found" });
@@ -328,7 +406,7 @@ export async function registerRoutes(
 
   // ===== ADMIN ROUTES =====
 
-  app.post("/api/admin/holes", requireAdmin, async (req, res) => {
+  app.post("/api/admin/holes", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
     try {
       const parsed = insertRabbitHoleSchema.parse({ ...req.body, status: req.body.status || "Draft" });
       const hole = await storage.createHole(parsed);
@@ -343,13 +421,16 @@ export async function registerRoutes(
     }
   });
 
-  app.put("/api/admin/holes/:id", requireAdmin, async (req, res) => {
+  app.put("/api/admin/holes/:id", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const before = await storage.getHoleById(id);
       if (!before) return res.status(404).json({ message: "Not found" });
 
       if (req.body.status === "Published") {
+        if (req.employee?.role !== "Admin") {
+          return res.status(403).json({ message: "Only Admin can publish investigations" });
+        }
         const validation = await storage.validateIntegrity();
         const holeIssues = validation.issues.filter(i => i.holeId === id);
         if (holeIssues.length > 0) {
@@ -373,7 +454,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/admin/holes/:id", requireAdmin, async (req, res) => {
+  app.delete("/api/admin/holes/:id", requireEmployee, requireRole("Admin"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const before = await storage.getHoleById(id);
@@ -392,7 +473,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/admin/depth-nodes", requireAdmin, async (req, res) => {
+  app.post("/api/admin/depth-nodes", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
     try {
       const parsed = insertDepthNodeSchema.parse(req.body);
       const node = await storage.createDepthNode(parsed);
@@ -407,7 +488,7 @@ export async function registerRoutes(
     }
   });
 
-  app.put("/api/admin/depth-nodes/:id", requireAdmin, async (req, res) => {
+  app.put("/api/admin/depth-nodes/:id", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const before = await storage.getDepthNode(id);
@@ -423,7 +504,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/admin/depth-nodes/:id", requireAdmin, async (req, res) => {
+  app.delete("/api/admin/depth-nodes/:id", requireEmployee, requireRole("Admin"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const before = await storage.getDepthNode(id);
@@ -439,7 +520,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/admin/claims", requireAdmin, async (req, res) => {
+  app.post("/api/admin/claims", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
     try {
       const parsed = insertClaimSchema.parse(req.body);
       const claim = await storage.createClaim(parsed);
@@ -454,7 +535,7 @@ export async function registerRoutes(
     }
   });
 
-  app.put("/api/admin/claims/:id", requireAdmin, async (req, res) => {
+  app.put("/api/admin/claims/:id", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const claim = await storage.updateClaim(id, req.body);
@@ -469,7 +550,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/admin/claims/:id", requireAdmin, async (req, res) => {
+  app.delete("/api/admin/claims/:id", requireEmployee, requireRole("Admin"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const before = await storage.getClaim(id);
@@ -485,7 +566,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/admin/sources", requireAdmin, async (req, res) => {
+  app.post("/api/admin/sources", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
     try {
       const parsed = insertSourceSchema.parse(req.body);
       const source = await storage.createSource(parsed);
@@ -500,7 +581,7 @@ export async function registerRoutes(
     }
   });
 
-  app.put("/api/admin/sources/:id", requireAdmin, async (req, res) => {
+  app.put("/api/admin/sources/:id", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const source = await storage.updateSource(id, req.body);
@@ -515,7 +596,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/admin/sources/:id", requireAdmin, async (req, res) => {
+  app.delete("/api/admin/sources/:id", requireEmployee, requireRole("Admin"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const before = await storage.getSource(id);
@@ -531,7 +612,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/admin/media", requireAdmin, async (req, res) => {
+  app.post("/api/admin/media", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
     try {
       const parsed = insertMediaSchema.parse(req.body);
       const m = await storage.createMedia(parsed);
@@ -546,7 +627,7 @@ export async function registerRoutes(
     }
   });
 
-  app.put("/api/admin/media/:id", requireAdmin, async (req, res) => {
+  app.put("/api/admin/media/:id", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const m = await storage.updateMedia(id, req.body);
@@ -561,7 +642,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/admin/media/:id", requireAdmin, async (req, res) => {
+  app.delete("/api/admin/media/:id", requireEmployee, requireRole("Admin"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const before = await storage.getMedia(id);
@@ -579,7 +660,7 @@ export async function registerRoutes(
 
   // ===== ADMIN TOOLS =====
 
-  app.get("/api/admin/audit-logs", requireAdmin, async (req, res) => {
+  app.get("/api/admin/audit-logs", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
     try {
       const holeId = req.query.holeId ? parseInt(req.query.holeId as string) : null;
       const logs = holeId ? await storage.getAuditLogsByHoleId(holeId) : await storage.getAllAuditLogs();
@@ -589,7 +670,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/admin/export", requireAdmin, async (_req, res) => {
+  app.get("/api/admin/export", requireEmployee, requireRole("Admin"), async (_req, res) => {
     try {
       const data = await storage.exportAll();
       res.json(data);
@@ -598,7 +679,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/admin/import", requireAdmin, async (req, res) => {
+  app.post("/api/admin/import", requireEmployee, requireRole("Admin"), async (req, res) => {
     try {
       const data = req.body;
       if (!data || typeof data !== "object") {
@@ -616,12 +697,108 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/admin/validate", requireAdmin, async (_req, res) => {
+  app.get("/api/admin/validate", requireEmployee, requireRole("Admin"), async (_req, res) => {
     try {
       const result = await storage.validateIntegrity();
       res.json(result);
     } catch (err) {
       res.status(500).json({ message: "Failed to validate" });
+    }
+  });
+
+  // ===== EMPLOYEE MANAGEMENT (Admin only) =====
+
+  app.get("/api/admin/employees", requireEmployee, requireRole("Admin"), async (_req, res) => {
+    try {
+      const emps = await storage.getAllEmployees();
+      const safe = emps.map(({ passwordHash, ...rest }) => rest);
+      res.json(safe);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch employees" });
+    }
+  });
+
+  app.post("/api/admin/employees", requireEmployee, requireRole("Admin"), async (req, res) => {
+    try {
+      const { email, name, role, password } = req.body;
+      if (!email || !name || !role || !password) {
+        return res.status(400).json({ message: "Email, name, role, and password are required" });
+      }
+      if (!["Admin", "Editor", "Moderator"].includes(role)) {
+        return res.status(400).json({ message: "Role must be Admin, Editor, or Moderator" });
+      }
+      if (password.length < 6) {
+        return res.status(400).json({ message: "Password must be at least 6 characters" });
+      }
+      const existing = await storage.getEmployeeByEmail(email.toLowerCase());
+      if (existing) {
+        return res.status(409).json({ message: "An employee with this email already exists" });
+      }
+      const passwordHash = await bcrypt.hash(password, 12);
+      const emp = await storage.createEmployee({
+        email: email.toLowerCase(),
+        passwordHash,
+        name,
+        role,
+        isActive: true,
+      });
+      const { passwordHash: _, ...safeEmp } = emp;
+      await storage.createAuditLog({
+        holeId: null as any, entityType: "employee", entityId: null as any,
+        action: "create", editorName: getEditorName(req),
+        changes: { email: emp.email, name: emp.name, role: emp.role },
+      });
+      res.status(201).json(safeEmp);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to create employee" });
+    }
+  });
+
+  app.put("/api/admin/employees/:id", requireEmployee, requireRole("Admin"), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name, role, isActive } = req.body;
+      const updateData: any = {};
+      if (name !== undefined) updateData.name = name;
+      if (role !== undefined) {
+        if (!["Admin", "Editor", "Moderator"].includes(role)) {
+          return res.status(400).json({ message: "Role must be Admin, Editor, or Moderator" });
+        }
+        updateData.role = role;
+      }
+      if (isActive !== undefined) updateData.isActive = isActive;
+      const emp = await storage.updateEmployee(id, updateData);
+      if (!emp) return res.status(404).json({ message: "Employee not found" });
+      const { passwordHash: _, ...safeEmp } = emp;
+      await storage.createAuditLog({
+        holeId: null as any, entityType: "employee", entityId: null as any,
+        action: "update", editorName: getEditorName(req),
+        changes: { employeeEmail: emp.email, ...updateData },
+      });
+      res.json(safeEmp);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to update employee" });
+    }
+  });
+
+  app.post("/api/admin/employees/:id/reset-password", requireEmployee, requireRole("Admin"), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { password } = req.body;
+      if (!password || password.length < 6) {
+        return res.status(400).json({ message: "Password must be at least 6 characters" });
+      }
+      const passwordHash = await bcrypt.hash(password, 12);
+      const emp = await storage.updateEmployee(id, { passwordHash });
+      if (!emp) return res.status(404).json({ message: "Employee not found" });
+      await storage.createAuditLog({
+        holeId: null as any, entityType: "employee", entityId: null as any,
+        action: "password_reset", editorName: getEditorName(req),
+        changes: { employeeEmail: emp.email },
+      });
+      res.json({ message: "Password reset successfully" });
+    } catch (err) {
+      res.status(500).json({ message: "Failed to reset password" });
     }
   });
 

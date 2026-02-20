@@ -11,6 +11,7 @@ import {
   media,
   auditLogs,
   users,
+  employees,
   type RabbitHole,
   type InsertRabbitHole,
   type Comment,
@@ -29,6 +30,8 @@ import {
   type InsertAuditLog,
   type User,
   type InsertUser,
+  type Employee,
+  type InsertEmployee,
 } from "@shared/schema";
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
@@ -116,6 +119,13 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserById(id: string): Promise<User | undefined>;
   updateUser(id: string, data: Partial<User>): Promise<User | undefined>;
+
+  createEmployee(emp: InsertEmployee): Promise<Employee>;
+  getEmployeeByEmail(email: string): Promise<Employee | undefined>;
+  getEmployeeById(id: string): Promise<Employee | undefined>;
+  getAllEmployees(): Promise<Employee[]>;
+  updateEmployee(id: string, data: Partial<Employee>): Promise<Employee | undefined>;
+  getEmployeeCount(): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -521,6 +531,35 @@ export class DatabaseStorage implements IStorage {
   async updateUser(id: string, data: Partial<User>): Promise<User | undefined> {
     const [updated] = await db.update(users).set({ ...data, updatedAt: new Date() }).where(eq(users.id, id)).returning();
     return updated;
+  }
+
+  async createEmployee(emp: InsertEmployee): Promise<Employee> {
+    const [created] = await db.insert(employees).values(emp).returning();
+    return created;
+  }
+
+  async getEmployeeByEmail(email: string): Promise<Employee | undefined> {
+    const [emp] = await db.select().from(employees).where(eq(employees.email, email.toLowerCase()));
+    return emp;
+  }
+
+  async getEmployeeById(id: string): Promise<Employee | undefined> {
+    const [emp] = await db.select().from(employees).where(eq(employees.id, id));
+    return emp;
+  }
+
+  async getAllEmployees(): Promise<Employee[]> {
+    return db.select().from(employees).orderBy(desc(employees.createdAt));
+  }
+
+  async updateEmployee(id: string, data: Partial<Employee>): Promise<Employee | undefined> {
+    const [updated] = await db.update(employees).set({ ...data, updatedAt: new Date() }).where(eq(employees.id, id)).returning();
+    return updated;
+  }
+
+  async getEmployeeCount(): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)` }).from(employees);
+    return Number(result[0].count);
   }
 }
 
