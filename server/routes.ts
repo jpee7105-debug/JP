@@ -5,6 +5,7 @@ import { insertCommentSchema, insertDepthNodeSchema, insertClaimSchema, insertSo
 import { ZodError } from "zod";
 import bcrypt from "bcryptjs";
 import type { Employee } from "@shared/schema";
+import { autoSeedIfEmpty } from "./auto-seed";
 
 declare global {
   namespace Express {
@@ -61,6 +62,12 @@ export async function registerRoutes(
       isActive: true,
     });
     console.log(`[seed] Created default admin employee: admin@rabbithole.io (password: ${defaultPassword})`);
+  }
+
+  try {
+    await autoSeedIfEmpty();
+  } catch (err) {
+    console.error("[auto-seed] Error during auto-seed:", err);
   }
 
   app.post("/api/admin/login", async (req, res) => {
