@@ -1,4 +1,4 @@
-import { eq, desc, ilike, or, asc, sql } from "drizzle-orm";
+import { eq, desc, ilike, or, asc, sql, and, ne } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import {
@@ -9,6 +9,7 @@ import {
   sources,
   categories,
   media,
+  auditLogs,
   type RabbitHole,
   type InsertRabbitHole,
   type Comment,
@@ -23,6 +24,8 @@ import {
   type InsertCategory,
   type Media,
   type InsertMedia,
+  type AuditLog,
+  type InsertAuditLog,
 } from "@shared/schema";
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
@@ -30,11 +33,15 @@ const db = drizzle(pool);
 
 export interface IStorage {
   getAllHoles(): Promise<RabbitHole[]>;
+  getPublishedHoles(): Promise<RabbitHole[]>;
   getSpecialistHoles(): Promise<RabbitHole[]>;
+  getPublishedSpecialistHoles(): Promise<RabbitHole[]>;
   getCommunityHoles(): Promise<RabbitHole[]>;
+  getPublishedCommunityHoles(): Promise<RabbitHole[]>;
   getHoleBySlug(slug: string): Promise<RabbitHole | undefined>;
   getHoleById(id: number): Promise<RabbitHole | undefined>;
   getHolesByCategory(categorySlug: string): Promise<RabbitHole[]>;
+  getPublishedHolesByCategory(categorySlug: string): Promise<RabbitHole[]>;
   createHole(hole: InsertRabbitHole): Promise<RabbitHole>;
   updateHole(id: number, data: Partial<InsertRabbitHole>): Promise<RabbitHole | undefined>;
   deleteHole(id: number): Promise<boolean>;
@@ -74,6 +81,33 @@ export interface IStorage {
   createCategory(category: InsertCategory): Promise<Category>;
 
   search(query: string): Promise<{ holes: RabbitHole[]; sources: Source[]; claims: Claim[] }>;
+
+  createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
+  getAuditLogsByHoleId(holeId: number): Promise<AuditLog[]>;
+  getAllAuditLogs(): Promise<AuditLog[]>;
+
+  exportAll(): Promise<{
+    rabbitHoles: RabbitHole[];
+    depthNodes: DepthNode[];
+    claims: Claim[];
+    sources: Source[];
+    media: Media[];
+    comments: Comment[];
+    categories: Category[];
+  }>;
+  importAll(data: {
+    rabbitHoles?: any[];
+    depthNodes?: any[];
+    claims?: any[];
+    sources?: any[];
+    media?: any[];
+    comments?: any[];
+    categories?: any[];
+  }): Promise<{ imported: Record<string, number> }>;
+
+  validateIntegrity(): Promise<{
+    issues: { holeId: number; holeTitle: string; type: string; message: string }[];
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -81,12 +115,24 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(rabbitHoles).orderBy(desc(rabbitHoles.updatedAt));
   }
 
+  async getPublishedHoles(): Promise<RabbitHole[]> {
+    return db.select().from(rabbitHoles).where(eq(rabbitHoles.status, "Published")).orderBy(desc(rabbitHoles.updatedAt));
+  }
+
   async getSpecialistHoles(): Promise<RabbitHole[]> {
     return db.select().from(rabbitHoles).where(eq(rabbitHoles.isSpecialist, true)).orderBy(desc(rabbitHoles.updatedAt));
   }
 
+  async getPublishedSpecialistHoles(): Promise<RabbitHole[]> {
+    return db.select().from(rabbitHoles).where(and(eq(rabbitHoles.isSpecialist, true), eq(rabbitHoles.status, "Published"))).orderBy(desc(rabbitHoles.updatedAt));
+  }
+
   async getCommunityHoles(): Promise<RabbitHole[]> {
     return db.select().from(rabbitHoles).where(eq(rabbitHoles.isSpecialist, false)).orderBy(desc(rabbitHoles.updatedAt));
+  }
+
+  async getPublishedCommunityHoles(): Promise<RabbitHole[]> {
+    return db.select().from(rabbitHoles).where(and(eq(rabbitHoles.isSpecialist, false), eq(rabbitHoles.status, "Published"))).orderBy(desc(rabbitHoles.updatedAt));
   }
 
   async getHoleBySlug(slug: string): Promise<RabbitHole | undefined> {
@@ -98,13 +144,17 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(rabbitHoles).where(eq(rabbitHoles.categorySlug, categorySlug)).orderBy(desc(rabbitHoles.updatedAt));
   }
 
+  async getPublishedHolesByCategory(categorySlug: string): Promise<RabbitHole[]> {
+    return db.select().from(rabbitHoles).where(and(eq(rabbitHoles.categorySlug, categorySlug), eq(rabbitHoles.status, "Published"))).orderBy(desc(rabbitHoles.updatedAt));
+  }
+
   async getHoleById(id: number): Promise<RabbitHole | undefined> {
     const [hole] = await db.select().from(rabbitHoles).where(eq(rabbitHoles.id, id));
     return hole;
   }
 
   async createHole(hole: InsertRabbitHole): Promise<RabbitHole> {
-    const [created] = await db.insert(rabbitHoles).values(hole).returning();
+    const [created] = await db.insert(rabbitHoles).values({ ...hole, status: hole.status || "Draft" }).returning();
     return created;
   }
 
@@ -119,6 +169,7 @@ export class DatabaseStorage implements IStorage {
     await db.delete(sources).where(eq(sources.holeId, id));
     await db.delete(media).where(eq(media.holeId, id));
     await db.delete(comments).where(eq(comments.holeId, id));
+    await db.delete(auditLogs).where(eq(auditLogs.holeId, id));
     const result = await db.delete(rabbitHoles).where(eq(rabbitHoles.id, id)).returning();
     return result.length > 0;
   }
@@ -266,7 +317,10 @@ export class DatabaseStorage implements IStorage {
     const pattern = `%${query}%`;
     const [matchedHoles, matchedSources, matchedClaims] = await Promise.all([
       db.select().from(rabbitHoles).where(
-        or(ilike(rabbitHoles.title, pattern), ilike(rabbitHoles.summary, pattern))
+        and(
+          eq(rabbitHoles.status, "Published"),
+          or(ilike(rabbitHoles.title, pattern), ilike(rabbitHoles.summary, pattern))
+        )
       ).orderBy(desc(rabbitHoles.updatedAt)).limit(20),
       db.select().from(sources).where(
         or(ilike(sources.title, pattern), ilike(sources.summary, pattern), ilike(sources.author, pattern))
@@ -276,6 +330,169 @@ export class DatabaseStorage implements IStorage {
       ).orderBy(desc(claims.confidence)).limit(20),
     ]);
     return { holes: matchedHoles, sources: matchedSources, claims: matchedClaims };
+  }
+
+  async createAuditLog(log: InsertAuditLog): Promise<AuditLog> {
+    const [created] = await db.insert(auditLogs).values(log).returning();
+    return created;
+  }
+
+  async getAuditLogsByHoleId(holeId: number): Promise<AuditLog[]> {
+    return db.select().from(auditLogs).where(eq(auditLogs.holeId, holeId)).orderBy(desc(auditLogs.createdAt)).limit(50);
+  }
+
+  async getAllAuditLogs(): Promise<AuditLog[]> {
+    return db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt)).limit(200);
+  }
+
+  async exportAll() {
+    const [allHoles, allNodes, allClaims, allSources, allMedia, allComments, allCategories] = await Promise.all([
+      db.select().from(rabbitHoles),
+      db.select().from(depthNodes),
+      db.select().from(claims),
+      db.select().from(sources),
+      db.select().from(media),
+      db.select().from(comments),
+      db.select().from(categories),
+    ]);
+    return {
+      rabbitHoles: allHoles,
+      depthNodes: allNodes,
+      claims: allClaims,
+      sources: allSources,
+      media: allMedia,
+      comments: allComments,
+      categories: allCategories,
+    };
+  }
+
+  async importAll(data: {
+    rabbitHoles?: any[];
+    depthNodes?: any[];
+    claims?: any[];
+    sources?: any[];
+    media?: any[];
+    comments?: any[];
+    categories?: any[];
+  }): Promise<{ imported: Record<string, number> }> {
+    const result: Record<string, number> = {};
+
+    await db.delete(auditLogs);
+    await db.delete(comments);
+    await db.delete(media);
+    await db.delete(claims);
+    await db.delete(depthNodes);
+    await db.delete(sources);
+    await db.delete(rabbitHoles);
+    await db.delete(categories);
+
+    if (data.categories?.length) {
+      await db.insert(categories).values(data.categories);
+      result.categories = data.categories.length;
+    }
+    if (data.rabbitHoles?.length) {
+      await db.insert(rabbitHoles).values(data.rabbitHoles);
+      result.rabbitHoles = data.rabbitHoles.length;
+    }
+    if (data.depthNodes?.length) {
+      await db.insert(depthNodes).values(data.depthNodes);
+      result.depthNodes = data.depthNodes.length;
+    }
+    if (data.sources?.length) {
+      await db.insert(sources).values(data.sources);
+      result.sources = data.sources.length;
+    }
+    if (data.claims?.length) {
+      await db.insert(claims).values(data.claims);
+      result.claims = data.claims.length;
+    }
+    if (data.media?.length) {
+      await db.insert(media).values(data.media);
+      result.media = data.media.length;
+    }
+    if (data.comments?.length) {
+      await db.insert(comments).values(data.comments);
+      result.comments = data.comments.length;
+    }
+
+    return { imported: result };
+  }
+
+  async validateIntegrity(): Promise<{
+    issues: { holeId: number; holeTitle: string; type: string; message: string }[];
+  }> {
+    const issues: { holeId: number; holeTitle: string; type: string; message: string }[] = [];
+    const allHoles = await db.select().from(rabbitHoles);
+    const allSources = await db.select().from(sources);
+    const allClaims = await db.select().from(claims);
+    const allNodes = await db.select().from(depthNodes);
+    const sourceIds = new Set(allSources.map(s => s.id));
+    const nodeIds = new Set(allNodes.map(n => n.id));
+
+    for (const claim of allClaims) {
+      const hole = allHoles.find(h => h.id === claim.holeId);
+      const holeTitle = hole?.title || `Unknown (ID: ${claim.holeId})`;
+
+      if (claim.nodeId && !nodeIds.has(claim.nodeId)) {
+        issues.push({
+          holeId: claim.holeId,
+          holeTitle,
+          type: "broken_node_ref",
+          message: `Claim #${claim.id} "${claim.statement.slice(0, 40)}..." references missing depth node #${claim.nodeId}`,
+        });
+      }
+
+      const evidence = (claim.evidence as { sourceId: number; excerpt: string }[]) || [];
+      for (const ev of evidence) {
+        if (ev.sourceId && !sourceIds.has(ev.sourceId)) {
+          issues.push({
+            holeId: claim.holeId,
+            holeTitle,
+            type: "broken_source_ref",
+            message: `Claim #${claim.id} evidence references missing source #${ev.sourceId}`,
+          });
+        }
+      }
+
+      const counterpoints = (claim.counterpoints as { sourceId: number; excerpt: string }[]) || [];
+      for (const cp of counterpoints) {
+        if (cp.sourceId && !sourceIds.has(cp.sourceId)) {
+          issues.push({
+            holeId: claim.holeId,
+            holeTitle,
+            type: "broken_source_ref",
+            message: `Claim #${claim.id} counterpoint references missing source #${cp.sourceId}`,
+          });
+        }
+      }
+    }
+
+    const holeSlugs = new Set(allHoles.map(h => h.slug));
+    for (const hole of allHoles) {
+      const connected = (hole.connectedSlugs as string[]) || [];
+      for (const cs of connected) {
+        if (!holeSlugs.has(cs)) {
+          issues.push({
+            holeId: hole.id,
+            holeTitle: hole.title,
+            type: "broken_connection",
+            message: `Connected slug "${cs}" does not exist`,
+          });
+        }
+      }
+
+      const holeNodes = allNodes.filter(n => n.holeId === hole.id);
+      if (hole.status === "Published" && holeNodes.length === 0) {
+        issues.push({
+          holeId: hole.id,
+          holeTitle: hole.title,
+          type: "no_depth_nodes",
+          message: `Published investigation has no depth nodes`,
+        });
+      }
+    }
+
+    return { issues };
   }
 }
 

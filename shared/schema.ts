@@ -84,6 +84,19 @@ export const comments = pgTable("comments", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const auditLogs = pgTable("audit_logs", {
+  id: serial("id").primaryKey(),
+  holeId: integer("hole_id"),
+  entityType: text("entity_type").notNull(),
+  entityId: integer("entity_id"),
+  action: text("action").notNull(),
+  editorName: text("editor_name").default("admin").notNull(),
+  changes: jsonb("changes").$type<Record<string, any>>().default({}).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({ id: true, createdAt: true });
+
 export const insertCategorySchema = createInsertSchema(categories).omit({ id: true });
 export const insertRabbitHoleSchema = createInsertSchema(rabbitHoles).omit({ id: true, updatedAt: true });
 export const insertDepthNodeSchema = createInsertSchema(depthNodes).omit({ id: true });
@@ -106,3 +119,5 @@ export type Media = typeof media.$inferSelect;
 export type InsertMedia = z.infer<typeof insertMediaSchema>;
 export type Comment = typeof comments.$inferSelect;
 export type InsertComment = z.infer<typeof insertCommentSchema>;
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;

@@ -1,0 +1,39 @@
+We need proof + hardening. Do not add new flashy features. Validate, fix, and add missing platform essentials.
+
+1) Produce a “System Update Summary” with exact file paths changed and what each change does.
+- List every new API route added.
+- List every DB table now in schema.
+- List every admin screen and what entities it edits.
+
+2) Add an Admin “Content Workflow”:
+- Add status field to rabbit holes: Draft / Review / Published.
+- Default new rabbit holes to Draft.
+- Discover page must show only Published.
+- Admin can filter by status and change status.
+- Rabbit hole detail page should show a small “Draft” badge ONLY inside /admin preview mode, not for normal users.
+
+3) Add Audit + Version History:
+- Track who edited what and when (at minimum: updated_at timestamps and editor name/role).
+- Add a “History” panel in /admin for each rabbit hole showing a log of changes (even if basic).
+- If user auth is not implemented, store “editorName” as a field entered in admin settings and attach it to changes.
+
+4) Add Import/Export Backup (critical):
+- Add /admin/tools page with:
+  - Export full database/content as JSON
+  - Import JSON to restore (with confirmation step)
+- This must include rabbit holes, depth nodes, claims, sources, media, connections.
+
+5) Add Data Integrity Checks:
+- When deleting a rabbit hole, ensure all related depth nodes, claims, media, and connections are cleaned up.
+- Validate references: if a claim references a missing sourceId, show a warning in admin and prevent publish until fixed.
+- Add a “Validation” button in admin that runs checks and prints a report.
+
+6) QA Verification Mode:
+- Add a hidden route /qa that runs automated checks in the UI:
+  - Lists all rabbit holes + status
+  - For each Published rabbit hole: verify detail page renders, read mode loads, claims render, sources load, media load, connections load.
+  - Flags any failures with error text.
+
+After implementation:
+- Provide a checklist of what was verified manually and what is covered by /qa.
+- Do NOT say “everything works” without listing what was tested and how.

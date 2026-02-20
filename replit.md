@@ -117,3 +117,14 @@ Design theme: Dark (#0E0E0E background), deep red accent (#8B0000), light text (
 - Built reputation system: localStorage-based points (2pts/node, 10pts/investigation), 5 tier levels (Observer → Deep Diver)
 - Updated Profile page with reputation tier display, progress bar, reading progress section, stats grid
 - Enhanced Connections graph with pulsing node glows, gradient edges, particle animation on hover, radial gradient node fills
+
+### Production Hardening (Feb 2026)
+- **Content Workflow**: rabbit_holes.status now supports Draft/Review/Published, defaults to Draft
+- **Published-Only Filtering**: All public API endpoints filter to Published-only; admin endpoints accept `?admin=true` with auth to see all statuses
+- **Audit Logging**: `audit_logs` table tracks all admin creates/updates/deletes with editor name, entity type, changes JSONB, timestamps
+- **Admin CMS Enhancements**: Status filter (All/Draft/Review/Published), editor name setting (persisted in localStorage), per-hole change history panel, Tools tab with Export/Import/Validation
+- **Data Integrity Validation**: `validateIntegrity()` checks broken source/node references in claims, broken connection slugs, published holes without depth nodes
+- **Publish Gate**: Attempting to publish a hole with integrity issues returns 400 with detailed issue list
+- **Export/Import**: Full JSON export of all tables, import with data replacement (destructive import with confirmation)
+- **QA Dashboard**: `/qa` route with automated endpoint tests — checks published-only filtering, data integrity, auth blocking, connection validity
+- **Routes**: Added `/qa` page, admin tools endpoints (`/api/admin/audit-logs`, `/api/admin/export`, `/api/admin/import`, `/api/admin/validate`)

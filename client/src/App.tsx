@@ -13,6 +13,7 @@ import Profile from "@/pages/Profile";
 import Connections from "@/pages/Connections";
 import DepthReader from "@/pages/DepthReader";
 import Admin from "@/pages/Admin";
+import QA from "@/pages/QA";
 
 function Router() {
   return (
@@ -25,6 +26,7 @@ function Router() {
       <Route path="/profile" component={Profile} />
       <Route path="/connections" component={Connections} />
       <Route path="/admin" component={Admin} />
+      <Route path="/qa" component={QA} />
       <Route component={NotFound} />
     </Switch>
   );
