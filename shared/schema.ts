@@ -7,12 +7,14 @@ export const rabbitHoles = pgTable("rabbit_holes", {
   slug: text("slug").unique().notNull(),
   title: text("title").notNull(),
   summary: text("summary").notNull(),
-  status: text("status").notNull(), // 'Verified', 'Specialist', 'Unsolved', 'Active'
+  status: text("status").notNull(),
   completion: integer("completion").default(0).notNull(),
   isSpecialist: boolean("is_specialist").default(false).notNull(),
+  connections: integer("connections").default(0).notNull(),
+  sourceCount: integer("source_count").default(0).notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  timeline: jsonb("timeline").$type<{ year: string; event: string; type: string }[]>().notNull(),
-  sources: jsonb("sources").$type<{ id: number; title: string; type: string; credibility: number; img: string | null }[]>().notNull(),
+  timeline: jsonb("timeline").$type<{ year: string; event: string; type: string }[]>().default([]).notNull(),
+  sources: jsonb("sources").$type<{ id: number; title: string; type: string; credibility: number; img: string | null }[]>().default([]).notNull(),
 });
 
 export const comments = pgTable("comments", {

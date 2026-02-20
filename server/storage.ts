@@ -1,77 +1,75 @@
-import { rabbitHoles, comments, type RabbitHole, type InsertRabbitHole, type Comment, type InsertComment } from "@shared/schema";
-import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/node-postgres";
+import pg from "pg";
+import {
+  rabbitHoles,
+  comments,
+  type RabbitHole,
+  type InsertRabbitHole,
+  type Comment,
+  type InsertComment,
+} from "@shared/schema";
+
+const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+const db = drizzle(pool);
 
 export interface IStorage {
-  getRabbitHoles(): Promise<RabbitHole[]>;
-  getRabbitHole(id: number): Promise<RabbitHole | undefined>;
-  getRabbitHoleBySlug(slug: string): Promise<RabbitHole | undefined>;
-  getComments(holeId: number): Promise<Comment[]>;
+  getAllHoles(): Promise<RabbitHole[]>;
+  getSpecialistHoles(): Promise<RabbitHole[]>;
+  getCommunityHoles(): Promise<RabbitHole[]>;
+  getHoleBySlug(slug: string): Promise<RabbitHole | undefined>;
+  createHole(hole: InsertRabbitHole): Promise<RabbitHole>;
+  getCommentsByHoleId(holeId: number): Promise<Comment[]>;
   createComment(comment: InsertComment): Promise<Comment>;
-  seedData(): Promise<void>;
+  upvoteComment(id: number): Promise<Comment | undefined>;
+  downvoteComment(id: number): Promise<Comment | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
-  async getRabbitHoles(): Promise<RabbitHole[]> {
-    return await db.select().from(rabbitHoles);
+  async getAllHoles(): Promise<RabbitHole[]> {
+    return db.select().from(rabbitHoles).orderBy(desc(rabbitHoles.updatedAt));
   }
 
-  async getRabbitHole(id: number): Promise<RabbitHole | undefined> {
-    const [hole] = await db.select().from(rabbitHoles).where(eq(rabbitHoles.id, id));
-    return hole;
+  async getSpecialistHoles(): Promise<RabbitHole[]> {
+    return db.select().from(rabbitHoles).where(eq(rabbitHoles.isSpecialist, true)).orderBy(desc(rabbitHoles.updatedAt));
   }
 
-  async getRabbitHoleBySlug(slug: string): Promise<RabbitHole | undefined> {
+  async getCommunityHoles(): Promise<RabbitHole[]> {
+    return db.select().from(rabbitHoles).where(eq(rabbitHoles.isSpecialist, false)).orderBy(desc(rabbitHoles.updatedAt));
+  }
+
+  async getHoleBySlug(slug: string): Promise<RabbitHole | undefined> {
     const [hole] = await db.select().from(rabbitHoles).where(eq(rabbitHoles.slug, slug));
     return hole;
   }
 
-  async getComments(holeId: number): Promise<Comment[]> {
-    return await db.select().from(comments).where(eq(comments.holeId, holeId));
+  async createHole(hole: InsertRabbitHole): Promise<RabbitHole> {
+    const [created] = await db.insert(rabbitHoles).values(hole).returning();
+    return created;
   }
 
-  async createComment(insertComment: InsertComment): Promise<Comment> {
-    const [comment] = await db.insert(comments).values(insertComment).returning();
-    return comment;
+  async getCommentsByHoleId(holeId: number): Promise<Comment[]> {
+    return db.select().from(comments).where(eq(comments.holeId, holeId)).orderBy(desc(comments.upvotes));
   }
 
-  async seedData(): Promise<void> {
-    const existing = await this.getRabbitHoles();
-    if (existing.length > 0) return;
+  async createComment(comment: InsertComment): Promise<Comment> {
+    const [created] = await db.insert(comments).values(comment).returning();
+    return created;
+  }
 
-    await db.insert(rabbitHoles).values([
-      {
-        slug: "mk-ultra",
-        title: "Project MKUltra",
-        status: "Verified",
-        completion: 35,
-        isSpecialist: false,
-        summary: "CIA mind control research program exploring behavioral engineering and interrogation techniques.",
-        timeline: [
-          { year: "1953", event: "Project officially sanctioned.", type: "verified" },
-          { year: "1977", event: "FOIA request uncovers 20,000 surviving documents.", type: "verified" }
-        ],
-        sources: [
-          { id: 1, title: "CIA Declassified Archives", type: "document", credibility: 98, img: null }
-        ]
-      },
-      {
-        slug: "vatican-archives",
-        title: "The Apostolic Archive",
-        status: "Specialist",
-        completion: 12,
-        isSpecialist: true,
-        summary: "Deep dive into the restricted layers of the Vatican Secret Archives.",
-        timeline: [
-          { year: "1612", event: "Archives separated from the Vatican Library.", type: "verified" }
-        ],
-        sources: [
-          { id: 1, title: "Secret Archive Index", type: "document", credibility: 95, img: null }
-        ]
-      }
-    ]);
+  async upvoteComment(id: number): Promise<Comment | undefined> {
+    const [existing] = await db.select().from(comments).where(eq(comments.id, id));
+    if (!existing) return undefined;
+    const [updated] = await db.update(comments).set({ upvotes: existing.upvotes + 1 }).where(eq(comments.id, id)).returning();
+    return updated;
+  }
+
+  async downvoteComment(id: number): Promise<Comment | undefined> {
+    const [existing] = await db.select().from(comments).where(eq(comments.id, id));
+    if (!existing) return undefined;
+    const [updated] = await db.update(comments).set({ upvotes: existing.upvotes - 1 }).where(eq(comments.id, id)).returning();
+    return updated;
   }
 }
 
 export const storage = new DatabaseStorage();
-storage.seedData();
