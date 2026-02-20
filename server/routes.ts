@@ -74,8 +74,10 @@ export async function registerRoutes(
 
   app.get("/api/holes/:slug", async (req, res) => {
     try {
+      const admin = req.query.admin === "true" && req.headers.authorization === `Bearer ${ADMIN_PASSWORD}`;
       const hole = await storage.getHoleBySlug(req.params.slug);
       if (!hole) return res.status(404).json({ message: "Rabbit hole not found" });
+      if (!admin && hole.status !== "Published") return res.status(404).json({ message: "Rabbit hole not found" });
       res.json(hole);
     } catch (err) {
       res.status(500).json({ message: "Failed to fetch rabbit hole" });
@@ -85,7 +87,7 @@ export async function registerRoutes(
   app.get("/api/holes/:slug/comments", async (req, res) => {
     try {
       const hole = await storage.getHoleBySlug(req.params.slug);
-      if (!hole) return res.status(404).json({ message: "Rabbit hole not found" });
+      if (!hole || hole.status !== "Published") return res.status(404).json({ message: "Rabbit hole not found" });
       const holeComments = await storage.getCommentsByHoleId(hole.id);
       res.json(holeComments);
     } catch (err) {
@@ -96,7 +98,7 @@ export async function registerRoutes(
   app.post("/api/holes/:slug/comments", async (req, res) => {
     try {
       const hole = await storage.getHoleBySlug(req.params.slug);
-      if (!hole) return res.status(404).json({ message: "Rabbit hole not found" });
+      if (!hole || hole.status !== "Published") return res.status(404).json({ message: "Rabbit hole not found" });
       const parsed = insertCommentSchema.parse({ ...req.body, holeId: hole.id });
       const comment = await storage.createComment(parsed);
       res.status(201).json(comment);
@@ -129,7 +131,7 @@ export async function registerRoutes(
   app.get("/api/holes/:slug/depth-nodes", async (req, res) => {
     try {
       const hole = await storage.getHoleBySlug(req.params.slug);
-      if (!hole) return res.status(404).json({ message: "Rabbit hole not found" });
+      if (!hole || hole.status !== "Published") return res.status(404).json({ message: "Rabbit hole not found" });
       const nodes = await storage.getDepthNodesByHoleId(hole.id);
       res.json(nodes);
     } catch (err) {
@@ -140,7 +142,7 @@ export async function registerRoutes(
   app.get("/api/holes/:slug/claims", async (req, res) => {
     try {
       const hole = await storage.getHoleBySlug(req.params.slug);
-      if (!hole) return res.status(404).json({ message: "Rabbit hole not found" });
+      if (!hole || hole.status !== "Published") return res.status(404).json({ message: "Rabbit hole not found" });
       const holeClaims = await storage.getClaimsByHoleId(hole.id);
       res.json(holeClaims);
     } catch (err) {
@@ -151,7 +153,7 @@ export async function registerRoutes(
   app.get("/api/holes/:slug/sources", async (req, res) => {
     try {
       const hole = await storage.getHoleBySlug(req.params.slug);
-      if (!hole) return res.status(404).json({ message: "Rabbit hole not found" });
+      if (!hole || hole.status !== "Published") return res.status(404).json({ message: "Rabbit hole not found" });
       const holeSources = await storage.getSourcesByHoleId(hole.id);
       res.json(holeSources);
     } catch (err) {
@@ -182,7 +184,7 @@ export async function registerRoutes(
   app.get("/api/holes/:slug/media", async (req, res) => {
     try {
       const hole = await storage.getHoleBySlug(req.params.slug);
-      if (!hole) return res.status(404).json({ message: "Rabbit hole not found" });
+      if (!hole || hole.status !== "Published") return res.status(404).json({ message: "Rabbit hole not found" });
       const holeMedia = await storage.getMediaByHoleId(hole.id);
       res.json(holeMedia);
     } catch (err) {
