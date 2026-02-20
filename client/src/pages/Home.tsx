@@ -71,7 +71,7 @@ export default function Home() {
           className="absolute inset-0 z-0 opacity-20"
           style={{ backgroundImage: `url(${heroBg})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent z-10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent z-10 pointer-events-none" />
         
         <div className="relative z-20 text-center max-w-3xl px-6">
           <div className="inline-flex items-center gap-2 font-mono text-xs text-primary/80 mb-6 px-3 py-1 border border-primary/20 bg-primary/5">
