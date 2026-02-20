@@ -1,0 +1,68 @@
+We are not adding new features. We are fixing preview visibility and populating the platform with realistic test content.
+
+PART 1 — Fix Preview / Publish Visibility
+
+1) Verify public routes (Home, Discover, Live, Search, detail pages) strictly show only status = Published content.
+2) Ensure Draft/Review content is accessible ONLY in authenticated employee admin preview mode.
+3) Confirm deployed environment and admin write to the same database.
+   - If separate environments are using different DB files or configs, unify them.
+4) Add a clear admin UI indicator on edit pages:
+   - Display current status (Draft / Review / Published)
+   - Add a visible note: “Only Published content appears publicly.”
+5) Add a Publish button (Admin only) that sets status=Published and immediately reflects on the live site.
+6) After changes, explain exactly:
+   - where status gating is enforced in code
+   - how admin preview works
+   - how publishing makes content visible publicly
+
+PART 2 — Populate Platform With Structured Test Content
+
+Create realistic but fictional placeholder content for testing. Do not use real conspiracies or sensitive real-world allegations.
+
+A) 8 Rabbit Holes (Published)
+Each must include:
+- title
+- summary
+- category
+- 5–8 depth nodes
+- 3–6 claims (each with at least 1 evidence source)
+- 4–8 sources
+- 3–6 media entries
+Connections are optional. Do not force cross-linking.
+
+Use diverse fictional investigative categories (Technology, Intelligence, Finance, Media Systems, Cybersecurity, History, Geopolitics).
+
+B) Live Section
+Create:
+- 3 Published streams (1 public, 2 premium)
+- 2 upcoming streams
+- 1 ended stream with replay
+- Attach them to at least 2 different creators
+- Ensure premium streams correctly enforce Pro gating.
+
+C) Podcasts Section (standalone)
+Create:
+- 2 podcast shows
+- 5 episodes each
+- Mix of Draft, Review, and Published
+- At least 1 sponsored slot with disclosure text
+- Ensure only Published episodes appear publicly.
+
+D) QA Verification
+Run /qa and ensure:
+- All Published rabbit holes render correctly
+- Live streams render correctly
+- Premium gating works
+- Podcasts render correctly
+
+Output PASS/FAIL report summary.
+
+IMPORTANT:
+- Do not redesign UI.
+- Do not change architecture.
+- Focus on fixing visibility and populating structured content.
+- Use fictional placeholder investigative topics.
+After completion, output:
+1) What was fixed
+2) What was generated (counts per type)
+3) Confirmation that publishing now works properly on the live site.
