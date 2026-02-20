@@ -13,10 +13,15 @@ import Profile from "@/pages/Profile";
 import Connections from "@/pages/Connections";
 import DepthReader from "@/pages/DepthReader";
 import Admin from "@/pages/Admin";
+import AdminLive from "@/pages/AdminLive";
 import QA from "@/pages/QA";
 import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
 import Account from "@/pages/Account";
+import Live from "@/pages/Live";
+import Channel from "@/pages/Channel";
+import Watch from "@/pages/Watch";
+import Replay from "@/pages/Replay";
 
 function Router() {
   return (
@@ -31,7 +36,12 @@ function Router() {
       <Route path="/search" component={Search} />
       <Route path="/profile" component={Profile} />
       <Route path="/connections" component={Connections} />
+      <Route path="/live" component={Live} />
+      <Route path="/channel/:handle" component={Channel} />
+      <Route path="/watch/:streamId" component={Watch} />
+      <Route path="/replay/:streamId" component={Replay} />
       <Route path="/admin" component={Admin} />
+      <Route path="/admin/live" component={AdminLive} />
       <Route path="/qa" component={QA} />
       <Route component={NotFound} />
     </Switch>

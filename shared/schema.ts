@@ -206,6 +206,89 @@ export const sponsoredPodcastSlots = pgTable("sponsored_podcast_slots", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const creators = pgTable("creators", {
+  id: serial("id").primaryKey(),
+  employeeId: uuid("employee_id").references(() => employees.id).notNull(),
+  handle: text("handle").unique().notNull(),
+  displayName: text("display_name").notNull(),
+  bio: text("bio").default("").notNull(),
+  avatarUrl: text("avatar_url").default("").notNull(),
+  bannerUrl: text("banner_url").default("").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const streams = pgTable("streams", {
+  id: serial("id").primaryKey(),
+  creatorId: integer("creator_id").references(() => creators.id).notNull(),
+  title: text("title").notNull(),
+  description: text("description").default("").notNull(),
+  status: text("status").default("Draft").notNull(),
+  streamState: text("stream_state").default("upcoming").notNull(),
+  scheduledStart: timestamp("scheduled_start"),
+  scheduledEnd: timestamp("scheduled_end"),
+  startedAt: timestamp("started_at"),
+  endedAt: timestamp("ended_at"),
+  tags: jsonb("tags").$type<string[]>().default([]).notNull(),
+  thumbnailUrl: text("thumbnail_url").default("").notNull(),
+  provider: text("provider").default("custom_iframe").notNull(),
+  embedUrl: text("embed_url").notNull(),
+  visibility: text("visibility").default("premium").notNull(),
+  chatEnabled: boolean("chat_enabled").default(true).notNull(),
+  createdByEmployeeId: uuid("created_by_employee_id"),
+  updatedByEmployeeId: uuid("updated_by_employee_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const streamReplays = pgTable("stream_replays", {
+  id: serial("id").primaryKey(),
+  streamId: integer("stream_id").references(() => streams.id).notNull(),
+  embedUrl: text("embed_url").notNull(),
+  durationSeconds: integer("duration_seconds").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const liveChatMessages = pgTable("live_chat_messages", {
+  id: serial("id").primaryKey(),
+  streamId: integer("stream_id").references(() => streams.id).notNull(),
+  userId: uuid("user_id"),
+  usernameDisplay: text("username_display").notNull(),
+  message: text("message").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  isDeleted: boolean("is_deleted").default(false).notNull(),
+  deletedByEmployeeId: uuid("deleted_by_employee_id"),
+});
+
+export const chatModerationActions = pgTable("chat_moderation_actions", {
+  id: serial("id").primaryKey(),
+  streamId: integer("stream_id").references(() => streams.id).notNull(),
+  employeeId: uuid("employee_id").references(() => employees.id).notNull(),
+  actionType: text("action_type").notNull(),
+  targetUserId: uuid("target_user_id"),
+  targetUsername: text("target_username"),
+  reason: text("reason").default("").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertCreatorSchema = createInsertSchema(creators).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertStreamSchema = createInsertSchema(streams).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertStreamReplaySchema = createInsertSchema(streamReplays).omit({ id: true, createdAt: true });
+export const insertLiveChatMessageSchema = createInsertSchema(liveChatMessages).omit({ id: true, createdAt: true });
+export const insertChatModerationActionSchema = createInsertSchema(chatModerationActions).omit({ id: true, createdAt: true });
+
+export type Creator = typeof creators.$inferSelect;
+export type InsertCreator = z.infer<typeof insertCreatorSchema>;
+export type Stream = typeof streams.$inferSelect;
+export type InsertStream = z.infer<typeof insertStreamSchema>;
+export type StreamReplay = typeof streamReplays.$inferSelect;
+export type InsertStreamReplay = z.infer<typeof insertStreamReplaySchema>;
+export type LiveChatMessage = typeof liveChatMessages.$inferSelect;
+export type InsertLiveChatMessage = z.infer<typeof insertLiveChatMessageSchema>;
+export type ChatModerationAction = typeof chatModerationActions.$inferSelect;
+export type InsertChatModerationAction = z.infer<typeof insertChatModerationActionSchema>;
+
 export const insertPodcastSchema = createInsertSchema(podcasts).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertPodcastEpisodeSchema = createInsertSchema(podcastEpisodes).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertRabbitHolePodcastEpisodeSchema = createInsertSchema(rabbitHolePodcastEpisodes).omit({ id: true });

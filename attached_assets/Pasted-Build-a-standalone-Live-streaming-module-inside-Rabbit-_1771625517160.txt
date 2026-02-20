@@ -1,0 +1,113 @@
+Build a standalone “Live” streaming module inside Rabbit Hole (premium Twitch-style), NOT tied to rabbit hole topics.
+
+GOAL
+Users can browse live streams and replays, subscribe for premium access, and watch streams with chat. Employees (creators) can create and manage streams in the admin dashboard.
+
+1) Routes / Pages
+Create these pages:
+- /live (browse: live now, upcoming, featured, categories)
+- /channel/:handle (creator channel page: live, replays, about, schedule)
+- /watch/:streamId (watch page with player + live chat + stream info)
+- /replay/:streamId (VOD page with player + chat replay optional)
+Add a top nav link: Live.
+
+2) Database Tables
+Create:
+A) creators
+- id (uuid)
+- employee_id (FK)  [creators are employees for now]
+- handle (unique)
+- display_name
+- bio
+- avatar_url
+- banner_url
+- created_at, updated_at
+
+B) streams
+- id (uuid)
+- creator_id (FK)
+- title
+- description
+- status (Draft/Review/Published) [publishing controls visibility]
+- stream_state (upcoming/live/ended)
+- scheduled_start (datetime)
+- scheduled_end (datetime optional)
+- started_at, ended_at (nullable)
+- tags (array or text)
+- thumbnail_url
+- provider (youtube_live/twitch/custom_iframe)
+- embed_url (required)
+- visibility (public/premium) default premium
+- chat_enabled (bool default true)
+- created_by_employee_id, updated_by_employee_id
+- created_at, updated_at
+
+C) stream_replays (optional, or reuse streams)
+- stream_id (FK)
+- vod_url or embed_url
+- duration_seconds (optional)
+
+D) live_chat_messages
+- id
+- stream_id (FK)
+- user_id (FK nullable if anonymous chat disabled)
+- username_display
+- message
+- created_at
+- is_deleted (bool)
+- deleted_by_employee_id (nullable)
+
+E) chat_moderation_actions
+- id
+- stream_id
+- employee_id
+- action_type (delete_message/timeout/ban/slow_mode)
+- target_user_id or target_username
+- reason
+- created_at
+
+3) Permissions + Workflow
+- Only employees can be creators (for MVP).
+- Editors can create streams and move Draft -> Review.
+- Only Admin can move Review -> Published.
+- Public /live shows ONLY Published streams.
+- /watch/:id should enforce visibility:
+  - public streams: anyone can watch
+  - premium streams: only logged-in users with plan=Pro and subscription_status=active can watch (others see upgrade wall)
+
+4) Admin UI
+Add /admin/live (or /admin/streams) with:
+- creator profile editor (handle, name, bio, avatar, banner)
+- create/edit stream event:
+  - title, description, tags, schedule, provider, embed_url, thumbnail
+  - visibility (public/premium)
+  - status (Draft/Review/Published) with role rules
+- list streams with filters (status, live/upcoming/ended, creator)
+- quick actions: set to live/ended (manual toggles for MVP)
+Add /admin/chat moderation:
+- view chat messages per stream
+- delete message
+- ban/timeout username (MVP can be simple denylist per stream)
+
+5) Watch Page UX
+/watch/:streamId must include:
+- embedded player (iframe) from embed_url
+- stream title, creator, tags, scheduled time
+- chat panel (right side desktop, drawer on mobile)
+Chat rules:
+- Only logged-in users can chat (MVP)
+- Premium streams: only premium users can chat
+- Add slow mode toggle (admin/mod only)
+
+6) QA
+Add checks to /qa:
+- Published streams render on /live
+- /watch route enforces premium gating properly
+- chat API works for logged-in users
+- admin pages are protected by employee auth
+
+After completion:
+- list DB schema changes
+- list API routes added
+- explain how to create a stream and test a premium gate end-to-end.
+IMPORTANT: this Live module is NOT tied to rabbit hole topics.

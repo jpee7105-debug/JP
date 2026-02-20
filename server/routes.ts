@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertCommentSchema, insertDepthNodeSchema, insertClaimSchema, insertSourceSchema, insertCategorySchema, insertRabbitHoleSchema, insertMediaSchema, insertPodcastSchema, insertPodcastEpisodeSchema, insertRabbitHolePodcastEpisodeSchema, insertSponsoredPodcastSlotSchema } from "@shared/schema";
+import { insertCommentSchema, insertDepthNodeSchema, insertClaimSchema, insertSourceSchema, insertCategorySchema, insertRabbitHoleSchema, insertMediaSchema, insertPodcastSchema, insertPodcastEpisodeSchema, insertRabbitHolePodcastEpisodeSchema, insertSponsoredPodcastSlotSchema, insertCreatorSchema, insertStreamSchema, insertStreamReplaySchema, insertLiveChatMessageSchema, insertChatModerationActionSchema } from "@shared/schema";
 import { ZodError } from "zod";
 import bcrypt from "bcryptjs";
 import type { Employee } from "@shared/schema";
@@ -1063,6 +1063,254 @@ export async function registerRoutes(
     } catch (err) {
       res.status(500).json({ message: "Failed to fetch podcasts" });
     }
+  });
+
+  // =========================================
+  // LIVE MODULE - Admin Routes
+  // =========================================
+
+  // -- Creators Admin --
+  app.get("/api/admin/creators", requireEmployee, requireRole("Admin", "Editor"), async (_req, res) => {
+    try { res.json(await storage.getAllCreators()); }
+    catch { res.status(500).json({ message: "Failed to fetch creators" }); }
+  });
+
+  app.post("/api/admin/creators", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
+    try {
+      const parsed = insertCreatorSchema.parse(req.body);
+      const creator = await storage.createCreator(parsed);
+      res.status(201).json(creator);
+    } catch (err) {
+      if (err instanceof ZodError) return res.status(400).json({ message: err.errors.map(e => e.message).join(", ") });
+      res.status(500).json({ message: "Failed to create creator" });
+    }
+  });
+
+  app.put("/api/admin/creators/:id", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const creator = await storage.updateCreator(id, req.body);
+      if (!creator) return res.status(404).json({ message: "Creator not found" });
+      res.json(creator);
+    } catch { res.status(500).json({ message: "Failed to update creator" }); }
+  });
+
+  app.delete("/api/admin/creators/:id", requireEmployee, requireRole("Admin"), async (req, res) => {
+    try {
+      await storage.deleteCreator(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch { res.status(500).json({ message: "Failed to delete creator" }); }
+  });
+
+  // -- Streams Admin --
+  app.get("/api/admin/streams", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
+    try {
+      const creatorId = req.query.creatorId ? parseInt(req.query.creatorId as string) : null;
+      const all = creatorId ? await storage.getStreamsByCreator(creatorId) : await storage.getAllStreams();
+      res.json(all);
+    } catch { res.status(500).json({ message: "Failed to fetch streams" }); }
+  });
+
+  app.post("/api/admin/streams", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
+    try {
+      const parsed = insertStreamSchema.parse({ ...req.body, createdByEmployeeId: req.employee!.id, updatedByEmployeeId: req.employee!.id });
+      const stream = await storage.createStream(parsed);
+      res.status(201).json(stream);
+    } catch (err) {
+      if (err instanceof ZodError) return res.status(400).json({ message: err.errors.map(e => e.message).join(", ") });
+      res.status(500).json({ message: "Failed to create stream" });
+    }
+  });
+
+  app.put("/api/admin/streams/:id", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const existing = await storage.getStreamById(id);
+      if (!existing) return res.status(404).json({ message: "Stream not found" });
+      const role = req.employee!.role;
+      if (req.body.status === "Published" && role !== "Admin") {
+        return res.status(403).json({ message: "Only Admin can publish streams" });
+      }
+      if (req.body.status === "Review" && existing.status !== "Draft" && role !== "Admin") {
+        return res.status(403).json({ message: "Can only submit Draft streams for Review" });
+      }
+      const stream = await storage.updateStream(id, { ...req.body, updatedByEmployeeId: req.employee!.id });
+      res.json(stream);
+    } catch { res.status(500).json({ message: "Failed to update stream" }); }
+  });
+
+  app.delete("/api/admin/streams/:id", requireEmployee, requireRole("Admin"), async (req, res) => {
+    try {
+      await storage.deleteStream(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch { res.status(500).json({ message: "Failed to delete stream" }); }
+  });
+
+  // -- Stream Replays Admin --
+  app.get("/api/admin/replays/:streamId", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
+    try { res.json(await storage.getReplaysByStream(parseInt(req.params.streamId))); }
+    catch { res.status(500).json({ message: "Failed to fetch replays" }); }
+  });
+
+  app.post("/api/admin/replays", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
+    try {
+      const parsed = insertStreamReplaySchema.parse(req.body);
+      const replay = await storage.createReplay(parsed);
+      res.status(201).json(replay);
+    } catch (err) {
+      if (err instanceof ZodError) return res.status(400).json({ message: err.errors.map(e => e.message).join(", ") });
+      res.status(500).json({ message: "Failed to create replay" });
+    }
+  });
+
+  app.delete("/api/admin/replays/:id", requireEmployee, requireRole("Admin"), async (req, res) => {
+    try {
+      await storage.deleteReplay(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch { res.status(500).json({ message: "Failed to delete replay" }); }
+  });
+
+  // -- Chat Moderation Admin --
+  app.get("/api/admin/chat/:streamId", requireEmployee, requireRole("Admin", "Editor", "Moderator"), async (req, res) => {
+    try { res.json(await storage.getAllChatMessages(parseInt(req.params.streamId))); }
+    catch { res.status(500).json({ message: "Failed to fetch chat messages" }); }
+  });
+
+  app.post("/api/admin/chat/:messageId/delete", requireEmployee, requireRole("Admin", "Editor", "Moderator"), async (req, res) => {
+    try {
+      await storage.deleteChatMessage(parseInt(req.params.messageId), req.employee!.id);
+      await storage.createModerationAction({
+        streamId: parseInt(req.body.streamId),
+        employeeId: req.employee!.id,
+        actionType: "delete_message",
+        targetUsername: req.body.targetUsername || null,
+        targetUserId: req.body.targetUserId || null,
+        reason: req.body.reason || "",
+      });
+      res.json({ success: true });
+    } catch { res.status(500).json({ message: "Failed to delete message" }); }
+  });
+
+  app.post("/api/admin/chat/moderate", requireEmployee, requireRole("Admin", "Editor", "Moderator"), async (req, res) => {
+    try {
+      const action = await storage.createModerationAction({
+        streamId: req.body.streamId,
+        employeeId: req.employee!.id,
+        actionType: req.body.actionType,
+        targetUsername: req.body.targetUsername || null,
+        targetUserId: req.body.targetUserId || null,
+        reason: req.body.reason || "",
+      });
+      res.json(action);
+    } catch { res.status(500).json({ message: "Failed to create moderation action" }); }
+  });
+
+  app.get("/api/admin/chat/moderation/:streamId", requireEmployee, requireRole("Admin", "Editor", "Moderator"), async (req, res) => {
+    try { res.json(await storage.getModerationActions(parseInt(req.params.streamId))); }
+    catch { res.status(500).json({ message: "Failed to fetch moderation actions" }); }
+  });
+
+  // =========================================
+  // LIVE MODULE - Public Routes
+  // =========================================
+
+  app.get("/api/live", async (_req, res) => {
+    try {
+      const live = await storage.getLiveStreams();
+      const upcoming = await storage.getUpcomingStreams();
+      const ended = await storage.getEndedStreams();
+      const allCreators = await storage.getAllCreators();
+      const creatorMap = Object.fromEntries(allCreators.filter(c => c.isActive).map(c => [c.id, c]));
+      const enrich = (s: any) => ({ ...s, creator: creatorMap[s.creatorId] || null });
+      res.json({
+        live: live.map(enrich),
+        upcoming: upcoming.map(enrich),
+        replays: ended.map(enrich),
+        featured: live.length > 0 ? live.slice(0, 1).map(enrich) : upcoming.slice(0, 1).map(enrich),
+      });
+    } catch { res.status(500).json({ message: "Failed to fetch live data" }); }
+  });
+
+  app.get("/api/channels/:handle", async (req, res) => {
+    try {
+      const creator = await storage.getCreatorByHandle(req.params.handle);
+      if (!creator || !creator.isActive) return res.status(404).json({ message: "Channel not found" });
+      const allStreams = await storage.getStreamsByCreator(creator.id);
+      const published = allStreams.filter(s => s.status === "Published");
+      res.json({
+        creator,
+        live: published.filter(s => s.streamState === "live"),
+        upcoming: published.filter(s => s.streamState === "upcoming"),
+        replays: published.filter(s => s.streamState === "ended"),
+      });
+    } catch { res.status(500).json({ message: "Failed to fetch channel" }); }
+  });
+
+  app.get("/api/streams/:id", async (req, res) => {
+    try {
+      const stream = await storage.getStreamById(parseInt(req.params.id));
+      if (!stream || stream.status !== "Published") return res.status(404).json({ message: "Stream not found" });
+      const creator = await storage.getCreatorById(stream.creatorId);
+      if (stream.visibility === "premium") {
+        const userId = (req.session as any).userId;
+        if (!userId) return res.json({ stream: { ...stream, embedUrl: "" }, creator, premium: true, hasAccess: false });
+        const user = await storage.getUserById(userId);
+        if (!user || user.plan !== "Pro" || user.subscriptionStatus !== "active") {
+          return res.json({ stream: { ...stream, embedUrl: "" }, creator, premium: true, hasAccess: false });
+        }
+      }
+      res.json({ stream, creator, premium: stream.visibility === "premium", hasAccess: true });
+    } catch { res.status(500).json({ message: "Failed to fetch stream" }); }
+  });
+
+  app.get("/api/replays/:streamId", async (req, res) => {
+    try {
+      const stream = await storage.getStreamById(parseInt(req.params.streamId));
+      if (!stream || stream.status !== "Published" || stream.streamState !== "ended") return res.status(404).json({ message: "Replay not found" });
+      const creator = await storage.getCreatorById(stream.creatorId);
+      const replays = await storage.getReplaysByStream(stream.id);
+      if (stream.visibility === "premium") {
+        const userId = (req.session as any).userId;
+        if (!userId) return res.json({ stream: { ...stream, embedUrl: "" }, creator, replays: [], premium: true, hasAccess: false });
+        const user = await storage.getUserById(userId);
+        if (!user || user.plan !== "Pro" || user.subscriptionStatus !== "active") {
+          return res.json({ stream: { ...stream, embedUrl: "" }, creator, replays: [], premium: true, hasAccess: false });
+        }
+      }
+      res.json({ stream, creator, replays, premium: stream.visibility === "premium", hasAccess: true });
+    } catch { res.status(500).json({ message: "Failed to fetch replay" }); }
+  });
+
+  // -- Chat Public Routes --
+  app.get("/api/chat/:streamId", async (req, res) => {
+    try {
+      const stream = await storage.getStreamById(parseInt(req.params.streamId));
+      if (!stream || stream.status !== "Published" || !stream.chatEnabled) return res.json([]);
+      const messages = await storage.getChatMessages(stream.id, 100);
+      res.json(messages.reverse());
+    } catch { res.status(500).json({ message: "Failed to fetch chat" }); }
+  });
+
+  app.post("/api/chat/:streamId", async (req, res) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) return res.status(401).json({ message: "Login required to chat" });
+      const user = await storage.getUserById(userId);
+      if (!user) return res.status(401).json({ message: "User not found" });
+      const stream = await storage.getStreamById(parseInt(req.params.streamId));
+      if (!stream || stream.status !== "Published" || !stream.chatEnabled) return res.status(400).json({ message: "Chat not available" });
+      if (stream.visibility === "premium" && (user.plan !== "Pro" || user.subscriptionStatus !== "active")) {
+        return res.status(403).json({ message: "Premium subscription required to chat in this stream" });
+      }
+      if (!req.body.message || req.body.message.trim().length === 0) return res.status(400).json({ message: "Message required" });
+      const msg = await storage.createChatMessage({
+        streamId: stream.id,
+        userId: user.id,
+        usernameDisplay: user.name || user.email.split("@")[0],
+        message: req.body.message.trim().slice(0, 500),
+      });
+      res.status(201).json(msg);
+    } catch { res.status(500).json({ message: "Failed to send message" }); }
   });
 
   return httpServer;

@@ -44,6 +44,21 @@ import {
   type InsertRabbitHolePodcastEpisode,
   type SponsoredPodcastSlot,
   type InsertSponsoredPodcastSlot,
+  creators,
+  streams,
+  streamReplays,
+  liveChatMessages,
+  chatModerationActions,
+  type Creator,
+  type InsertCreator,
+  type Stream,
+  type InsertStream,
+  type StreamReplay,
+  type InsertStreamReplay,
+  type LiveChatMessage,
+  type InsertLiveChatMessage,
+  type ChatModerationAction,
+  type InsertChatModerationAction,
 } from "@shared/schema";
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
@@ -769,6 +784,111 @@ export class DatabaseStorage implements IStorage {
       return { ...slot, episodeTitle };
     }
     return null;
+  }
+  // ---- Creators ----
+  async getAllCreators(): Promise<Creator[]> {
+    return db.select().from(creators).orderBy(desc(creators.createdAt));
+  }
+  async getCreatorById(id: number): Promise<Creator | undefined> {
+    const [c] = await db.select().from(creators).where(eq(creators.id, id));
+    return c;
+  }
+  async getCreatorByHandle(handle: string): Promise<Creator | undefined> {
+    const [c] = await db.select().from(creators).where(eq(creators.handle, handle));
+    return c;
+  }
+  async getCreatorByEmployeeId(employeeId: string): Promise<Creator | undefined> {
+    const [c] = await db.select().from(creators).where(eq(creators.employeeId, employeeId));
+    return c;
+  }
+  async createCreator(data: InsertCreator): Promise<Creator> {
+    const [c] = await db.insert(creators).values(data).returning();
+    return c;
+  }
+  async updateCreator(id: number, data: Partial<InsertCreator>): Promise<Creator | undefined> {
+    const [c] = await db.update(creators).set({ ...data, updatedAt: new Date() }).where(eq(creators.id, id)).returning();
+    return c;
+  }
+  async deleteCreator(id: number): Promise<void> {
+    await db.delete(creators).where(eq(creators.id, id));
+  }
+
+  // ---- Streams ----
+  async getAllStreams(): Promise<Stream[]> {
+    return db.select().from(streams).orderBy(desc(streams.createdAt));
+  }
+  async getStreamById(id: number): Promise<Stream | undefined> {
+    const [s] = await db.select().from(streams).where(eq(streams.id, id));
+    return s;
+  }
+  async getStreamsByCreator(creatorId: number): Promise<Stream[]> {
+    return db.select().from(streams).where(eq(streams.creatorId, creatorId)).orderBy(desc(streams.createdAt));
+  }
+  async getPublishedStreams(): Promise<Stream[]> {
+    return db.select().from(streams).where(eq(streams.status, "Published")).orderBy(desc(streams.createdAt));
+  }
+  async getLiveStreams(): Promise<Stream[]> {
+    return db.select().from(streams).where(and(eq(streams.status, "Published"), eq(streams.streamState, "live"))).orderBy(desc(streams.startedAt));
+  }
+  async getUpcomingStreams(): Promise<Stream[]> {
+    return db.select().from(streams).where(and(eq(streams.status, "Published"), eq(streams.streamState, "upcoming"))).orderBy(asc(streams.scheduledStart));
+  }
+  async getEndedStreams(): Promise<Stream[]> {
+    return db.select().from(streams).where(and(eq(streams.status, "Published"), eq(streams.streamState, "ended"))).orderBy(desc(streams.endedAt));
+  }
+  async createStream(data: InsertStream): Promise<Stream> {
+    const [s] = await db.insert(streams).values(data).returning();
+    return s;
+  }
+  async updateStream(id: number, data: Partial<InsertStream>): Promise<Stream | undefined> {
+    const [s] = await db.update(streams).set({ ...data, updatedAt: new Date() }).where(eq(streams.id, id)).returning();
+    return s;
+  }
+  async deleteStream(id: number): Promise<void> {
+    await db.delete(liveChatMessages).where(eq(liveChatMessages.streamId, id));
+    await db.delete(chatModerationActions).where(eq(chatModerationActions.streamId, id));
+    await db.delete(streamReplays).where(eq(streamReplays.streamId, id));
+    await db.delete(streams).where(eq(streams.id, id));
+  }
+
+  // ---- Stream Replays ----
+  async getReplaysByStream(streamId: number): Promise<StreamReplay[]> {
+    return db.select().from(streamReplays).where(eq(streamReplays.streamId, streamId));
+  }
+  async createReplay(data: InsertStreamReplay): Promise<StreamReplay> {
+    const [r] = await db.insert(streamReplays).values(data).returning();
+    return r;
+  }
+  async updateReplay(id: number, data: Partial<InsertStreamReplay>): Promise<StreamReplay | undefined> {
+    const [r] = await db.update(streamReplays).set(data).where(eq(streamReplays.id, id)).returning();
+    return r;
+  }
+  async deleteReplay(id: number): Promise<void> {
+    await db.delete(streamReplays).where(eq(streamReplays.id, id));
+  }
+
+  // ---- Live Chat Messages ----
+  async getChatMessages(streamId: number, limit = 100): Promise<LiveChatMessage[]> {
+    return db.select().from(liveChatMessages).where(and(eq(liveChatMessages.streamId, streamId), eq(liveChatMessages.isDeleted, false))).orderBy(desc(liveChatMessages.createdAt)).limit(limit);
+  }
+  async getAllChatMessages(streamId: number, limit = 200): Promise<LiveChatMessage[]> {
+    return db.select().from(liveChatMessages).where(eq(liveChatMessages.streamId, streamId)).orderBy(desc(liveChatMessages.createdAt)).limit(limit);
+  }
+  async createChatMessage(data: InsertLiveChatMessage): Promise<LiveChatMessage> {
+    const [m] = await db.insert(liveChatMessages).values(data).returning();
+    return m;
+  }
+  async deleteChatMessage(id: number, employeeId: string): Promise<void> {
+    await db.update(liveChatMessages).set({ isDeleted: true, deletedByEmployeeId: employeeId }).where(eq(liveChatMessages.id, id));
+  }
+
+  // ---- Chat Moderation ----
+  async getModerationActions(streamId: number): Promise<ChatModerationAction[]> {
+    return db.select().from(chatModerationActions).where(eq(chatModerationActions.streamId, streamId)).orderBy(desc(chatModerationActions.createdAt));
+  }
+  async createModerationAction(data: InsertChatModerationAction): Promise<ChatModerationAction> {
+    const [a] = await db.insert(chatModerationActions).values(data).returning();
+    return a;
   }
 }
 

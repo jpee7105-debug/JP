@@ -17,7 +17,7 @@ The application follows a monorepo structure, separating the frontend (`client/`
 
 ### Frontend Architecture
 - **Framework**: React 18 with TypeScript, using Vite for bundling and HMR.
-- **Routing**: Wouter handles client-side navigation with routes for Home, Discover, RabbitHole details, DepthReader, Search, Profile, Connections, and an Admin CMS.
+- **Routing**: Wouter handles client-side navigation with routes for Home, Discover, RabbitHole details, DepthReader, Search, Profile, Connections, Live Streaming, and an Admin CMS.
 - **State Management**: TanStack React Query manages server state, data fetching, and caching.
 - **UI/UX**: shadcn/ui (New York style) built on Radix UI primitives, styled with Tailwind CSS v4. Features a dark mode by default, custom fonts (Inter, Space Grotesk, JetBrains Mono), and a deep red accent color.
 - **Key Features**:
@@ -25,7 +25,9 @@ The application follows a monorepo structure, separating the frontend (`client/`
     - **RabbitHole Detail**: Displays investigation overview with tabs for Depth Nodes, Timeline, Claims, and Sources.
     - **DepthReader**: A sequential reading experience for depth nodes, with progress tracking and keyboard controls.
     - **Connections**: An interactive force-directed graph visualizing relationships between investigations.
+    - **Live Streaming**: Browse live/upcoming streams and replays, watch with live chat, creator channel pages, premium gating for Pro users.
     - **Admin CMS**: A password-authenticated system for content management (holes, nodes, claims, sources, media, podcasts, employees) with role-based access control, workflow management (Draft, Review, Published), and integrity validation.
+    - **Admin Live**: Manage creators, streams (with Draft→Review→Published workflow and live/upcoming/ended states), and chat moderation.
 
 ### Backend Architecture
 - **Framework**: Express 5 on Node.js with TypeScript.
@@ -37,11 +39,12 @@ The application follows a monorepo structure, separating the frontend (`client/`
 - **Content Workflow**: Investigations support `Draft`, `Review`, `Published` statuses. Public APIs only expose `Published` content, while admin APIs can access all statuses with appropriate authentication.
 - **Paywall**: Free users are limited to a preview of depth nodes; Pro users with an active subscription gain full access.
 - **Podcast System**: Manages podcast shows, episodes, their attachment to investigations, and sponsored slots, exposing them on investigation detail pages.
+- **Live Streaming Module**: Full CRUD for creators, streams, replays, chat messages, and chat moderation. Streams follow Draft→Review→Published editorial workflow. Public APIs filter by Published status only. Chat supports polling with premium gating.
 
 ### Database
 - **Type**: PostgreSQL.
 - **ORM**: Drizzle ORM with `node-postgres` driver.
-- **Schema**: Defined in `shared/schema.ts`, including tables for `categories`, `rabbit_holes`, `depth_nodes`, `claims`, `sources`, `comments`, `employees`, `users`, `podcasts`, `podcast_episodes`, `rabbit_hole_podcast_episodes`, `sponsored_podcast_slots`, `audit_logs`, and `user_sessions`.
+- **Schema**: Defined in `shared/schema.ts`, including tables for `categories`, `rabbit_holes`, `depth_nodes`, `claims`, `sources`, `comments`, `employees`, `users`, `podcasts`, `podcast_episodes`, `rabbit_hole_podcast_episodes`, `sponsored_podcast_slots`, `audit_logs`, `user_sessions`, `creators`, `streams`, `stream_replays`, `live_chat_messages`, and `chat_moderation_actions`.
 - **Seeding**: Initial data is provided for development, and a default Admin employee is created if none exists.
 
 ## External Dependencies
