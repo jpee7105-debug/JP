@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertCommentSchema } from "@shared/schema";
+import { insertCommentSchema, insertDepthNodeSchema, insertClaimSchema, insertSourceSchema, insertCategorySchema } from "@shared/schema";
 import { ZodError } from "zod";
 
 export async function registerRoutes(
@@ -36,6 +36,15 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/holes/category/:slug", async (req, res) => {
+    try {
+      const holes = await storage.getHolesByCategory(req.params.slug);
+      res.json(holes);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch holes by category" });
+    }
+  });
+
   app.get("/api/holes/:slug", async (req, res) => {
     try {
       const hole = await storage.getHoleBySlug(req.params.slug);
@@ -61,17 +70,11 @@ export async function registerRoutes(
     try {
       const hole = await storage.getHoleBySlug(req.params.slug);
       if (!hole) return res.status(404).json({ message: "Rabbit hole not found" });
-
-      const parsed = insertCommentSchema.parse({
-        ...req.body,
-        holeId: hole.id,
-      });
+      const parsed = insertCommentSchema.parse({ ...req.body, holeId: hole.id });
       const comment = await storage.createComment(parsed);
       res.status(201).json(comment);
     } catch (err) {
-      if (err instanceof ZodError) {
-        return res.status(400).json({ message: "Invalid comment data", errors: err.errors });
-      }
+      if (err instanceof ZodError) return res.status(400).json({ message: "Invalid comment data", errors: err.errors });
       res.status(500).json({ message: "Failed to create comment" });
     }
   });
@@ -93,6 +96,59 @@ export async function registerRoutes(
       res.json(comment);
     } catch (err) {
       res.status(500).json({ message: "Failed to downvote comment" });
+    }
+  });
+
+  app.get("/api/holes/:slug/depth-nodes", async (req, res) => {
+    try {
+      const hole = await storage.getHoleBySlug(req.params.slug);
+      if (!hole) return res.status(404).json({ message: "Rabbit hole not found" });
+      const nodes = await storage.getDepthNodesByHoleId(hole.id);
+      res.json(nodes);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch depth nodes" });
+    }
+  });
+
+  app.get("/api/holes/:slug/claims", async (req, res) => {
+    try {
+      const hole = await storage.getHoleBySlug(req.params.slug);
+      if (!hole) return res.status(404).json({ message: "Rabbit hole not found" });
+      const holeClaims = await storage.getClaimsByHoleId(hole.id);
+      res.json(holeClaims);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch claims" });
+    }
+  });
+
+  app.get("/api/holes/:slug/sources", async (req, res) => {
+    try {
+      const hole = await storage.getHoleBySlug(req.params.slug);
+      if (!hole) return res.status(404).json({ message: "Rabbit hole not found" });
+      const holeSources = await storage.getSourcesByHoleId(hole.id);
+      res.json(holeSources);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch sources" });
+    }
+  });
+
+  app.get("/api/categories", async (_req, res) => {
+    try {
+      const cats = await storage.getAllCategories();
+      res.json(cats);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch categories" });
+    }
+  });
+
+  app.get("/api/search", async (req, res) => {
+    try {
+      const q = (req.query.q as string) || "";
+      if (!q.trim()) return res.json({ holes: [], sources: [], claims: [] });
+      const results = await storage.search(q.trim());
+      res.json(results);
+    } catch (err) {
+      res.status(500).json({ message: "Search failed" });
     }
   });
 

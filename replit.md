@@ -1,14 +1,15 @@
-# Rabbit Hole - AI-Powered Investigative Research Platform
+# Red Thread - AI-Powered Investigative Research Platform
 
 ## Overview
 
-Rabbit Hole is an AI-powered investigative research platform built around structured "rabbit holes." Each rabbit hole explores a controversial, historical, geopolitical, or conspiracy-adjacent topic with neutral overviews, timelines, key claims, evidence/source sections, and connected rabbit holes. Users can engage anonymously through a threaded comment system styled as a "red thread," with upvote/downvote mechanics and inter-topic linking.
+Red Thread is an AI-powered investigative research platform built around structured deep-dives into complex narratives. Users explore investigations through guided "Depth Nodes" (step-by-step reading), structured claims with evidence/counterpoints, normalized source libraries with credibility scores, and timeline visualizations. The platform features anonymous participation through a "Red Thread" comment system with upvote/downvote mechanics and inter-topic linking. Content is organized into categories (Intelligence, Geopolitics, History, Technology, Finance, Mysteries, Media Narratives) with a two-tier system: Specialist Intel (curated) and Active Investigations (community-driven).
 
-The application follows a monorepo structure with a React frontend (Vite), an Express backend, and a PostgreSQL database using Drizzle ORM for schema management and queries.
+The application follows a monorepo structure with a React frontend (Vite), an Express backend, and a PostgreSQL database using Drizzle ORM.
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+App name: Red Thread (not Rabbit Hole)
 
 ## System Architecture
 
@@ -23,12 +24,16 @@ Preferred communication style: Simple, everyday language.
 ### Frontend Architecture
 - **Framework**: React 18 with TypeScript
 - **Bundler**: Vite with HMR support, configured for Replit deployment
-- **Routing**: Wouter (lightweight React router) with two main routes: Home (`/`) and RabbitHole (`/hole/:id`)
+- **Routing**: Wouter with routes: Home (`/`), RabbitHole (`/hole/:id`), Search (`/search`)
 - **State Management**: TanStack React Query for server state (data fetching, caching, mutations)
 - **UI Components**: shadcn/ui (new-york style) built on Radix UI primitives with Tailwind CSS
 - **Styling**: Tailwind CSS v4 with CSS variables for theming, dark mode by default, custom fonts (Inter, Space Grotesk, JetBrains Mono)
 - **Path Aliases**: `@/` maps to `client/src/`, `@shared/` maps to `shared/`
-- **Key Custom Component**: `RedThread` — the threaded comment component styled as notes pinned along a red thread with upvote/downvote buttons and inter-topic link badges
+- **Key Custom Components**:
+  - `RedThread` — Threaded comment component with upvote/downvote and inter-topic links
+  - Home page with category filters, sorting (trending/new/verified), functional search
+  - RabbitHole detail with 4 tabs: Go Deeper (depth nodes), Timeline, Claims, Sources
+  - Search page with tabbed results across investigations/sources/claims
 
 ### Backend Architecture
 - **Framework**: Express 5 on Node.js with TypeScript (via tsx)
@@ -37,29 +42,35 @@ Preferred communication style: Simple, everyday language.
   - `GET /api/holes` — List all rabbit holes
   - `GET /api/holes/specialist` — List specialist-curated holes
   - `GET /api/holes/community` — List community holes
+  - `GET /api/holes/category/:slug` — List holes by category
   - `GET /api/holes/:slug` — Get single rabbit hole by slug
   - `GET /api/holes/:slug/comments` — Get comments for a hole
   - `POST /api/holes/:slug/comments` — Create a comment
   - `POST /api/comments/:id/upvote` — Upvote a comment
   - `POST /api/comments/:id/downvote` — Downvote a comment
+  - `GET /api/holes/:slug/depth-nodes` — Get depth nodes for guided reading
+  - `GET /api/holes/:slug/claims` — Get claims with evidence/counterpoints
+  - `GET /api/holes/:slug/sources` — Get normalized sources
+  - `GET /api/categories` — List all categories
+  - `GET /api/search?q=` — Search across holes, sources, and claims
 - **Validation**: Zod schemas generated from Drizzle schema via `drizzle-zod`
-- **Development**: Vite dev server middleware integrated into Express for HMR
-- **Production**: Static file serving from `dist/public`, SPA fallback to `index.html`
-- **Build**: Custom build script using esbuild (server) + Vite (client), outputs to `dist/`
 
 ### Database
 - **Database**: PostgreSQL (required via `DATABASE_URL` environment variable)
 - **ORM**: Drizzle ORM with `node-postgres` driver
 - **Schema Location**: `shared/schema.ts`
-- **Schema Push**: `npm run db:push` (uses drizzle-kit push, no migration files needed for development)
 - **Tables**:
-  - `rabbit_holes` — id, slug (unique), title, summary, status, completion, isSpecialist, connections, sourceCount, updatedAt, timeline (JSONB array), sources (JSONB array)
-  - `comments` — id, holeId (FK to rabbit_holes), username, reputation, content, upvotes, links (JSONB array of {text, target}), createdAt
-- **Seeding**: `server/seed.ts` contains initial data for rabbit holes (MKUltra, Vatican Archives, etc.)
+  - `categories` — id, name, slug (unique), description, icon
+  - `rabbit_holes` — id, slug (unique), title, summary, status, completion, isSpecialist, connections, sourceCount, categorySlug, updatedAt, timeline (JSONB)
+  - `depth_nodes` — id, holeId (FK), title, summary, content, position, status (locked/unlocked), mediaUrl, branchLinks (JSONB)
+  - `claims` — id, holeId (FK), nodeId (FK nullable), statement, stance, confidence (0-100), evidence (JSONB), counterpoints (JSONB)
+  - `sources` — id, holeId (FK), title, author, origin, publishedDate, url, summary, type, stanceTag, credibility (0-100)
+  - `comments` — id, holeId (FK), username, reputation, content, upvotes, links (JSONB), createdAt
+- **Seeding**: `server/seed.ts` contains initial data (MKUltra, Vatican Archives, Steppe Pathogens, Cicada 3301, Numbers Stations) with depth nodes, claims, and normalized sources
 
 ### Storage Layer
 - `server/storage.ts` defines an `IStorage` interface and `DatabaseStorage` implementation
-- Direct Drizzle queries using the `db` instance from a connection pool
+- CRUD operations for all entities plus search with ILIKE queries
 - Pattern supports swapping storage implementations if needed
 
 ### Development vs Production
@@ -67,28 +78,28 @@ Preferred communication style: Simple, everyday language.
 - **Build**: `npm run build` compiles client (Vite) and server (esbuild) to `dist/`
 - **Production**: `npm start` runs the compiled `dist/index.cjs`
 
-## External Dependencies
+## Design Aesthetic
+- Dark classified/tactical theme (#0A0A0A background)
+- Primary: Red (#E02424), Accent: Green (#22C55E) for verified status
+- Corner accents, grain overlays, terminal-style fonts
+- Space Grotesk for display, JetBrains Mono for metadata, Inter for body
 
-### Database
-- **PostgreSQL** — Primary data store, connected via `DATABASE_URL` environment variable
-- **Drizzle ORM** — Query builder and schema management
-- **drizzle-kit** — Schema push and migration tooling
-- **node-postgres (pg)** — PostgreSQL client driver
+## Recent Changes (Feb 2026)
+- Phase 1: Expanded from basic rabbit holes to full investigative platform
+- Added Depth Nodes for guided "Go Deeper" reading mode
+- Added Claims system with evidence/counterpoints and confidence scores
+- Normalized Sources into separate table with credibility scores and stance tags
+- Added Categories (Intelligence, Geopolitics, History, Technology, Finance, Mysteries, Media)
+- Added Search across holes, sources, and claims
+- Rebranded from "Rabbit Hole" to "Red Thread"
+- Category filter bar on Home page
+- Sorting: trending/new/verified for community investigations
 
-### Frontend Libraries
-- **React** with **TanStack React Query** for data fetching
-- **shadcn/ui** component library (Radix UI + Tailwind CSS)
-- **Wouter** for client-side routing
-- **Lucide React** for icons
-- **Google Fonts** (Inter, Space Grotesk, JetBrains Mono) loaded via CDN
-
-### Build Tools
-- **Vite** — Frontend bundler with React plugin, Tailwind CSS plugin
-- **esbuild** — Server bundler for production builds
-- **tsx** — TypeScript execution for development
-- **PostCSS** with Tailwind CSS and Autoprefixer
-
-### Replit-Specific
-- `@replit/vite-plugin-runtime-error-modal` — Error overlay in development
-- `@replit/vite-plugin-cartographer` and `@replit/vite-plugin-dev-banner` — Dev tools (conditionally loaded)
-- Custom `vite-plugin-meta-images` — Updates OpenGraph meta tags with Replit deployment URL
+## Planned Future Phases
+- Admin CMS backend for research team
+- User authentication and roles (Anonymous, Moderator, Research Editor, Admin)
+- Media gallery and uploads
+- Connected Rabbit Holes graph/network visualization
+- International Lens (how different countries frame topics)
+- Library/Bookshelf page
+- Monetization (sponsored podcast slots)

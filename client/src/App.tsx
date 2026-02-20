@@ -6,12 +6,14 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import RabbitHole from "@/pages/RabbitHole";
+import Search from "@/pages/Search";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/hole/:id" component={RabbitHole} />
+      <Route path="/search" component={Search} />
       <Route component={NotFound} />
     </Switch>
   );
