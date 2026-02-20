@@ -10,6 +10,7 @@ import {
   categories,
   media,
   auditLogs,
+  users,
   type RabbitHole,
   type InsertRabbitHole,
   type Comment,
@@ -26,6 +27,8 @@ import {
   type InsertMedia,
   type AuditLog,
   type InsertAuditLog,
+  type User,
+  type InsertUser,
 } from "@shared/schema";
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
@@ -108,6 +111,11 @@ export interface IStorage {
   validateIntegrity(): Promise<{
     issues: { holeId: number; holeTitle: string; type: string; message: string }[];
   }>;
+
+  createUser(user: InsertUser): Promise<User>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  getUserById(id: string): Promise<User | undefined>;
+  updateUser(id: string, data: Partial<User>): Promise<User | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -493,6 +501,26 @@ export class DatabaseStorage implements IStorage {
     }
 
     return { issues };
+  }
+
+  async createUser(user: InsertUser): Promise<User> {
+    const [created] = await db.insert(users).values(user).returning();
+    return created;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email.toLowerCase()));
+    return user;
+  }
+
+  async getUserById(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async updateUser(id: string, data: Partial<User>): Promise<User | undefined> {
+    const [updated] = await db.update(users).set({ ...data, updatedAt: new Date() }).where(eq(users.id, id)).returning();
+    return updated;
   }
 }
 

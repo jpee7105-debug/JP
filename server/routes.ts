@@ -1,8 +1,9 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertCommentSchema, insertDepthNodeSchema, insertClaimSchema, insertSourceSchema, insertCategorySchema, insertRabbitHoleSchema, insertMediaSchema } from "@shared/schema";
 import { ZodError } from "zod";
+import bcrypt from "bcryptjs";
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "rabbithole2024";
 
@@ -30,6 +31,80 @@ export async function registerRoutes(
     } else {
       res.status(401).json({ message: "Invalid password" });
     }
+  });
+
+  // ===== USER AUTH ROUTES =====
+
+  app.post("/api/auth/signup", async (req, res) => {
+    try {
+      const { email, password, name } = req.body;
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+      if (password.length < 6) {
+        return res.status(400).json({ message: "Password must be at least 6 characters" });
+      }
+      const existing = await storage.getUserByEmail(email.toLowerCase());
+      if (existing) {
+        return res.status(409).json({ message: "An account with this email already exists" });
+      }
+      const passwordHash = await bcrypt.hash(password, 12);
+      const user = await storage.createUser({
+        email: email.toLowerCase(),
+        passwordHash,
+        name: name || null,
+        plan: "Free",
+        subscriptionStatus: "none",
+      });
+      req.session.userId = user.id;
+      const { passwordHash: _, ...safeUser } = user;
+      res.status(201).json(safeUser);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to create account" });
+    }
+  });
+
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+      const user = await storage.getUserByEmail(email.toLowerCase());
+      if (!user) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+      const valid = await bcrypt.compare(password, user.passwordHash);
+      if (!valid) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+      await storage.updateUser(user.id, { lastLoginAt: new Date() });
+      req.session.userId = user.id;
+      const { passwordHash: _, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to log in" });
+    }
+  });
+
+  app.post("/api/auth/logout", (req, res) => {
+    req.session.destroy((err) => {
+      if (err) return res.status(500).json({ message: "Failed to log out" });
+      res.clearCookie("connect.sid");
+      res.json({ message: "Logged out" });
+    });
+  });
+
+  app.get("/api/auth/me", async (req, res) => {
+    if (!req.session.userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    const user = await storage.getUserById(req.session.userId);
+    if (!user) {
+      return res.status(401).json({ message: "User not found" });
+    }
+    const { passwordHash: _, ...safeUser } = user;
+    res.json(safeUser);
   });
 
   app.get("/api/holes", async (req, res) => {
@@ -133,9 +208,59 @@ export async function registerRoutes(
       const hole = await storage.getHoleBySlug(req.params.slug);
       if (!hole || hole.status !== "Published") return res.status(404).json({ message: "Rabbit hole not found" });
       const nodes = await storage.getDepthNodesByHoleId(hole.id);
-      res.json(nodes);
+
+      const FREE_PREVIEW_LIMIT = 2;
+      let userPlan = "Free";
+      let subscriptionStatus = "none";
+      if (req.session.userId) {
+        const user = await storage.getUserById(req.session.userId);
+        if (user) {
+          userPlan = user.plan;
+          subscriptionStatus = user.subscriptionStatus;
+        }
+      }
+      const hasFullAccess = userPlan === "Pro" && subscriptionStatus === "active";
+
+      if (hasFullAccess) {
+        res.json(nodes);
+      } else {
+        const preview = nodes.slice(0, FREE_PREVIEW_LIMIT);
+        res.json(preview);
+      }
     } catch (err) {
       res.status(500).json({ message: "Failed to fetch depth nodes" });
+    }
+  });
+
+  app.get("/api/holes/:slug/access", async (req, res) => {
+    try {
+      const hole = await storage.getHoleBySlug(req.params.slug);
+      if (!hole || hole.status !== "Published") return res.status(404).json({ message: "Rabbit hole not found" });
+      const nodes = await storage.getDepthNodesByHoleId(hole.id);
+      const totalNodes = nodes.length;
+
+      let userPlan = "Free";
+      let subscriptionStatus = "none";
+      let loggedIn = false;
+      if (req.session.userId) {
+        const user = await storage.getUserById(req.session.userId);
+        if (user) {
+          userPlan = user.plan;
+          subscriptionStatus = user.subscriptionStatus;
+          loggedIn = true;
+        }
+      }
+      const hasFullAccess = userPlan === "Pro" && subscriptionStatus === "active";
+
+      res.json({
+        totalNodes,
+        previewLimit: hasFullAccess ? totalNodes : 2,
+        hasFullAccess,
+        loggedIn,
+        plan: userPlan,
+      });
+    } catch (err) {
+      res.status(500).json({ message: "Failed to check access" });
     }
   });
 

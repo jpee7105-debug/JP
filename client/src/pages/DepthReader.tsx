@@ -1,8 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useParams, Link } from "wouter";
+import { useParams, Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Loader2, BookOpen, CheckCircle2, Lock, ExternalLink, Award } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, BookOpen, CheckCircle2, Lock, ExternalLink, Award, Crown } from "lucide-react";
 import type { RabbitHole as RabbitHoleType, DepthNode } from "@shared/schema";
+import { useAuth } from "@/hooks/useAuth";
+
+type AccessInfo = {
+  totalNodes: number;
+  previewLimit: number;
+  hasFullAccess: boolean;
+  loggedIn: boolean;
+  plan: string;
+};
 
 function getProgress(slug: string): Record<number, boolean> {
   try {
@@ -36,11 +45,13 @@ function addReputationNode(slug: string, totalNodes: number, completedCount: num
 export default function DepthReader() {
   const params = useParams<{ slug: string }>();
   const slug = params.slug;
+  const [, navigate] = useLocation();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [completedNodes, setCompletedNodes] = useState<Record<number, boolean>>({});
   const [transitioning, setTransitioning] = useState(false);
   const [showCompletion, setShowCompletion] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
+  const { isAuthenticated } = useAuth();
 
   const { data: hole, isLoading: loadingHole } = useQuery<RabbitHoleType>({
     queryKey: [`/api/holes/${slug}`],
@@ -50,6 +61,13 @@ export default function DepthReader() {
     queryKey: [`/api/holes/${slug}/depth-nodes`],
     enabled: !!hole,
   });
+
+  const { data: access } = useQuery<AccessInfo>({
+    queryKey: [`/api/holes/${slug}/access`],
+    enabled: !!hole,
+  });
+
+  const isPaywalled = access && !access.hasFullAccess && access.totalNodes > (access.previewLimit || 2);
 
   useEffect(() => {
     if (slug) {
@@ -197,7 +215,7 @@ export default function DepthReader() {
           </Link>
           <div className="flex items-center gap-4">
             <span className="font-mono text-xs text-muted-foreground">
-              {currentIndex + 1} / {nodes.length}
+              {currentIndex + 1} / {access?.hasFullAccess === false ? `${nodes.length} (of ${access.totalNodes})` : nodes.length}
             </span>
             <span className={`font-mono text-xs ${progress >= 100 ? "text-green-500" : "text-primary"}`}>
               {progress >= 100 && <CheckCircle2 className="w-3 h-3 inline mr-1" />}
@@ -293,6 +311,48 @@ export default function DepthReader() {
                   </div>
                 )}
 
+                {isPaywalled && currentIndex === nodes.length - 1 && (
+                  <div className="border border-primary/30 bg-primary/[0.03] p-8 mb-8" data-testid="paywall-prompt">
+                    <div className="flex items-start gap-4">
+                      <Crown className="w-10 h-10 text-primary flex-shrink-0 mt-1" />
+                      <div className="flex-1">
+                        <h3 className="font-display text-xl font-bold uppercase mb-2">
+                          {access.totalNodes - nodes.length} MORE DEPTH NODES AVAILABLE
+                        </h3>
+                        <p className="text-muted-foreground text-sm mb-4">
+                          You've reached the end of the free preview. Upgrade to Pro to unlock the full investigation with all {access.totalNodes} depth nodes.
+                        </p>
+                        {!isAuthenticated ? (
+                          <div className="flex gap-3">
+                            <Link
+                              href={`/login?redirect=${encodeURIComponent(`/rabbithole/${slug}/read`)}`}
+                              className="inline-flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/80 text-white font-mono text-sm uppercase tracking-wider transition-colors"
+                              data-testid="button-login-to-upgrade"
+                            >
+                              LOG IN TO CONTINUE
+                            </Link>
+                            <Link
+                              href="/signup"
+                              className="inline-flex items-center gap-2 px-6 py-3 border border-white/10 text-muted-foreground hover:text-white font-mono text-sm uppercase tracking-wider transition-colors"
+                              data-testid="button-signup-to-upgrade"
+                            >
+                              CREATE ACCOUNT
+                            </Link>
+                          </div>
+                        ) : (
+                          <Link
+                            href="/account"
+                            className="inline-flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/80 text-white font-mono text-sm uppercase tracking-wider transition-colors"
+                            data-testid="button-upgrade-to-pro"
+                          >
+                            UPGRADE TO PRO <Crown className="w-4 h-4" />
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between pt-8 border-t border-white/5">
                   <button
                     onClick={goPrev}
@@ -303,7 +363,9 @@ export default function DepthReader() {
                     <ChevronLeft className="w-5 h-5" /> PREVIOUS
                   </button>
 
-                  {currentIndex < nodes.length - 1 ? (
+                  {isPaywalled && currentIndex === nodes.length - 1 ? (
+                    <div />
+                  ) : currentIndex < nodes.length - 1 ? (
                     <button
                       onClick={goNext}
                       disabled={transitioning}

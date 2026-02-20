@@ -128,3 +128,17 @@ Design theme: Dark (#0E0E0E background), deep red accent (#8B0000), light text (
 - **Export/Import**: Full JSON export of all tables, import with data replacement (destructive import with confirmation)
 - **QA Dashboard**: `/qa` route with automated endpoint tests — checks published-only filtering, data integrity, auth blocking, connection validity
 - **Routes**: Added `/qa` page, admin tools endpoints (`/api/admin/audit-logs`, `/api/admin/export`, `/api/admin/import`, `/api/admin/validate`)
+
+### User Authentication & Paywall (Feb 2026)
+- **Users Table**: `users` table with uuid id, email (unique), password_hash, name, plan (Free/Pro), subscription_status (none/active/past_due/canceled), timestamps
+- **Session Auth**: express-session with connect-pg-simple PostgreSQL session store (httpOnly cookies, `user_sessions` table auto-created)
+- **Auth Endpoints**: `POST /api/auth/signup`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me` — completely separate from admin auth
+- **Password Security**: bcryptjs with 12 rounds for hashing
+- **Frontend Auth Hook**: `useAuth()` hook in `client/src/hooks/useAuth.ts` — provides user, isAuthenticated, login/signup/logout mutations
+- **Paywall Gating**: Free users limited to first 2 depth nodes per investigation; Pro users with active subscription get full access
+  - Backend: `GET /api/holes/:slug/depth-nodes` returns only 2 nodes for non-Pro users
+  - Backend: `GET /api/holes/:slug/access` returns access info (totalNodes, previewLimit, hasFullAccess, loggedIn, plan)
+  - Frontend: DepthReader shows upgrade prompt with login/signup CTAs at end of preview content
+- **Auth Pages**: `/login` (with small Admin Login link), `/signup`, `/account` (profile + plan + upgrade placeholder)
+- **Navbar**: Shows Login/Sign Up when logged out; Account/Logout when logged in
+- **Admin Auth**: Completely separate — bearer token via ADMIN_PASSWORD env var, accessed via `/admin` page

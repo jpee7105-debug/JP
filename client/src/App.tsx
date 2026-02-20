@@ -14,12 +14,18 @@ import Connections from "@/pages/Connections";
 import DepthReader from "@/pages/DepthReader";
 import Admin from "@/pages/Admin";
 import QA from "@/pages/QA";
+import Login from "@/pages/Login";
+import Signup from "@/pages/Signup";
+import Account from "@/pages/Account";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/discover" component={Discover} />
+      <Route path="/login" component={Login} />
+      <Route path="/signup" component={Signup} />
+      <Route path="/account" component={Account} />
       <Route path="/rabbithole/:slug/read" component={DepthReader} />
       <Route path="/rabbithole/:slug" component={RabbitHole} />
       <Route path="/search" component={Search} />
