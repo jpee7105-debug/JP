@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Search, ShieldAlert, GitBranch, Database, Clock, Tag, ArrowRight, Filter } from "lucide-react";
+import { Search, GitBranch, Database, Clock, Tag, ArrowRight, Filter, ShieldAlert } from "lucide-react";
 import heroBg from "@/assets/images/hero-bg.png";
 import networkBg from "@/assets/images/network.png";
 import type { RabbitHole, Category } from "@shared/schema";
@@ -65,24 +65,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen w-full flex flex-col font-sans selection:bg-primary/30">
-      
-      <header className="border-b border-white/5 bg-background/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="w-6 h-6 relative">
-              <div className="absolute inset-0 border-2 border-primary rounded-full" />
-              <div className="absolute top-1/2 left-1/2 w-2 h-2 bg-primary rounded-full -translate-x-1/2 -translate-y-1/2" />
-            </div>
-            <h1 className="font-display font-bold text-xl tracking-wider uppercase">RED<span className="text-primary">_THREAD</span></h1>
-          </Link>
-          <div className="flex items-center gap-6 text-sm font-mono text-muted-foreground">
-            <Link href="/search" className="hover:text-white transition-colors flex items-center gap-2" data-testid="link-search">
-              <Search className="w-4 h-4" /> SEARCH
-            </Link>
-            <span className="flex items-center gap-2"><ShieldAlert className="w-4 h-4 text-primary" /> ANONYMOUS</span>
-          </div>
-        </div>
-      </header>
 
       <section className="relative h-[55vh] flex flex-col items-center justify-center overflow-hidden border-b border-white/5">
         <div 
@@ -158,7 +140,7 @@ export default function Home() {
               {specialistHoles
                 .filter(h => !activeCategory || h.categorySlug === activeCategory)
                 .map((hole) => (
-                <Link key={hole.id} href={`/hole/${hole.slug}`}
+                <Link key={hole.id} href={`/rabbithole/${hole.slug}`}
                   className="group block relative bg-red-500/[0.02] border border-red-500/40 p-8 hover:bg-red-500/[0.05] transition-all duration-300 overflow-hidden cursor-pointer"
                   data-testid={`card-specialist-${hole.slug}`}
                 >
@@ -241,7 +223,7 @@ export default function Home() {
             {filteredCommunity.map((hole) => {
               const sc = statusColor(hole.status);
               return (
-                <Link key={hole.id} href={`/hole/${hole.slug}`}
+                <Link key={hole.id} href={`/rabbithole/${hole.slug}`}
                   className={`group block relative bg-black/40 border ${sc.border} p-6 hover:bg-black/60 transition-all duration-300 overflow-hidden cursor-pointer`}
                   data-testid={`card-rabbithole-${hole.slug}`}
                 >

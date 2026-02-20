@@ -112,7 +112,7 @@ export default function RabbitHolePage() {
     return (
       <div className="min-h-screen flex items-center justify-center flex-col gap-4">
         <p className="font-mono text-muted-foreground">INVESTIGATION NOT FOUND</p>
-        <Link href="/" className="text-primary font-mono text-sm">Return to Archive</Link>
+        <Link href="/discover" className="text-primary font-mono text-sm">Return to Discover</Link>
       </div>
     );
   }
@@ -141,9 +141,9 @@ export default function RabbitHolePage() {
       
       <main className="flex-1 overflow-y-auto relative z-10 border-r border-white/5 bg-background">
         
-        <nav className="sticky top-0 bg-background/90 backdrop-blur-md border-b border-white/5 z-50 p-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 text-muted-foreground hover:text-white transition-colors font-mono text-sm uppercase">
-            <ChevronLeft className="w-4 h-4" /> Back to Archive
+        <nav className="border-b border-white/5 p-4 flex items-center justify-between">
+          <Link href="/discover" className="flex items-center gap-2 text-muted-foreground hover:text-white transition-colors font-mono text-sm uppercase">
+            <ChevronLeft className="w-4 h-4" /> Back to Discover
           </Link>
           <div className="flex items-center gap-4">
             {hole.categorySlug && (
@@ -249,7 +249,7 @@ export default function RabbitHolePage() {
                             {(node.branchLinks as { label: string; targetSlug: string }[]).length > 0 && (
                               <div className="mt-6 flex flex-wrap gap-2">
                                 {(node.branchLinks as { label: string; targetSlug: string }[]).map((link, li) => (
-                                  <Link key={li} href={`/hole/${link.targetSlug}`} className="inline-flex items-center gap-1 text-xs font-mono text-primary bg-primary/10 px-3 py-1 border border-primary/20 hover:bg-primary/20 transition-colors">
+                                  <Link key={li} href={`/rabbithole/${link.targetSlug}`} className="inline-flex items-center gap-1 text-xs font-mono text-primary bg-primary/10 px-3 py-1 border border-primary/20 hover:bg-primary/20 transition-colors">
                                     <ExternalLink className="w-3 h-3" /> {link.label}
                                   </Link>
                                 ))}

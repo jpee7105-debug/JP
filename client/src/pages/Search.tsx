@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useSearch } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Search as SearchIcon, GitBranch, Database, Scale, ChevronLeft, Loader2, FileText, Tag } from "lucide-react";
+import { Search as SearchIcon, GitBranch, Scale, Loader2, FileText, Tag } from "lucide-react";
 import type { RabbitHole, Source, Claim } from "@shared/schema";
 
 function statusColor(status: string) {
@@ -60,33 +60,24 @@ export default function SearchPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="border-b border-white/5 bg-background/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="container mx-auto px-6 h-16 flex items-center gap-4">
-          <Link href="/" className="flex items-center gap-2 text-muted-foreground hover:text-white transition-colors font-mono text-sm">
-            <ChevronLeft className="w-4 h-4" />
-          </Link>
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-5 h-5 relative">
-              <div className="absolute inset-0 border-2 border-primary rounded-full" />
-              <div className="absolute top-1/2 left-1/2 w-1.5 h-1.5 bg-primary rounded-full -translate-x-1/2 -translate-y-1/2" />
-            </div>
-            <span className="font-display font-bold text-sm tracking-wider uppercase">RED<span className="text-primary">_THREAD</span></span>
-          </Link>
-          <form onSubmit={handleSearch} className="flex-1 max-w-2xl">
+      <div className="border-b border-white/5 bg-white/[0.01]">
+        <div className="container mx-auto px-6 py-6">
+          <form onSubmit={handleSearch} className="max-w-2xl">
             <div className="relative">
-              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
               <input
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="w-full h-10 pl-10 pr-4 bg-white/5 border border-white/10 text-sm font-mono focus:outline-none focus:border-primary/50 transition-colors"
+                className="w-full h-14 pl-12 pr-4 bg-black/50 border border-white/10 text-lg font-mono focus:outline-none focus:border-primary/50 transition-colors"
                 placeholder="SEARCH INVESTIGATIONS, SOURCES, CLAIMS..."
                 data-testid="input-search-page"
+                autoFocus
               />
             </div>
           </form>
         </div>
-      </header>
+      </div>
 
       <main className="flex-1 container mx-auto px-6 py-8">
         {!searchTerm ? (
@@ -127,7 +118,7 @@ export default function SearchPage() {
 
             <div className="space-y-4">
               {(activeTab === "all" || activeTab === "holes") && holes.map(hole => (
-                <Link key={`hole-${hole.id}`} href={`/hole/${hole.slug}`} className="block border border-white/10 p-5 hover:border-primary/30 transition-colors group" data-testid={`search-result-hole-${hole.slug}`}>
+                <Link key={`hole-${hole.id}`} href={`/rabbithole/${hole.slug}`} className="block border border-white/10 p-5 hover:border-primary/30 transition-colors group" data-testid={`search-result-hole-${hole.slug}`}>
                   <div className="flex items-center gap-2 mb-2">
                     <GitBranch className="w-4 h-4 text-primary" />
                     <span className="font-mono text-[10px] text-primary">INVESTIGATION</span>

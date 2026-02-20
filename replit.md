@@ -24,16 +24,19 @@ App name: Red Thread (not Rabbit Hole)
 ### Frontend Architecture
 - **Framework**: React 18 with TypeScript
 - **Bundler**: Vite with HMR support, configured for Replit deployment
-- **Routing**: Wouter with routes: Home (`/`), RabbitHole (`/hole/:id`), Search (`/search`)
+- **Routing**: Wouter with routes: Home (`/`), Discover (`/discover`), RabbitHole (`/rabbithole/:id`), Search (`/search`), Profile (`/profile`)
 - **State Management**: TanStack React Query for server state (data fetching, caching, mutations)
 - **UI Components**: shadcn/ui (new-york style) built on Radix UI primitives with Tailwind CSS
 - **Styling**: Tailwind CSS v4 with CSS variables for theming, dark mode by default, custom fonts (Inter, Space Grotesk, JetBrains Mono)
 - **Path Aliases**: `@/` maps to `client/src/`, `@shared/` maps to `shared/`
 - **Key Custom Components**:
+  - `Navbar` — Persistent top navigation bar with links to Home, Discover, Search, Profile (with mobile hamburger menu)
   - `RedThread` — Threaded comment component with upvote/downvote and inter-topic links
-  - Home page with category filters, sorting (trending/new/verified), functional search
+  - Home page with hero section, category filters, sorting (trending/new/verified), functional search
+  - Discover page with full investigation browser, category/view mode/sort filters
   - RabbitHole detail with 4 tabs: Go Deeper (depth nodes), Timeline, Claims, Sources
   - Search page with tabbed results across investigations/sources/claims
+  - Profile page with anonymous operative stats, bookmarks, and activity placeholders
 
 ### Backend Architecture
 - **Framework**: Express 5 on Node.js with TypeScript (via tsx)
