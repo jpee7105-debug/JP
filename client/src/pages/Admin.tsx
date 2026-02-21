@@ -240,8 +240,10 @@ export default function Admin() {
     enabled: !!editingHoleSlug && !!employee,
   });
 
+  const [createNodeError, setCreateNodeError] = useState<string | null>(null);
   const createNodeMutation = useMutation({
     mutationFn: async (data: any) => {
+      setCreateNodeError(null);
       const res = await adminFetch("/api/admin/depth-nodes", { method: "POST", body: JSON.stringify(data) });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ message: "Failed to create node" }));
@@ -249,12 +251,12 @@ export default function Admin() {
       }
       return res.json();
     },
-    onSuccess: (newNode: any) => {
-      queryClient.invalidateQueries({ queryKey: [`/api/holes/${editingHoleSlug}/depth-nodes`] });
+    onSuccess: async (newNode: any) => {
+      await queryClient.refetchQueries({ queryKey: [`/api/holes/${editingHoleSlug}/depth-nodes`] });
       if (newNode?.id) setEditingNodeId(newNode.id);
     },
     onError: (err: Error) => {
-      alert(err.message || "Failed to create node");
+      setCreateNodeError(err.message || "Failed to create node");
     },
   });
 
@@ -377,6 +379,7 @@ export default function Admin() {
               >
                 {createNodeMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />} ADD NODE
               </button>
+              {createNodeError && <p className="px-4 py-1 font-mono text-[10px] text-red-500">{createNodeError}</p>}
             </div>
           ) : (
             NAV_SECTIONS.map(section => {
@@ -2346,7 +2349,7 @@ function NodeEditor({ nodeId, holeId, holeSlug }: { nodeId: number; holeId: numb
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [`/api/holes/${holeSlug}/sources`] }),
   });
 
-  if (!node) return <div className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" /></div>;
+  if (!node) return <div className="py-12 text-center"><Loader2 className="w-4 h-4 animate-spin mx-auto text-primary" /><p className="font-mono text-[10px] text-muted-foreground mt-2">Loading node...</p></div>;
 
   const wordCount = contentValue.split(/\s+/).filter(Boolean).length;
   const timeline = (node.timeline as { year: string; event: string; type: string }[]) || [];
