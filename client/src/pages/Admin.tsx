@@ -243,11 +243,18 @@ export default function Admin() {
   const createNodeMutation = useMutation({
     mutationFn: async (data: any) => {
       const res = await adminFetch("/api/admin/depth-nodes", { method: "POST", body: JSON.stringify(data) });
-      if (!res.ok) throw new Error("Failed");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: "Failed to create node" }));
+        throw new Error(err.message || "Failed to create node");
+      }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (newNode: any) => {
       queryClient.invalidateQueries({ queryKey: [`/api/holes/${editingHoleSlug}/depth-nodes`] });
+      if (newNode?.id) setEditingNodeId(newNode.id);
+    },
+    onError: (err: Error) => {
+      alert(err.message || "Failed to create node");
     },
   });
 
@@ -363,11 +370,12 @@ export default function Admin() {
                 </button>
               ))}
               <button
-                onClick={() => createNodeMutation.mutate({ holeId: editingHoleId, title: "New Node", summary: "", content: "", position: editingNodes.length + 1, status: "unlocked", branchLinks: [], timeline: [] })}
-                className="w-full flex items-center gap-2 px-4 py-3 font-mono text-xs text-primary/60 hover:text-primary transition-colors"
+                onClick={() => { if (!createNodeMutation.isPending) createNodeMutation.mutate({ holeId: editingHoleId, title: "New Node", summary: "", content: "", position: editingNodes.length + 1, status: "unlocked", branchLinks: [], timeline: [] }); }}
+                disabled={createNodeMutation.isPending}
+                className="w-full flex items-center gap-2 px-4 py-3 font-mono text-xs text-primary/60 hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 data-testid="button-add-node-sidebar"
               >
-                <Plus className="w-3 h-3" /> ADD NODE
+                {createNodeMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />} ADD NODE
               </button>
             </div>
           ) : (
@@ -439,7 +447,7 @@ export default function Admin() {
                 editingNodeId && editingHoleSlug ? (
                   <NodeEditor nodeId={editingNodeId} holeId={editingHoleId} holeSlug={editingHoleSlug} />
                 ) : (
-                  <InvestigationOverview holeId={editingHoleId} holes={adminHoles} nodes={editingNodes} onSelectNode={setEditingNodeId} onAddNode={() => createNodeMutation.mutate({ holeId: editingHoleId, title: "New Node", summary: "", content: "", position: editingNodes.length + 1, status: "unlocked", branchLinks: [], timeline: [] })} />
+                  <InvestigationOverview holeId={editingHoleId} holes={adminHoles} nodes={editingNodes} onSelectNode={setEditingNodeId} onAddNode={() => { if (!createNodeMutation.isPending) createNodeMutation.mutate({ holeId: editingHoleId, title: "New Node", summary: "", content: "", position: editingNodes.length + 1, status: "unlocked", branchLinks: [], timeline: [] }); }} isAddingNode={createNodeMutation.isPending} />
                 )
               ) : (
                 <>
@@ -478,7 +486,7 @@ function FormInput({ label, required, ...props }: { label: string; required?: bo
 }
 
 function FormSelect({ label, required, children, ...props }: { label: string; required?: boolean; children: React.ReactNode } & React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return <div><FieldLabel required={required}>{label}</FieldLabel><select {...props} className="w-full bg-white/5 border border-white/10 p-2.5 text-sm font-mono focus:outline-none focus:border-primary/50">{children}</select></div>;
+  return <div><FieldLabel required={required}>{label}</FieldLabel><select {...props} className="w-full border border-white/10 p-2.5 text-sm font-mono focus:outline-none focus:border-primary/50">{children}</select></div>;
 }
 
 function FormTextarea({ label, required, ...props }: { label: string; required?: boolean } & React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
@@ -2169,7 +2177,7 @@ function PodcastsManager({ role }: { role: string }) {
   );
 }
 
-function InvestigationOverview({ holeId, holes, nodes, onSelectNode, onAddNode }: { holeId: number; holes: RabbitHole[]; nodes: DepthNode[]; onSelectNode: (id: number) => void; onAddNode: () => void }) {
+function InvestigationOverview({ holeId, holes, nodes, onSelectNode, onAddNode, isAddingNode }: { holeId: number; holes: RabbitHole[]; nodes: DepthNode[]; onSelectNode: (id: number) => void; onAddNode: () => void; isAddingNode?: boolean }) {
   const hole = holes.find(h => h.id === holeId);
   const holeSlug = hole?.slug;
 
@@ -2213,10 +2221,11 @@ function InvestigationOverview({ holeId, holes, nodes, onSelectNode, onAddNode }
       </div>
       <button
         onClick={onAddNode}
-        className="mt-6 flex items-center gap-2 bg-primary/10 border border-primary/30 text-primary px-4 py-2 font-mono text-xs hover:bg-primary/20 transition-colors"
+        disabled={isAddingNode}
+        className="mt-6 flex items-center gap-2 bg-primary/10 border border-primary/30 text-primary px-4 py-2 font-mono text-xs hover:bg-primary/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         data-testid="button-add-node-overview"
       >
-        <Plus className="w-4 h-4" /> ADD NODE
+        {isAddingNode ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} ADD NODE
       </button>
     </div>
   );
