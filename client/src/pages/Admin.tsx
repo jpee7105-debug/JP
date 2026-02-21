@@ -84,7 +84,7 @@ function ValidationPanel() {
         <select
           value={selectedHoleId || ""}
           onChange={e => setSelectedHoleId(e.target.value ? parseInt(e.target.value) : null)}
-          className="w-full border border-white/10 p-2 text-xs font-mono focus:outline-none focus:border-primary/50 bg-[000000]"
+          className="w-full border border-white/10 p-2 text-xs font-mono focus:outline-none focus:border-primary/50 bg-[fffff0]"
           data-testid="select-validation-hole"
         >
           <option value="">Select Rabbit Hole...</option>
