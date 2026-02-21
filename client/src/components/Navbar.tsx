@@ -24,7 +24,7 @@ export default function Navbar() {
     <nav className="border-b border-white/5 bg-background/80 backdrop-blur-md sticky top-0 z-50" data-testid="navbar">
       <div className="container mx-auto px-6 h-14 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2" data-testid="link-logo">
-          <span className="font-display font-bold text-lg tracking-wider uppercase">RABBIT<span className="text-primary"> HOLE</span></span>
+          <span className="font-display font-bold text-lg tracking-wider uppercase text-left pl-[1px] pr-[1px]">RABBIT<span className="text-primary"> HOLE</span></span>
         </Link>
 
         <div className="hidden md:flex items-center gap-1">
@@ -94,7 +94,6 @@ export default function Navbar() {
           {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
       </div>
-
       {mobileOpen && (
         <div className="md:hidden border-t border-white/5 bg-background/95 backdrop-blur-md">
           {navLinks.map(({ href, label, icon: Icon }) => {
