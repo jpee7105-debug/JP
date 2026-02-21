@@ -22,11 +22,11 @@ The application follows a monorepo structure, separating the frontend (`client/`
 - **UI/UX**: shadcn/ui (New York style) built on Radix UI primitives, styled with Tailwind CSS v4. Features a dark mode by default, custom fonts (Inter, Space Grotesk, JetBrains Mono), and a deep red accent color.
 - **Key Features**:
     - **Home & Discover**: Entry points for exploring investigations with filtering and sorting.
-    - **RabbitHole Detail**: Displays investigation overview with tabs for Depth Nodes, Timeline, Claims, and Sources.
+    - **RabbitHole Detail**: Investigation pages with Graph/Timeline toggle in the overview tab, mini connection graph canvas, expandable depth nodes, claims, sources, and podcast embeds.
     - **DepthReader**: A sequential reading experience for depth nodes, with progress tracking and keyboard controls.
-    - **Connections**: An interactive force-directed graph visualizing relationships between investigations.
+    - **Connections (Situation Room)**: Military-themed situation room with canvas-based tactical graph view (diamond-shaped node markers, dashed edges, focus node mode) and expandable timeline view. Graph/Timeline toggle with localStorage persistence. Deep charcoal gradient with olive undertones, intel summary panel.
     - **Live Streaming**: Browse live/upcoming streams and replays, watch with live chat, creator channel pages, premium gating for Pro users.
-    - **Admin CMS**: A password-authenticated system for content management (holes, nodes, claims, sources, media, podcasts, employees) with role-based access control, workflow management (Draft, Review, Published), and integrity validation.
+    - **Admin CMS**: 3-column layout with left sidebar navigation (grouped into Editorial/Content/System sections), main content area with military grid background, and collapsible right-side validation panel. Features focus mode (Cmd+B), keyboard shortcuts, publish readiness checks, depth meter, and estimated read time calculator.
     - **Admin Live**: Manage creators, streams (with Draft→Review→Published workflow and live/upcoming/ended states), and chat moderation.
 
 ### Backend Architecture
