@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useParams } from "wouter";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Link, useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { 
@@ -48,6 +48,10 @@ export default function RabbitHolePage() {
   const [commentText, setCommentText] = useState("");
   const [expandedNode, setExpandedNode] = useState<number | null>(null);
   const [expandedClaim, setExpandedClaim] = useState<number | null>(null);
+  const [overviewMode, setOverviewMode] = useState<'timeline' | 'graph'>('timeline');
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [, navigate] = useLocation();
+  const nodePositionsRef = useRef<{ slug: string; title: string; x: number; y: number; size: number }[]>([]);
 
   const { data: hole, isLoading: loadingHole } = useQuery<RabbitHoleType>({
     queryKey: [`/api/holes/${slug}`],
@@ -78,6 +82,11 @@ export default function RabbitHolePage() {
     enabled: !!hole,
   });
 
+  const { data: allHoles = [] } = useQuery<RabbitHoleType[]>({
+    queryKey: ['/api/holes'],
+    enabled: !!hole && overviewMode === 'graph',
+  });
+
   const addComment = useMutation({
     mutationFn: async (data: { username: string; content: string; reputation: number }) => {
       const res = await apiRequest("POST", `/api/holes/${slug}/comments`, data);
@@ -104,6 +113,131 @@ export default function RabbitHolePage() {
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [`/api/holes/${slug}/comments`] }),
   });
+
+  const drawMiniGraph = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !hole) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+    const w = rect.width;
+    const h = rect.height;
+
+    ctx.fillStyle = '#1a1c1e';
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < w; x += 30) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, h);
+      ctx.stroke();
+    }
+    for (let y = 0; y < h; y += 30) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+    }
+
+    const connectedSlugs = (hole.connectedSlugs || []) as string[];
+    const connectedHoles = allHoles.filter(h => connectedSlugs.includes(h.slug));
+
+    const cx = w / 2;
+    const cy = h / 2;
+    const radius = Math.min(w, h) * 0.3;
+    const centerSize = 14;
+    const nodeSize = 10;
+
+    const positions: { slug: string; title: string; x: number; y: number; size: number }[] = [];
+    positions.push({ slug: hole.slug, title: hole.title, x: cx, y: cy, size: centerSize });
+
+    connectedHoles.forEach((ch, i) => {
+      const angle = (2 * Math.PI * i) / connectedHoles.length - Math.PI / 2;
+      const nx = cx + radius * Math.cos(angle);
+      const ny = cy + radius * Math.sin(angle);
+      positions.push({ slug: ch.slug, title: ch.title, x: nx, y: ny, size: nodeSize });
+    });
+
+    positions.slice(1).forEach(node => {
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(node.x, node.y);
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    });
+
+    const drawDiamond = (x: number, y: number, size: number, fill: string, stroke: string) => {
+      ctx.beginPath();
+      ctx.moveTo(x, y - size);
+      ctx.lineTo(x + size, y);
+      ctx.lineTo(x, y + size);
+      ctx.lineTo(x - size, y);
+      ctx.closePath();
+      ctx.fillStyle = fill;
+      ctx.fill();
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    };
+
+    const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim();
+    const primaryHex = primaryColor.includes(' ')
+      ? `hsl(${primaryColor})`
+      : primaryColor || '#e11d48';
+
+    drawDiamond(cx, cy, centerSize, 'rgba(225,29,72,0.2)', primaryHex);
+
+    positions.slice(1).forEach(node => {
+      drawDiamond(node.x, node.y, nodeSize, 'rgba(255,255,255,0.05)', 'rgba(255,255,255,0.3)');
+    });
+
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'center';
+
+    ctx.fillStyle = primaryHex;
+    const centerLabel = hole.title.length > 20 ? hole.title.slice(0, 20) + '…' : hole.title;
+    ctx.fillText(centerLabel, cx, cy + centerSize + 16);
+
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    positions.slice(1).forEach(node => {
+      const label = node.title.length > 18 ? node.title.slice(0, 18) + '…' : node.title;
+      ctx.fillText(label, node.x, node.y + nodeSize + 14);
+    });
+
+    nodePositionsRef.current = positions;
+  }, [hole, allHoles]);
+
+  useEffect(() => {
+    if (overviewMode === 'graph' && hole) {
+      drawMiniGraph();
+    }
+  }, [overviewMode, hole, allHoles, drawMiniGraph]);
+
+  const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    for (const node of nodePositionsRef.current) {
+      if (node.slug === slug) continue;
+      const dx = mx - node.x;
+      const dy = my - node.y;
+      if (Math.abs(dx) + Math.abs(dy) < node.size + 10) {
+        navigate(`/rabbithole/${node.slug}`);
+        return;
+      }
+    }
+  }, [slug, navigate]);
 
   if (loadingHole) {
     return (
@@ -282,19 +416,53 @@ export default function RabbitHolePage() {
           )}
 
           {activeTab === 'overview' && (
-            <div className="relative pl-8 border-l border-white/10 space-y-12 mb-20">
-              {timeline.map((item, i) => (
-                <div key={i} className="relative group">
-                  <div className={`absolute -left-[37px] top-1 w-4 h-4 bg-background border-2 rounded-full group-hover:bg-green-500 transition-colors z-10 ${item.type === 'verified' ? 'border-green-500' : 'border-yellow-500'}`} />
-                  <div className={`font-mono mb-2 ${item.type === 'verified' ? 'text-green-500' : 'text-yellow-500'}`}>{item.year}</div>
-                  <p className="text-foreground/80 leading-relaxed">{item.event}</p>
-                  {item.type === 'disputed' && (
-                    <span className="inline-flex items-center gap-1 text-xs font-mono text-yellow-500 mt-2 bg-yellow-500/10 px-2 py-0.5">
-                      <AlertTriangle className="w-3 h-3" /> DISPUTED
-                    </span>
-                  )}
+            <div className="mb-20">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="font-mono text-xs text-muted-foreground uppercase">Investigation Map</h3>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setOverviewMode('timeline')}
+                    className={`px-3 py-1.5 text-[10px] font-mono border transition-colors uppercase ${overviewMode === 'timeline' ? 'border-primary text-primary bg-primary/10' : 'border-white/10 text-muted-foreground hover:text-white'}`}
+                    data-testid="toggle-overview-timeline"
+                  >
+                    TIMELINE
+                  </button>
+                  <button
+                    onClick={() => setOverviewMode('graph')}
+                    className={`px-3 py-1.5 text-[10px] font-mono border transition-colors uppercase ${overviewMode === 'graph' ? 'border-primary text-primary bg-primary/10' : 'border-white/10 text-muted-foreground hover:text-white'}`}
+                    data-testid="toggle-overview-graph"
+                  >
+                    CONNECTIONS
+                  </button>
                 </div>
-              ))}
+              </div>
+
+              {overviewMode === 'timeline' && (
+                <div className="relative pl-8 border-l border-white/10 space-y-12">
+                  {timeline.map((item, i) => (
+                    <div key={i} className="relative group">
+                      <div className={`absolute -left-[37px] top-1 w-4 h-4 bg-background border-2 rounded-full group-hover:bg-green-500 transition-colors z-10 ${item.type === 'verified' ? 'border-green-500' : 'border-yellow-500'}`} />
+                      <div className={`font-mono mb-2 ${item.type === 'verified' ? 'text-green-500' : 'text-yellow-500'}`}>{item.year}</div>
+                      <p className="text-foreground/80 leading-relaxed">{item.event}</p>
+                      {item.type === 'disputed' && (
+                        <span className="inline-flex items-center gap-1 text-xs font-mono text-yellow-500 mt-2 bg-yellow-500/10 px-2 py-0.5">
+                          <AlertTriangle className="w-3 h-3" /> DISPUTED
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {overviewMode === 'graph' && (
+                <canvas
+                  ref={canvasRef}
+                  className="w-full border border-white/10 bg-[#1a1c1e] rounded-lg cursor-pointer"
+                  style={{ height: 400 }}
+                  onClick={handleCanvasClick}
+                  data-testid="canvas-mini-graph"
+                />
+              )}
             </div>
           )}
 

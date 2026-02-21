@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
-import { Loader2, Plus, Trash2, Edit3, Save, X, Lock, LogOut, Shield, GripVertical, Image, Link2, History, Download, Upload, AlertTriangle, CheckCircle2, Clock, Settings, Users, Eye, EyeOff, RotateCcw, UserCheck, UserX, FileText, Headphones, DollarSign, Pin, ArrowUp, ArrowDown, Search, LayoutDashboard } from "lucide-react";
+import { Loader2, Plus, Trash2, Edit3, Save, X, Lock, LogOut, Shield, GripVertical, Image, Link2, History, Download, Upload, AlertTriangle, CheckCircle2, Clock, Settings, Users, Eye, EyeOff, RotateCcw, UserCheck, UserX, FileText, Headphones, DollarSign, Pin, ArrowUp, ArrowDown, Search, LayoutDashboard, Maximize2, Minimize2, PanelRightClose, PanelRightOpen, BookOpen } from "lucide-react";
 import type { RabbitHole, DepthNode, Claim, Source, Category, Media, AuditLog, Employee, Podcast, PodcastEpisode, RabbitHolePodcastEpisode, SponsoredPodcastSlot } from "@shared/schema";
 
 type AdminEmployee = Omit<Employee, "passwordHash">;
@@ -27,6 +27,148 @@ function adminQueryFetch(url: string) {
 
 type Tab = "dashboard" | "holes" | "nodes" | "claims" | "sources" | "media" | "podcasts" | "tools" | "history" | "employees";
 
+function ValidationPanel() {
+  const [selectedHoleId, setSelectedHoleId] = useState<number | null>(null);
+
+  const { data: holes = [] } = useQuery<RabbitHole[]>({
+    queryKey: ["/api/holes?admin=true"],
+    queryFn: () => adminQueryFetch("/api/holes"),
+  });
+
+  const selectedSlug = holes.find(h => h.id === selectedHoleId)?.slug;
+  const selectedHole = holes.find(h => h.id === selectedHoleId);
+
+  const { data: nodes = [] } = useQuery<DepthNode[]>({
+    queryKey: [`/api/holes/${selectedSlug}/depth-nodes`],
+    enabled: !!selectedSlug,
+  });
+
+  const { data: claims = [] } = useQuery<Claim[]>({
+    queryKey: [`/api/holes/${selectedSlug}/claims`],
+    enabled: !!selectedSlug,
+  });
+
+  const { data: sources = [] } = useQuery<Source[]>({
+    queryKey: [`/api/holes/${selectedSlug}/sources`],
+    enabled: !!selectedSlug,
+  });
+
+  const hasTitle = !!selectedHole?.title?.trim();
+  const hasSummary = !!selectedHole?.summary?.trim();
+  const hasNodes = nodes.length > 0;
+  const hasClaims = claims.length > 0;
+  const hasSources = sources.length > 0;
+  const allPassed = hasTitle && hasSummary && hasNodes && hasClaims && hasSources;
+
+  const completion = selectedHole?.completion ?? 0;
+
+  const totalWords = nodes.reduce((acc, n) => acc + (n.content?.split(/\s+/).length || 0), 0);
+  const readTimeMinutes = Math.max(1, Math.ceil(totalWords / 200));
+
+  const checks = [
+    { label: "HAS TITLE", passed: hasTitle },
+    { label: "HAS SUMMARY", passed: hasSummary },
+    { label: "HAS DEPTH NODES", passed: hasNodes },
+    { label: "HAS CLAIMS", passed: hasClaims },
+    { label: "HAS SOURCES", passed: hasSources },
+  ];
+
+  return (
+    <div data-testid="admin-validation-panel" className="h-full overflow-y-auto p-4 space-y-6">
+      <div className="flex items-center gap-2">
+        <AlertTriangle className="w-4 h-4 text-primary" />
+        <h2 className="font-mono text-xs uppercase tracking-wider">VALIDATION</h2>
+      </div>
+
+      <div>
+        <label className="block font-mono text-[10px] text-muted-foreground uppercase mb-1">SELECT HOLE</label>
+        <select
+          value={selectedHoleId || ""}
+          onChange={e => setSelectedHoleId(e.target.value ? parseInt(e.target.value) : null)}
+          className="w-full bg-white/5 border border-white/10 p-2 text-xs font-mono focus:outline-none focus:border-primary/50"
+          data-testid="select-validation-hole"
+        >
+          <option value="">Select Rabbit Hole...</option>
+          {holes.map(h => <option key={h.id} value={h.id}>{h.title}</option>)}
+        </select>
+      </div>
+
+      {selectedHoleId && (
+        <>
+          <div>
+            <h3 className="font-mono text-[10px] text-muted-foreground uppercase mb-2">PUBLISH READINESS</h3>
+            <div className="space-y-1.5">
+              {checks.map(c => (
+                <div key={c.label} className="flex items-center gap-2">
+                  {c.passed ? <CheckCircle2 className="w-3 h-3 text-green-500" /> : <X className="w-3 h-3 text-red-500" />}
+                  <span className={`font-mono text-[10px] ${c.passed ? "text-muted-foreground" : "text-red-400"}`}>{c.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="font-mono text-[10px] text-muted-foreground uppercase mb-2">DEPTH METER</h3>
+            <div className="w-full h-2 bg-white/5 border border-white/10">
+              <div
+                className="h-full bg-primary transition-all duration-500"
+                style={{ width: `${completion}%` }}
+              />
+            </div>
+            <span className="font-mono text-[10px] text-muted-foreground mt-1 block">{completion}% COMPLETE</span>
+          </div>
+
+          <div>
+            <h3 className="font-mono text-[10px] text-muted-foreground uppercase mb-1">ESTIMATED READ TIME</h3>
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-3 h-3 text-primary" />
+              <span className="font-mono text-sm">{readTimeMinutes} MIN</span>
+              <span className="font-mono text-[10px] text-muted-foreground">({totalWords} words)</span>
+            </div>
+          </div>
+
+          <div className={`p-3 border ${allPassed ? "border-green-500/20 bg-green-500/5" : "border-red-500/20 bg-red-500/5"}`}>
+            <div className="flex items-center gap-2">
+              {allPassed ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : <AlertTriangle className="w-4 h-4 text-red-500" />}
+              <span className={`font-mono text-xs font-bold ${allPassed ? "text-green-500" : "text-red-500"}`}>
+                {allPassed ? "READY TO PUBLISH" : "NOT READY"}
+              </span>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+const NAV_SECTIONS: { group: string; items: { id: Tab; label: string; icon: typeof Shield }[] }[] = [
+  {
+    group: "EDITORIAL",
+    items: [
+      { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { id: "holes", label: "Rabbit Holes", icon: Search },
+    ],
+  },
+  {
+    group: "CONTENT",
+    items: [
+      { id: "nodes", label: "Depth Nodes", icon: FileText },
+      { id: "claims", label: "Claims", icon: CheckCircle2 },
+      { id: "sources", label: "Sources", icon: Link2 },
+      { id: "media", label: "Media", icon: Image },
+      { id: "podcasts", label: "Podcasts", icon: Headphones },
+    ],
+  },
+  {
+    group: "SYSTEM",
+    items: [
+      { id: "history", label: "History", icon: History },
+      { id: "tools", label: "Tools", icon: Settings },
+      { id: "employees", label: "Employees", icon: Users },
+    ],
+  },
+];
+
 export default function Admin() {
   const [employee, setEmployee] = useState<AdminEmployee | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -35,12 +177,30 @@ export default function Admin() {
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
+  const [focusMode, setFocusMode] = useState(false);
+  const [showValidation, setShowValidation] = useState(true);
 
   useEffect(() => {
     fetch("/api/admin/me", { credentials: "include" })
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data) setEmployee(data); })
       .finally(() => setIsLoading(false));
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "b") {
+        e.preventDefault();
+        setFocusMode(prev => !prev);
+      }
+      if (e.key === "/" && !e.metaKey && !e.ctrlKey && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement) && !(e.target instanceof HTMLSelectElement)) {
+        e.preventDefault();
+        const searchInput = document.querySelector('[data-testid="input-dash-search"]') as HTMLInputElement;
+        if (searchInput) searchInput.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
   }, []);
 
   const handleLogin = async () => {
@@ -148,46 +308,99 @@ export default function Admin() {
   }
 
   return (
-    <div className="min-h-screen" data-testid="page-admin">
-      <div className="border-b border-white/5 p-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+    <div className="min-h-screen flex" data-testid="page-admin">
+      <aside
+        data-testid="admin-sidebar"
+        className={`w-56 bg-[#0a0a0a] border-r border-white/5 flex flex-col fixed top-0 left-0 h-screen z-30 transition-transform duration-300 ${focusMode ? "-translate-x-full" : "translate-x-0"}`}
+      >
+        <div className="p-4 flex items-center gap-3 border-b border-white/5">
           <Shield className="w-5 h-5 text-primary" />
           <h1 className="font-display text-xl font-bold uppercase tracking-wider">Admin CMS</h1>
         </div>
-        <div className="flex items-center gap-4">
-          <span className="text-xs font-mono text-muted-foreground">
+
+        <nav className="flex-1 overflow-y-auto py-2">
+          {NAV_SECTIONS.map(section => {
+            const sectionItems = section.items.filter(item => visibleTabs.some(t => t.id === item.id));
+            if (sectionItems.length === 0) return null;
+            return (
+              <div key={section.group} className="mb-2">
+                <div className="px-4 py-2">
+                  <span className="font-mono text-[10px] text-muted-foreground/50 uppercase tracking-widest">{section.group}</span>
+                </div>
+                {sectionItems.map(item => {
+                  const Icon = item.icon;
+                  const isActive = activeTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => setActiveTab(item.id)}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 font-mono text-xs uppercase transition-colors border-l-2 ${isActive ? "border-primary text-primary bg-primary/5" : "border-transparent text-muted-foreground hover:text-white"}`}
+                      data-testid={`admin-tab-${item.id}`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </nav>
+
+        <div className="border-t border-white/5 p-4 space-y-3">
+          <div className="text-xs font-mono text-muted-foreground">
             {employee.name} <span className="text-primary/60">({role})</span>
-          </span>
-          <button onClick={handleLogout} className="flex items-center gap-2 text-muted-foreground hover:text-white font-mono text-xs transition-colors" data-testid="button-admin-logout">
+          </div>
+          <button onClick={handleLogout} className="flex items-center gap-2 text-muted-foreground hover:text-white font-mono text-xs transition-colors w-full" data-testid="button-admin-logout">
             <LogOut className="w-4 h-4" /> LOGOUT
           </button>
         </div>
-      </div>
+      </aside>
 
-      <div className="flex border-b border-white/5 overflow-x-auto">
-        {visibleTabs.map(tab => (
+      <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${focusMode ? "ml-0" : "ml-56"}`}>
+        <div className="border-b border-white/5 bg-background/50 backdrop-blur-sm p-3 flex items-center justify-between sticky top-0 z-20">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setFocusMode(!focusMode)}
+              className="flex items-center gap-2 text-muted-foreground hover:text-white font-mono text-xs transition-colors px-2 py-1.5 border border-white/10 hover:border-white/20"
+              data-testid="button-toggle-focus"
+            >
+              {focusMode ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+              {focusMode ? "EXIT FOCUS" : "FOCUS MODE"}
+            </button>
+          </div>
           <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`px-6 py-3 font-mono text-xs uppercase transition-colors border-b-2 whitespace-nowrap ${activeTab === tab.id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-white"}`}
-            data-testid={`admin-tab-${tab.id}`}
+            onClick={() => setShowValidation(!showValidation)}
+            className="flex items-center gap-2 text-muted-foreground hover:text-white font-mono text-xs transition-colors px-2 py-1.5 border border-white/10 hover:border-white/20"
+            data-testid="button-toggle-validation"
           >
-            {tab.label}
+            {showValidation ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
+            VALIDATION
           </button>
-        ))}
-      </div>
+        </div>
 
-      <div className="container mx-auto px-6 py-8">
-        {activeTab === "dashboard" && <EditorialDashboard role={role} />}
-        {activeTab === "holes" && <HolesManager role={role} />}
-        {activeTab === "nodes" && <NodesManager />}
-        {activeTab === "claims" && <ClaimsManager />}
-        {activeTab === "sources" && <SourcesManager />}
-        {activeTab === "media" && <MediaManager />}
-        {activeTab === "podcasts" && <PodcastsManager role={role} />}
-        {activeTab === "history" && <HistoryPanel />}
-        {activeTab === "tools" && <ToolsPanel />}
-        {activeTab === "employees" && <EmployeesManager />}
+        <div className="flex flex-1 overflow-hidden">
+          <div data-testid="admin-main-content" className="flex-1 overflow-y-auto mil-grid">
+            <div className="container mx-auto px-8 py-6">
+              {activeTab === "dashboard" && <EditorialDashboard role={role} />}
+              {activeTab === "holes" && <HolesManager role={role} />}
+              {activeTab === "nodes" && <NodesManager />}
+              {activeTab === "claims" && <ClaimsManager />}
+              {activeTab === "sources" && <SourcesManager />}
+              {activeTab === "media" && <MediaManager />}
+              {activeTab === "podcasts" && <PodcastsManager role={role} />}
+              {activeTab === "history" && <HistoryPanel />}
+              {activeTab === "tools" && <ToolsPanel />}
+              {activeTab === "employees" && <EmployeesManager />}
+            </div>
+          </div>
+
+          {showValidation && !focusMode && (
+            <div className="w-72 border-l border-white/5 bg-[#0a0a0a] flex-shrink-0 overflow-hidden">
+              <ValidationPanel />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
