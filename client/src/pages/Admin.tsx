@@ -79,20 +79,18 @@ function ValidationPanel() {
         <AlertTriangle className="w-4 h-4 text-primary" />
         <h2 className="font-mono text-xs uppercase tracking-wider">VALIDATION</h2>
       </div>
-
       <div>
         <label className="block font-mono text-[10px] text-muted-foreground uppercase mb-1">SELECT HOLE</label>
         <select
           value={selectedHoleId || ""}
           onChange={e => setSelectedHoleId(e.target.value ? parseInt(e.target.value) : null)}
-          className="w-full bg-white/5 border border-white/10 p-2 text-xs font-mono focus:outline-none focus:border-primary/50"
+          className="w-full border border-white/10 p-2 text-xs font-mono focus:outline-none focus:border-primary/50 bg-[transparent]"
           data-testid="select-validation-hole"
         >
           <option value="">Select Rabbit Hole...</option>
           {holes.map(h => <option key={h.id} value={h.id}>{h.title}</option>)}
         </select>
       </div>
-
       {selectedHoleId && (
         <>
           <div>
@@ -2189,7 +2187,6 @@ function InvestigationOverview({ holeId, holes, nodes, onSelectNode, onAddNode }
         <h2 className="font-display text-lg font-bold uppercase">{hole?.title}</h2>
         {hole && <StatusBadge status={hole.status} />}
       </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {sortedNodes.map(node => {
           const wordCount = node.content?.split(/\s+/).filter(Boolean).length || 0;
@@ -2214,7 +2211,6 @@ function InvestigationOverview({ holeId, holes, nodes, onSelectNode, onAddNode }
           );
         })}
       </div>
-
       <button
         onClick={onAddNode}
         className="mt-6 flex items-center gap-2 bg-primary/10 border border-primary/30 text-primary px-4 py-2 font-mono text-xs hover:bg-primary/20 transition-colors"
