@@ -36,6 +36,9 @@ app.use(
 app.use(express.urlencoded({ extended: false }));
 
 const isProduction = process.env.NODE_ENV === "production";
+if (isProduction) {
+  app.set("trust proxy", 1);
+}
 const sessionSecret = process.env.SESSION_SECRET || (isProduction ? undefined : "rabbit-hole-dev-session-secret");
 if (!sessionSecret) {
   throw new Error("SESSION_SECRET environment variable is required in production");
