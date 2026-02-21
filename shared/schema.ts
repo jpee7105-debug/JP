@@ -39,6 +39,7 @@ export const depthNodes = pgTable("depth_nodes", {
   status: text("status").default("locked").notNull(),
   mediaUrl: text("media_url"),
   branchLinks: jsonb("branch_links").$type<{ label: string; targetSlug: string }[]>().default([]).notNull(),
+  timeline: jsonb("timeline").$type<{ year: string; event: string; type: string }[]>().default([]).notNull(),
 });
 
 export const claims = pgTable("claims", {
@@ -69,6 +70,7 @@ export const sources = pgTable("sources", {
 export const media = pgTable("media", {
   id: serial("id").primaryKey(),
   holeId: integer("hole_id").references(() => rabbitHoles.id).notNull(),
+  nodeId: integer("node_id").references(() => depthNodes.id),
   title: text("title").notNull(),
   url: text("url").notNull(),
   type: text("type").default("image").notNull(),
