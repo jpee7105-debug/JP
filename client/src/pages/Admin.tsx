@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
-import { Loader2, Plus, Trash2, Edit3, Save, X, Lock, LogOut, Shield, GripVertical, Image, Link2, History, Download, Upload, AlertTriangle, CheckCircle2, Clock, Settings, Users, Eye, EyeOff, RotateCcw, UserCheck, UserX, FileText, Headphones, DollarSign, Pin, ArrowUp, ArrowDown, Search, LayoutDashboard, Maximize2, Minimize2, PanelRightClose, PanelRightOpen, BookOpen } from "lucide-react";
+import { Loader2, Plus, Trash2, Edit3, Save, X, Lock, LogOut, Shield, GripVertical, Image, Link2, History, Download, Upload, AlertTriangle, CheckCircle2, Clock, Settings, Users, Eye, EyeOff, RotateCcw, UserCheck, UserX, FileText, Headphones, DollarSign, Pin, ArrowUp, ArrowDown, Search, LayoutDashboard, Maximize2, Minimize2, PanelRightClose, PanelRightOpen, BookOpen, ArrowLeft, ChevronRight, Calendar } from "lucide-react";
 import type { RabbitHole, DepthNode, Claim, Source, Category, Media, AuditLog, Employee, Podcast, PodcastEpisode, RabbitHolePodcastEpisode, SponsoredPodcastSlot } from "@shared/schema";
 
 type AdminEmployee = Omit<Employee, "passwordHash">;
@@ -25,7 +25,7 @@ function adminQueryFetch(url: string) {
   });
 }
 
-type Tab = "dashboard" | "holes" | "nodes" | "claims" | "sources" | "media" | "podcasts" | "tools" | "history" | "employees";
+type Tab = "dashboard" | "holes" | "podcasts" | "tools" | "history" | "employees";
 
 function ValidationPanel() {
   const [selectedHoleId, setSelectedHoleId] = useState<number | null>(null);
@@ -146,16 +146,12 @@ const NAV_SECTIONS: { group: string; items: { id: Tab; label: string; icon: type
     group: "EDITORIAL",
     items: [
       { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { id: "holes", label: "Rabbit Holes", icon: Search },
+      { id: "holes", label: "Investigations", icon: Search },
     ],
   },
   {
     group: "CONTENT",
     items: [
-      { id: "nodes", label: "Depth Nodes", icon: FileText },
-      { id: "claims", label: "Claims", icon: CheckCircle2 },
-      { id: "sources", label: "Sources", icon: Link2 },
-      { id: "media", label: "Media", icon: Image },
       { id: "podcasts", label: "Podcasts", icon: Headphones },
     ],
   },
@@ -179,6 +175,8 @@ export default function Admin() {
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
   const [focusMode, setFocusMode] = useState(false);
   const [showValidation, setShowValidation] = useState(true);
+  const [editingHoleId, setEditingHoleId] = useState<number | null>(null);
+  const [editingNodeId, setEditingNodeId] = useState<number | null>(null);
 
   useEffect(() => {
     fetch("/api/admin/me", { credentials: "include" })
@@ -230,6 +228,30 @@ export default function Admin() {
     setEmail("");
     setPassword("");
   };
+
+  const { data: adminHoles = [] } = useQuery<RabbitHole[]>({
+    queryKey: ["/api/holes?admin=true"],
+    queryFn: () => adminQueryFetch("/api/holes"),
+    enabled: !!employee,
+  });
+  const editingHole = adminHoles.find(h => h.id === editingHoleId);
+  const editingHoleSlug = editingHole?.slug;
+
+  const { data: editingNodes = [] } = useQuery<DepthNode[]>({
+    queryKey: [`/api/holes/${editingHoleSlug}/depth-nodes`],
+    enabled: !!editingHoleSlug && !!employee,
+  });
+
+  const createNodeMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await adminFetch("/api/admin/depth-nodes", { method: "POST", body: JSON.stringify(data) });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/holes/${editingHoleSlug}/depth-nodes`] });
+    },
+  });
 
   if (isLoading) {
     return (
@@ -288,11 +310,7 @@ export default function Admin() {
 
   const tabs: { id: Tab; label: string; visible: boolean }[] = [
     { id: "dashboard", label: "Dashboard", visible: canEditContent },
-    { id: "holes", label: "Rabbit Holes", visible: canEditContent },
-    { id: "nodes", label: "Depth Nodes", visible: canEditContent },
-    { id: "claims", label: "Claims", visible: canEditContent },
-    { id: "sources", label: "Sources", visible: canEditContent },
-    { id: "media", label: "Media", visible: canEditContent },
+    { id: "holes", label: "Investigations", visible: canEditContent },
     { id: "podcasts", label: "Podcasts", visible: canEditContent },
     { id: "history", label: "History", visible: canEditContent },
     { id: "tools", label: "Tools", visible: isAdmin },
@@ -319,32 +337,69 @@ export default function Admin() {
         </div>
 
         <nav className="flex-1 overflow-y-auto py-2">
-          {NAV_SECTIONS.map(section => {
-            const sectionItems = section.items.filter(item => visibleTabs.some(t => t.id === item.id));
-            if (sectionItems.length === 0) return null;
-            return (
-              <div key={section.group} className="mb-2">
-                <div className="px-4 py-2">
-                  <span className="font-mono text-[10px] text-muted-foreground/50 uppercase tracking-widest">{section.group}</span>
-                </div>
-                {sectionItems.map(item => {
-                  const Icon = item.icon;
-                  const isActive = activeTab === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => setActiveTab(item.id)}
-                      className={`w-full flex items-center gap-3 px-4 py-2.5 font-mono text-xs uppercase transition-colors border-l-2 ${isActive ? "border-primary text-primary bg-primary/5" : "border-transparent text-muted-foreground hover:text-white"}`}
-                      data-testid={`admin-tab-${item.id}`}
-                    >
-                      <Icon className="w-4 h-4" />
-                      {item.label}
-                    </button>
-                  );
-                })}
+          {editingHoleId ? (
+            <div>
+              <button
+                onClick={() => { setEditingHoleId(null); setEditingNodeId(null); }}
+                className="flex items-center gap-2 px-4 py-3 text-muted-foreground hover:text-white font-mono text-xs border-b border-white/5 w-full"
+                data-testid="button-back-to-cms"
+              >
+                <ArrowLeft className="w-4 h-4" /> BACK TO CMS
+              </button>
+              <div className="px-4 py-3 border-b border-white/5">
+                <p className="font-mono text-[10px] text-muted-foreground/50 uppercase tracking-widest mb-1">INVESTIGATION</p>
+                <p className="font-mono text-xs text-white truncate">{editingHole?.title}</p>
               </div>
-            );
-          })}
+              <div className="px-4 py-2">
+                <span className="font-mono text-[10px] text-muted-foreground/50 uppercase tracking-widest">NODES</span>
+              </div>
+              {editingNodes.sort((a, b) => a.position - b.position).map(node => (
+                <button
+                  key={node.id}
+                  onClick={() => setEditingNodeId(node.id)}
+                  className={`w-full text-left px-4 py-3 font-mono text-xs border-l-2 transition-colors ${editingNodeId === node.id ? "border-primary text-primary bg-primary/5" : "border-transparent text-muted-foreground hover:text-white"}`}
+                  data-testid={`node-sidebar-item-${node.id}`}
+                >
+                  <span className="text-primary/60 mr-2">#{node.position}</span>
+                  {node.title}
+                </button>
+              ))}
+              <button
+                onClick={() => createNodeMutation.mutate({ holeId: editingHoleId, title: "New Node", summary: "", content: "", position: editingNodes.length + 1, status: "unlocked", branchLinks: [], timeline: [] })}
+                className="w-full flex items-center gap-2 px-4 py-3 font-mono text-xs text-primary/60 hover:text-primary transition-colors"
+                data-testid="button-add-node-sidebar"
+              >
+                <Plus className="w-3 h-3" /> ADD NODE
+              </button>
+            </div>
+          ) : (
+            NAV_SECTIONS.map(section => {
+              const sectionItems = section.items.filter(item => visibleTabs.some(t => t.id === item.id));
+              if (sectionItems.length === 0) return null;
+              return (
+                <div key={section.group} className="mb-2">
+                  <div className="px-4 py-2">
+                    <span className="font-mono text-[10px] text-muted-foreground/50 uppercase tracking-widest">{section.group}</span>
+                  </div>
+                  {sectionItems.map(item => {
+                    const Icon = item.icon;
+                    const isActive = activeTab === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => setActiveTab(item.id)}
+                        className={`w-full flex items-center gap-3 px-4 py-2.5 font-mono text-xs uppercase transition-colors border-l-2 ${isActive ? "border-primary text-primary bg-primary/5" : "border-transparent text-muted-foreground hover:text-white"}`}
+                        data-testid={`admin-tab-${item.id}`}
+                      >
+                        <Icon className="w-4 h-4" />
+                        {item.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })
+          )}
         </nav>
 
         <div className="border-t border-white/5 p-4 space-y-3">
@@ -382,22 +437,32 @@ export default function Admin() {
         <div className="flex flex-1 overflow-hidden">
           <div data-testid="admin-main-content" className="flex-1 overflow-y-auto mil-grid">
             <div className="container mx-auto px-8 py-6">
-              {activeTab === "dashboard" && <EditorialDashboard role={role} />}
-              {activeTab === "holes" && <HolesManager role={role} />}
-              {activeTab === "nodes" && <NodesManager />}
-              {activeTab === "claims" && <ClaimsManager />}
-              {activeTab === "sources" && <SourcesManager />}
-              {activeTab === "media" && <MediaManager />}
-              {activeTab === "podcasts" && <PodcastsManager role={role} />}
-              {activeTab === "history" && <HistoryPanel />}
-              {activeTab === "tools" && <ToolsPanel />}
-              {activeTab === "employees" && <EmployeesManager />}
+              {editingHoleId ? (
+                editingNodeId && editingHoleSlug ? (
+                  <NodeEditor nodeId={editingNodeId} holeId={editingHoleId} holeSlug={editingHoleSlug} />
+                ) : (
+                  <InvestigationOverview holeId={editingHoleId} holes={adminHoles} nodes={editingNodes} onSelectNode={setEditingNodeId} onAddNode={() => createNodeMutation.mutate({ holeId: editingHoleId, title: "New Node", summary: "", content: "", position: editingNodes.length + 1, status: "unlocked", branchLinks: [], timeline: [] })} />
+                )
+              ) : (
+                <>
+                  {activeTab === "dashboard" && <EditorialDashboard role={role} />}
+                  {activeTab === "holes" && <HolesManager role={role} onEditInvestigation={(id) => { setEditingHoleId(id); setEditingNodeId(null); }} />}
+                  {activeTab === "podcasts" && <PodcastsManager role={role} />}
+                  {activeTab === "history" && <HistoryPanel />}
+                  {activeTab === "tools" && <ToolsPanel />}
+                  {activeTab === "employees" && <EmployeesManager />}
+                </>
+              )}
             </div>
           </div>
 
           {showValidation && !focusMode && (
             <div className="w-72 border-l border-white/5 bg-[#0a0a0a] flex-shrink-0 overflow-hidden">
-              <ValidationPanel />
+              {editingNodeId && editingHoleSlug ? (
+                <NodeValidationPanel nodeId={editingNodeId} holeId={editingHoleId!} holeSlug={editingHoleSlug} />
+              ) : (
+                <ValidationPanel />
+              )}
             </div>
           )}
         </div>
@@ -476,7 +541,7 @@ function StatusBadge({ status }: { status: string }) {
   return <span className={`font-mono text-[10px] px-1.5 py-0.5 border ${colors[status] || "text-muted-foreground bg-white/5 border-white/10"}`}>{status.toUpperCase()}</span>;
 }
 
-function HolesManager({ role }: { role: string }) {
+function HolesManager({ role, onEditInvestigation }: { role: string; onEditInvestigation: (holeId: number) => void }) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [formData, setFormData] = useState<any>({});
   const [showCreate, setShowCreate] = useState(false);
@@ -651,6 +716,7 @@ function HolesManager({ role }: { role: string }) {
                   )}
                 </div>
                 <div className="flex items-center gap-1 ml-4">
+                  <button onClick={() => onEditInvestigation(hole.id)} className="px-3 py-1.5 text-[10px] font-mono uppercase border border-primary/30 text-primary hover:bg-primary/10 transition-colors" data-testid={`button-edit-investigation-${hole.id}`}>EDIT NODES</button>
                   <button onClick={() => setShowHistoryId(hole.id)} className="text-muted-foreground hover:text-white p-1 transition-colors" title="View History"><History className="w-4 h-4" /></button>
                   <button onClick={() => { setEditingId(hole.id); setFormData({ title: hole.title, slug: hole.slug, summary: hole.summary, status: hole.status, categorySlug: hole.categorySlug, completion: hole.completion, isSpecialist: hole.isSpecialist, labels: hole.labels || [], connectedSlugs: hole.connectedSlugs || [] }); setErrors([]); }} className="text-muted-foreground hover:text-white p-1 transition-colors" data-testid={`button-edit-hole-${hole.id}`}><Edit3 className="w-4 h-4" /></button>
                   <button onClick={() => { if (confirm("Delete this rabbit hole and all its data?")) deleteMutation.mutate(hole.id); }} className="text-muted-foreground hover:text-red-500 p-1 transition-colors" data-testid={`button-delete-hole-${hole.id}`}><Trash2 className="w-4 h-4" /></button>
@@ -2101,6 +2167,559 @@ function PodcastsManager({ role }: { role: string }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function InvestigationOverview({ holeId, holes, nodes, onSelectNode, onAddNode }: { holeId: number; holes: RabbitHole[]; nodes: DepthNode[]; onSelectNode: (id: number) => void; onAddNode: () => void }) {
+  const hole = holes.find(h => h.id === holeId);
+  const holeSlug = hole?.slug;
+
+  const { data: allClaims = [] } = useQuery<Claim[]>({
+    queryKey: [`/api/holes/${holeSlug}/claims`],
+    enabled: !!holeSlug,
+  });
+
+  const sortedNodes = [...nodes].sort((a, b) => a.position - b.position);
+
+  return (
+    <div data-testid="investigation-overview">
+      <div className="flex items-center gap-3 mb-6">
+        <Search className="w-5 h-5 text-primary" />
+        <h2 className="font-display text-lg font-bold uppercase">{hole?.title}</h2>
+        {hole && <StatusBadge status={hole.status} />}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {sortedNodes.map(node => {
+          const wordCount = node.content?.split(/\s+/).filter(Boolean).length || 0;
+          const claimCount = allClaims.filter(c => c.nodeId === node.id).length;
+          return (
+            <button
+              key={node.id}
+              onClick={() => onSelectNode(node.id)}
+              className="border border-white/10 p-4 hover:border-primary/30 transition-colors text-left"
+              data-testid={`overview-node-${node.id}`}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <span className="font-mono text-xs text-primary">#{node.position}</span>
+                <h3 className="font-display font-bold truncate flex-1">{node.title}</h3>
+              </div>
+              <div className="flex items-center gap-3 text-[10px] font-mono text-muted-foreground">
+                <span>{wordCount} words</span>
+                <span>{claimCount} claims</span>
+                <span className={`px-1.5 py-0.5 ${node.status === "unlocked" ? "text-green-500 bg-green-500/10" : "text-yellow-500 bg-yellow-500/10"}`}>{node.status}</span>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      <button
+        onClick={onAddNode}
+        className="mt-6 flex items-center gap-2 bg-primary/10 border border-primary/30 text-primary px-4 py-2 font-mono text-xs hover:bg-primary/20 transition-colors"
+        data-testid="button-add-node-overview"
+      >
+        <Plus className="w-4 h-4" /> ADD NODE
+      </button>
+    </div>
+  );
+}
+
+function NodeEditor({ nodeId, holeId, holeSlug }: { nodeId: number; holeId: number; holeSlug: string }) {
+  const [showAddMedia, setShowAddMedia] = useState(false);
+  const [showAddClaim, setShowAddClaim] = useState(false);
+  const [showAddTimeline, setShowAddTimeline] = useState(false);
+  const [showAddSource, setShowAddSource] = useState(false);
+  const [mediaForm, setMediaForm] = useState<any>({});
+  const [claimForm, setClaimForm] = useState<any>({});
+  const [timelineForm, setTimelineForm] = useState<any>({});
+  const [sourceForm, setSourceForm] = useState<any>({});
+  const [sourceSearch, setSourceSearch] = useState("");
+  const [editingClaimId, setEditingClaimId] = useState<number | null>(null);
+  const [editClaimForm, setEditClaimForm] = useState<any>({});
+
+  const { data: allNodes = [] } = useQuery<DepthNode[]>({
+    queryKey: [`/api/holes/${holeSlug}/depth-nodes`],
+  });
+  const node = allNodes.find(n => n.id === nodeId);
+
+  const [nodeForm, setNodeForm] = useState<any>({});
+  const [contentValue, setContentValue] = useState("");
+
+  useEffect(() => {
+    if (node) {
+      setNodeForm({ title: node.title, summary: node.summary, position: node.position, status: node.status });
+      setContentValue(node.content || "");
+    }
+  }, [node?.id]);
+
+  const { data: allMedia = [] } = useQuery<Media[]>({
+    queryKey: [`/api/holes/${holeSlug}/media`],
+  });
+  const nodeMedia = allMedia.filter(m => m.nodeId === nodeId);
+
+  const { data: allClaims = [] } = useQuery<Claim[]>({
+    queryKey: [`/api/holes/${holeSlug}/claims`],
+  });
+  const nodeClaims = allClaims.filter(c => c.nodeId === nodeId);
+
+  const { data: allSources = [] } = useQuery<Source[]>({
+    queryKey: [`/api/holes/${holeSlug}/sources`],
+  });
+
+  const filteredSources = allSources.filter(s =>
+    !sourceSearch || s.title.toLowerCase().includes(sourceSearch.toLowerCase()) || s.type.toLowerCase().includes(sourceSearch.toLowerCase())
+  );
+
+  const updateNodeMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await adminFetch(`/api/admin/depth-nodes/${nodeId}`, { method: "PUT", body: JSON.stringify(data) });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [`/api/holes/${holeSlug}/depth-nodes`] }),
+  });
+
+  const createMediaMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await adminFetch("/api/admin/media", { method: "POST", body: JSON.stringify(data) });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: [`/api/holes/${holeSlug}/media`] }); setShowAddMedia(false); setMediaForm({}); },
+  });
+
+  const deleteMediaMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await adminFetch(`/api/admin/media/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed");
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [`/api/holes/${holeSlug}/media`] }),
+  });
+
+  const createClaimMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await adminFetch("/api/admin/claims", { method: "POST", body: JSON.stringify(data) });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: [`/api/holes/${holeSlug}/claims`] }); setShowAddClaim(false); setClaimForm({}); },
+  });
+
+  const updateClaimMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      const res = await adminFetch(`/api/admin/claims/${id}`, { method: "PUT", body: JSON.stringify(data) });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: [`/api/holes/${holeSlug}/claims`] }); setEditingClaimId(null); },
+  });
+
+  const deleteClaimMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await adminFetch(`/api/admin/claims/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed");
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [`/api/holes/${holeSlug}/claims`] }),
+  });
+
+  const createSourceMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await adminFetch("/api/admin/sources", { method: "POST", body: JSON.stringify(data) });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: [`/api/holes/${holeSlug}/sources`] }); setShowAddSource(false); setSourceForm({}); },
+  });
+
+  const deleteSourceMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await adminFetch(`/api/admin/sources/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed");
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [`/api/holes/${holeSlug}/sources`] }),
+  });
+
+  if (!node) return <div className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" /></div>;
+
+  const wordCount = contentValue.split(/\s+/).filter(Boolean).length;
+  const timeline = (node.timeline as { year: string; event: string; type: string }[]) || [];
+
+  return (
+    <div data-testid="node-editor" className="space-y-0">
+      <div className="mb-8">
+        <input
+          value={nodeForm.title || ""}
+          onChange={e => setNodeForm({ ...nodeForm, title: e.target.value })}
+          className="w-full bg-transparent border-none text-2xl font-display font-bold focus:outline-none placeholder-muted-foreground/30"
+          placeholder="Node title..."
+          data-testid="input-node-title"
+        />
+        <div className="flex items-center gap-4 mt-3">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[10px] text-muted-foreground uppercase">Position</span>
+            <input type="number" value={nodeForm.position || 1} onChange={e => setNodeForm({ ...nodeForm, position: parseInt(e.target.value) || 1 })} className="w-16 bg-white/5 border border-white/10 px-2 py-1 text-xs font-mono focus:outline-none focus:border-primary/50" />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[10px] text-muted-foreground uppercase">Status</span>
+            <select value={nodeForm.status || "unlocked"} onChange={e => setNodeForm({ ...nodeForm, status: e.target.value })} className="bg-white/5 border border-white/10 px-2 py-1 text-xs font-mono focus:outline-none focus:border-primary/50">
+              <option value="unlocked">Unlocked</option>
+              <option value="locked">Locked</option>
+            </select>
+          </div>
+        </div>
+        <textarea
+          value={nodeForm.summary || ""}
+          onChange={e => setNodeForm({ ...nodeForm, summary: e.target.value })}
+          placeholder="Node summary..."
+          rows={2}
+          className="w-full bg-white/5 border border-white/10 p-2.5 text-sm font-mono focus:outline-none focus:border-primary/50 resize-none mt-3"
+        />
+        <button
+          onClick={() => updateNodeMutation.mutate({ ...nodeForm })}
+          disabled={updateNodeMutation.isPending}
+          className="mt-2 bg-primary/10 border border-primary/30 text-primary px-4 py-1.5 font-mono text-xs hover:bg-primary/20 transition-colors flex items-center gap-2 disabled:opacity-50"
+          data-testid="button-save-node-meta"
+        >
+          {updateNodeMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} SAVE METADATA
+        </button>
+      </div>
+
+      <div className="border-t border-white/5 pt-6 mt-6" data-testid="node-editor-section-narrative">
+        <div className="flex items-center gap-2 mb-4">
+          <FileText className="w-4 h-4 text-primary" />
+          <span className="font-mono text-xs text-primary uppercase">Narrative Content</span>
+          <span className="font-mono text-[10px] text-muted-foreground ml-auto">{wordCount} words</span>
+        </div>
+        <textarea
+          value={contentValue}
+          onChange={e => setContentValue(e.target.value)}
+          rows={16}
+          className="w-full bg-white/5 border border-white/10 p-4 text-sm font-mono focus:outline-none focus:border-primary/50 resize-none leading-relaxed"
+          placeholder="Write your narrative content here..."
+          data-testid="textarea-node-content"
+        />
+        <button
+          onClick={() => updateNodeMutation.mutate({ content: contentValue })}
+          disabled={updateNodeMutation.isPending}
+          className="mt-2 bg-primary/10 border border-primary/30 text-primary px-4 py-1.5 font-mono text-xs hover:bg-primary/20 transition-colors flex items-center gap-2 disabled:opacity-50"
+          data-testid="button-save-content"
+        >
+          {updateNodeMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} SAVE CONTENT
+        </button>
+      </div>
+
+      <div className="border-t border-white/5 pt-6 mt-6" data-testid="node-editor-section-media">
+        <div className="flex items-center gap-2 mb-4">
+          <Image className="w-4 h-4 text-primary" />
+          <span className="font-mono text-xs text-primary uppercase">Media</span>
+          <span className="font-mono text-[10px] text-muted-foreground ml-auto">{nodeMedia.length} items</span>
+        </div>
+        {nodeMedia.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+            {nodeMedia.map(m => (
+              <div key={m.id} className="border border-white/10 p-3" data-testid={`node-media-${m.id}`}>
+                {m.type === "image" && (
+                  <div className="h-24 bg-white/5 mb-2 flex items-center justify-center overflow-hidden">
+                    <img src={m.url} alt={m.title} className="max-h-full object-contain" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-mono text-xs font-bold truncate">{m.title}</p>
+                    {m.caption && <p className="font-mono text-[10px] text-muted-foreground truncate">{m.caption}</p>}
+                  </div>
+                  <button onClick={() => { if (confirm("Delete?")) deleteMediaMutation.mutate(m.id); }} className="text-muted-foreground hover:text-red-500 p-1"><Trash2 className="w-3 h-3" /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        <button onClick={() => { setShowAddMedia(!showAddMedia); setMediaForm({ holeId, nodeId, title: "", url: "", type: "image", caption: "" }); }} className="flex items-center gap-2 text-primary font-mono text-xs hover:text-primary/80">
+          <Plus className="w-3 h-3" /> ADD MEDIA
+        </button>
+        {showAddMedia && (
+          <div className="border border-primary/20 bg-primary/[0.02] p-4 mt-3 space-y-3">
+            <FormInput label="Title" required value={mediaForm.title || ""} onChange={e => setMediaForm({ ...mediaForm, title: (e.target as HTMLInputElement).value })} />
+            <FormInput label="URL" required value={mediaForm.url || ""} onChange={e => setMediaForm({ ...mediaForm, url: (e.target as HTMLInputElement).value })} />
+            <div className="grid grid-cols-2 gap-3">
+              <FormSelect label="Type" value={mediaForm.type || "image"} onChange={e => setMediaForm({ ...mediaForm, type: (e.target as HTMLSelectElement).value })}>
+                <option value="image">Image</option><option value="video">Video</option><option value="document">Document</option>
+              </FormSelect>
+              <FormInput label="Caption" value={mediaForm.caption || ""} onChange={e => setMediaForm({ ...mediaForm, caption: (e.target as HTMLInputElement).value })} />
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => { if (mediaForm.title?.trim() && mediaForm.url?.trim()) createMediaMutation.mutate(mediaForm); }} disabled={createMediaMutation.isPending} className="bg-primary/10 border border-primary/30 text-primary px-4 py-1.5 font-mono text-xs flex items-center gap-2 disabled:opacity-50"><Save className="w-3 h-3" /> SAVE</button>
+              <button onClick={() => setShowAddMedia(false)} className="text-muted-foreground font-mono text-xs"><X className="w-3 h-3 inline mr-1" />CANCEL</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="border-t border-white/5 pt-6 mt-6" data-testid="node-editor-section-claims">
+        <div className="flex items-center gap-2 mb-4">
+          <CheckCircle2 className="w-4 h-4 text-primary" />
+          <span className="font-mono text-xs text-primary uppercase">Claims</span>
+          <span className="font-mono text-[10px] text-muted-foreground ml-auto">{nodeClaims.length} claims</span>
+        </div>
+        {nodeClaims.length > 0 && (
+          <div className="space-y-2 mb-3">
+            {nodeClaims.map(claim => (
+              <div key={claim.id} className="border border-white/10 p-3" data-testid={`node-claim-${claim.id}`}>
+                {editingClaimId === claim.id ? (
+                  <div className="space-y-3">
+                    <FormTextarea label="Statement" value={editClaimForm.statement || ""} onChange={e => setEditClaimForm({ ...editClaimForm, statement: (e.target as HTMLTextAreaElement).value })} rows={2} />
+                    <div className="grid grid-cols-2 gap-3">
+                      <FormSelect label="Stance" value={editClaimForm.stance || "Verified"} onChange={e => setEditClaimForm({ ...editClaimForm, stance: (e.target as HTMLSelectElement).value })}>
+                        <option value="Verified">Verified</option><option value="Disputed">Disputed</option><option value="Speculative">Speculative</option>
+                      </FormSelect>
+                      <FormInput label="Confidence %" type="number" min={0} max={100} value={editClaimForm.confidence || 50} onChange={e => setEditClaimForm({ ...editClaimForm, confidence: parseInt((e.target as HTMLInputElement).value) || 0 })} />
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => updateClaimMutation.mutate({ id: claim.id, data: editClaimForm })} className="text-primary font-mono text-xs flex items-center gap-1"><Save className="w-3 h-3" /> SAVE</button>
+                      <button onClick={() => setEditingClaimId(null)} className="text-muted-foreground font-mono text-xs flex items-center gap-1"><X className="w-3 h-3" /> CANCEL</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-mono text-sm mb-1 truncate">{claim.statement}</p>
+                      <div className="flex items-center gap-2">
+                        <span className={`font-mono text-[10px] px-1.5 py-0.5 ${claim.stance === "Verified" ? "text-green-500 bg-green-500/10" : claim.stance === "Disputed" ? "text-yellow-500 bg-yellow-500/10" : "text-orange-500 bg-orange-500/10"}`}>{claim.stance}</span>
+                        <div className="w-16 h-1.5 bg-white/5"><div className="h-full bg-primary" style={{ width: `${claim.confidence}%` }} /></div>
+                        <span className="font-mono text-[10px] text-muted-foreground">{claim.confidence}%</span>
+                        {(claim.evidence as any[])?.length > 0 && <span className="font-mono text-[10px] text-muted-foreground">{(claim.evidence as any[]).length} evidence</span>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 ml-2">
+                      <button onClick={() => { setEditingClaimId(claim.id); setEditClaimForm({ statement: claim.statement, stance: claim.stance, confidence: claim.confidence }); }} className="text-muted-foreground hover:text-white p-1"><Edit3 className="w-3 h-3" /></button>
+                      <button onClick={() => { if (confirm("Delete?")) deleteClaimMutation.mutate(claim.id); }} className="text-muted-foreground hover:text-red-500 p-1"><Trash2 className="w-3 h-3" /></button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        <button onClick={() => { setShowAddClaim(!showAddClaim); setClaimForm({ holeId, nodeId, statement: "", stance: "Verified", confidence: 50, evidence: [], counterpoints: [] }); }} className="flex items-center gap-2 text-primary font-mono text-xs hover:text-primary/80">
+          <Plus className="w-3 h-3" /> ADD CLAIM
+        </button>
+        {showAddClaim && (
+          <div className="border border-primary/20 bg-primary/[0.02] p-4 mt-3 space-y-3">
+            <FormTextarea label="Statement" required value={claimForm.statement || ""} onChange={e => setClaimForm({ ...claimForm, statement: (e.target as HTMLTextAreaElement).value })} rows={2} />
+            <div className="grid grid-cols-2 gap-3">
+              <FormSelect label="Stance" value={claimForm.stance || "Verified"} onChange={e => setClaimForm({ ...claimForm, stance: (e.target as HTMLSelectElement).value })}>
+                <option value="Verified">Verified</option><option value="Disputed">Disputed</option><option value="Speculative">Speculative</option>
+              </FormSelect>
+              <FormInput label="Confidence %" type="number" min={0} max={100} value={claimForm.confidence || 50} onChange={e => setClaimForm({ ...claimForm, confidence: parseInt((e.target as HTMLInputElement).value) || 0 })} />
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => { if (claimForm.statement?.trim()) createClaimMutation.mutate(claimForm); }} disabled={createClaimMutation.isPending} className="bg-primary/10 border border-primary/30 text-primary px-4 py-1.5 font-mono text-xs flex items-center gap-2 disabled:opacity-50"><Save className="w-3 h-3" /> SAVE</button>
+              <button onClick={() => setShowAddClaim(false)} className="text-muted-foreground font-mono text-xs"><X className="w-3 h-3 inline mr-1" />CANCEL</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="border-t border-white/5 pt-6 mt-6" data-testid="node-editor-section-timeline">
+        <div className="flex items-center gap-2 mb-4">
+          <Calendar className="w-4 h-4 text-primary" />
+          <span className="font-mono text-xs text-primary uppercase">Timeline</span>
+          <span className="font-mono text-[10px] text-muted-foreground ml-auto">{timeline.length} entries</span>
+        </div>
+        {timeline.length > 0 && (
+          <div className="space-y-2 mb-3">
+            {timeline.map((entry, idx) => (
+              <div key={idx} className="flex items-center gap-3 border border-white/10 p-3">
+                <span className="font-mono text-xs text-primary font-bold w-20 flex-shrink-0">{entry.year}</span>
+                <p className="font-mono text-xs flex-1 truncate">{entry.event}</p>
+                <span className={`font-mono text-[10px] px-1.5 py-0.5 flex-shrink-0 ${entry.type === "verified" ? "text-green-500 bg-green-500/10" : entry.type === "disputed" ? "text-yellow-500 bg-yellow-500/10" : "text-orange-500 bg-orange-500/10"}`}>{entry.type}</span>
+                <button onClick={() => {
+                  const newTimeline = timeline.filter((_, i) => i !== idx);
+                  updateNodeMutation.mutate({ timeline: newTimeline });
+                }} className="text-muted-foreground hover:text-red-500 p-1"><Trash2 className="w-3 h-3" /></button>
+              </div>
+            ))}
+          </div>
+        )}
+        <button onClick={() => { setShowAddTimeline(!showAddTimeline); setTimelineForm({ year: "", event: "", type: "verified" }); }} className="flex items-center gap-2 text-primary font-mono text-xs hover:text-primary/80">
+          <Plus className="w-3 h-3" /> ADD TIMELINE ENTRY
+        </button>
+        {showAddTimeline && (
+          <div className="border border-primary/20 bg-primary/[0.02] p-4 mt-3 space-y-3">
+            <div className="grid grid-cols-3 gap-3">
+              <FormInput label="Year" required value={timelineForm.year || ""} onChange={e => setTimelineForm({ ...timelineForm, year: (e.target as HTMLInputElement).value })} placeholder="e.g. 1963" />
+              <FormInput label="Event" required value={timelineForm.event || ""} onChange={e => setTimelineForm({ ...timelineForm, event: (e.target as HTMLInputElement).value })} placeholder="What happened" />
+              <FormSelect label="Type" value={timelineForm.type || "verified"} onChange={e => setTimelineForm({ ...timelineForm, type: (e.target as HTMLSelectElement).value })}>
+                <option value="verified">Verified</option><option value="disputed">Disputed</option><option value="speculative">Speculative</option>
+              </FormSelect>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => {
+                if (timelineForm.year?.trim() && timelineForm.event?.trim()) {
+                  const newTimeline = [...timeline, { year: timelineForm.year, event: timelineForm.event, type: timelineForm.type }];
+                  updateNodeMutation.mutate({ timeline: newTimeline });
+                  setShowAddTimeline(false);
+                  setTimelineForm({});
+                }
+              }} className="bg-primary/10 border border-primary/30 text-primary px-4 py-1.5 font-mono text-xs flex items-center gap-2"><Save className="w-3 h-3" /> ADD</button>
+              <button onClick={() => setShowAddTimeline(false)} className="text-muted-foreground font-mono text-xs"><X className="w-3 h-3 inline mr-1" />CANCEL</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="border-t border-white/5 pt-6 mt-6" data-testid="node-editor-section-sources">
+        <div className="flex items-center gap-2 mb-4">
+          <Link2 className="w-4 h-4 text-primary" />
+          <span className="font-mono text-xs text-primary uppercase">Sources</span>
+          <span className="font-mono text-[10px] text-muted-foreground ml-auto">{allSources.length} sources</span>
+        </div>
+        <div className="mb-3">
+          <input
+            value={sourceSearch}
+            onChange={e => setSourceSearch(e.target.value)}
+            placeholder="Filter sources..."
+            className="w-full bg-white/5 border border-white/10 px-3 py-1.5 text-xs font-mono focus:outline-none focus:border-primary/50"
+          />
+        </div>
+        {filteredSources.length > 0 && (
+          <div className="space-y-2 mb-3">
+            {filteredSources.map(source => (
+              <div key={source.id} className="flex items-center justify-between border border-white/10 p-3" data-testid={`node-source-${source.id}`}>
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <span className="font-mono text-[10px] px-1.5 py-0.5 text-muted-foreground bg-white/5 flex-shrink-0">{source.type}</span>
+                  <span className="font-mono text-xs truncate">{source.title}</span>
+                  <span className={`font-mono text-[10px] flex-shrink-0 ${source.credibility >= 80 ? "text-green-500" : source.credibility >= 50 ? "text-yellow-500" : "text-orange-500"}`}>{source.credibility}%</span>
+                </div>
+                <button onClick={() => { if (confirm("Delete source?")) deleteSourceMutation.mutate(source.id); }} className="text-muted-foreground hover:text-red-500 p-1 ml-2"><Trash2 className="w-3 h-3" /></button>
+              </div>
+            ))}
+          </div>
+        )}
+        <button onClick={() => { setShowAddSource(!showAddSource); setSourceForm({ holeId, title: "", author: "", origin: "", publishedDate: "", url: "", summary: "", type: "document", stanceTag: "neutral", credibility: 50 }); }} className="flex items-center gap-2 text-primary font-mono text-xs hover:text-primary/80">
+          <Plus className="w-3 h-3" /> ADD SOURCE
+        </button>
+        {showAddSource && (
+          <div className="border border-primary/20 bg-primary/[0.02] p-4 mt-3 space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <FormInput label="Title" required value={sourceForm.title || ""} onChange={e => setSourceForm({ ...sourceForm, title: (e.target as HTMLInputElement).value })} />
+              <FormInput label="Author" value={sourceForm.author || ""} onChange={e => setSourceForm({ ...sourceForm, author: (e.target as HTMLInputElement).value })} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <FormSelect label="Type" value={sourceForm.type || "document"} onChange={e => setSourceForm({ ...sourceForm, type: (e.target as HTMLSelectElement).value })}>
+                <option value="document">Document</option><option value="book">Book</option><option value="article">Article</option><option value="report">Report</option><option value="testimony">Testimony</option>
+              </FormSelect>
+              <FormInput label="Credibility %" type="number" min={0} max={100} value={sourceForm.credibility || 50} onChange={e => setSourceForm({ ...sourceForm, credibility: parseInt((e.target as HTMLInputElement).value) || 0 })} />
+            </div>
+            <FormInput label="URL" value={sourceForm.url || ""} onChange={e => setSourceForm({ ...sourceForm, url: (e.target as HTMLInputElement).value })} />
+            <FormTextarea label="Summary" value={sourceForm.summary || ""} onChange={e => setSourceForm({ ...sourceForm, summary: (e.target as HTMLTextAreaElement).value })} rows={2} />
+            <div className="flex gap-2">
+              <button onClick={() => { if (sourceForm.title?.trim()) createSourceMutation.mutate(sourceForm); }} disabled={createSourceMutation.isPending} className="bg-primary/10 border border-primary/30 text-primary px-4 py-1.5 font-mono text-xs flex items-center gap-2 disabled:opacity-50"><Save className="w-3 h-3" /> SAVE</button>
+              <button onClick={() => setShowAddSource(false)} className="text-muted-foreground font-mono text-xs"><X className="w-3 h-3 inline mr-1" />CANCEL</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function NodeValidationPanel({ nodeId, holeId, holeSlug }: { nodeId: number; holeId: number; holeSlug: string }) {
+  const { data: allNodes = [] } = useQuery<DepthNode[]>({
+    queryKey: [`/api/holes/${holeSlug}/depth-nodes`],
+  });
+  const node = allNodes.find(n => n.id === nodeId);
+
+  const { data: allClaims = [] } = useQuery<Claim[]>({
+    queryKey: [`/api/holes/${holeSlug}/claims`],
+  });
+  const nodeClaims = allClaims.filter(c => c.nodeId === nodeId);
+
+  const { data: allMedia = [] } = useQuery<Media[]>({
+    queryKey: [`/api/holes/${holeSlug}/media`],
+  });
+  const nodeMedia = allMedia.filter(m => m.nodeId === nodeId);
+
+  const hasTitle = !!node?.title?.trim();
+  const hasContent = !!node?.content?.trim();
+  const hasClaims = nodeClaims.length > 0;
+  const hasMedia = nodeMedia.length > 0;
+  const claimsWithoutEvidence = nodeClaims.filter(c => !(c.evidence as any[])?.length).length;
+  const mediaMissingCaptions = nodeMedia.filter(m => !m.caption?.trim()).length;
+
+  const checks = [
+    { label: "HAS TITLE", passed: hasTitle },
+    { label: "HAS CONTENT", passed: hasContent },
+    { label: "HAS CLAIMS", passed: hasClaims },
+    { label: "CLAIMS WITH EVIDENCE", passed: claimsWithoutEvidence === 0 && hasClaims },
+    { label: "HAS MEDIA", passed: hasMedia },
+    { label: "MEDIA CAPTIONS", passed: mediaMissingCaptions === 0 && hasMedia },
+  ];
+
+  const passedCount = checks.filter(c => c.passed).length;
+  const healthPercent = Math.round((passedCount / checks.length) * 100);
+
+  const wordCount = node?.content?.split(/\s+/).filter(Boolean).length || 0;
+  const readTime = Math.max(1, Math.ceil(wordCount / 200));
+
+  return (
+    <div data-testid="node-validation-panel" className="h-full overflow-y-auto p-4 space-y-6">
+      <div className="flex items-center gap-2">
+        <AlertTriangle className="w-4 h-4 text-primary" />
+        <h2 className="font-mono text-xs uppercase tracking-wider">NODE VALIDATION</h2>
+      </div>
+
+      <div>
+        <h3 className="font-mono text-[10px] text-muted-foreground uppercase mb-2">CHECKS</h3>
+        <div className="space-y-1.5">
+          {checks.map(c => (
+            <div key={c.label} className="flex items-center gap-2">
+              {c.passed ? <CheckCircle2 className="w-3 h-3 text-green-500" /> : <X className="w-3 h-3 text-red-500" />}
+              <span className={`font-mono text-[10px] ${c.passed ? "text-muted-foreground" : "text-red-400"}`}>{c.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {claimsWithoutEvidence > 0 && (
+        <div className="text-[10px] font-mono text-yellow-500">
+          {claimsWithoutEvidence} claim(s) missing evidence
+        </div>
+      )}
+
+      {mediaMissingCaptions > 0 && (
+        <div className="text-[10px] font-mono text-yellow-500">
+          {mediaMissingCaptions} media item(s) missing captions
+        </div>
+      )}
+
+      <div>
+        <h3 className="font-mono text-[10px] text-muted-foreground uppercase mb-1">CONTENT STATS</h3>
+        <div className="flex items-center gap-2">
+          <BookOpen className="w-3 h-3 text-primary" />
+          <span className="font-mono text-sm">{readTime} MIN</span>
+          <span className="font-mono text-[10px] text-muted-foreground">({wordCount} words)</span>
+        </div>
+      </div>
+
+      <div>
+        <h3 className="font-mono text-[10px] text-muted-foreground uppercase mb-2">NODE HEALTH</h3>
+        <div className="w-full h-2 bg-white/5 border border-white/10">
+          <div className="h-full bg-primary transition-all duration-500" style={{ width: `${healthPercent}%` }} />
+        </div>
+        <span className="font-mono text-[10px] text-muted-foreground mt-1 block">{healthPercent}% COMPLETE</span>
+      </div>
+
+      <div className={`p-3 border ${healthPercent === 100 ? "border-green-500/20 bg-green-500/5" : "border-red-500/20 bg-red-500/5"}`}>
+        <div className="flex items-center gap-2">
+          {healthPercent === 100 ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : <AlertTriangle className="w-4 h-4 text-red-500" />}
+          <span className={`font-mono text-xs font-bold ${healthPercent === 100 ? "text-green-500" : "text-red-500"}`}>
+            {healthPercent === 100 ? "NODE COMPLETE" : "NEEDS WORK"}
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
