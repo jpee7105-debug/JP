@@ -1,0 +1,173 @@
+We are performing a major UX upgrade to transform Rabbit Hole into a premium military-style intelligence platform.
+
+This upgrade includes:
+1) Premium long-scroll investigation editor
+2) Graph ⇄ Timeline toggle (admin + public)
+3) Military “Situation Room” visual redesign of Connections
+4) UX polish + micro-interactions
+
+DO NOT change core database architecture.
+DO NOT break routing or auth.
+Enhance UI, layout, and interaction only.
+
+====================================================
+PART 1 — Premium Long-Scroll Investigation Editor
+====================================================
+
+Replace the current tab-based CMS with a continuous long-scroll narrative editor.
+
+GOAL:
+Investigations are built as immersive vertical dossiers with checkpoint nodes.
+
+LAYOUT:
+
+Left Sidebar:
+- Investigation list
+- Sticky Node Navigator (auto-updates on scroll)
+- Status badge (Draft / Review / Published)
+- Progress %
+- Jump-to-node links
+
+Main Scroll Editor:
+- Continuous vertical editing
+- No tab switching
+- All blocks inserted inline
+
+Block Types:
+1) Section Header Block
+2) Narrative Paragraph Block (rich text)
+3) Image / Media Block (drag/drop, caption, source)
+4) Claim Block (confidence meter + linked sources)
+5) Node Checkpoint Block (collapsible, auto-numbered)
+6) Timeline Entry Block (date + event + sources)
+
+FUNCTIONAL:
+- Drag reorder blocks
+- Drag reorder nodes
+- Highlight text → Convert to Claim
+- Nodes collapsible
+- Sticky navigator syncs live
+- Autosave
+- Smooth insertion animations
+
+====================================================
+PART 2 — Right-Side Validation Panel
+====================================================
+
+Add persistent right panel showing:
+- Claims missing evidence
+- Broken links
+- Missing required fields
+- Publish readiness checklist
+- Depth meter
+- Estimated read time
+
+Must update live while editing.
+
+====================================================
+PART 3 — Focus Mode
+====================================================
+
+Add toggle:
+
+Focus Mode:
+- Hide sidebar
+- Hide validation panel
+- Expand editor full width
+- Dim background
+- Smooth fade transition
+
+====================================================
+PART 4 — Graph ⇄ Timeline Toggle (Admin + Public)
+====================================================
+
+Add toggle at top of investigation pages:
+
+[ Graph View ]   [ Timeline View ]
+
+GRAPH VIEW:
+- Network visualization
+
+TIMELINE VIEW:
+- Vertical interactive timeline of:
+   - Node checkpoints
+   - Timeline entries
+   - Major claims
+- Click entry → jump to section
+
+Requirements:
+- No page reload
+- Smooth animated transition
+- Persist user preference
+- Shared data source
+
+====================================================
+PART 5 — Military Situation Room Design System
+====================================================
+
+Connections page must no longer have a flat black background.
+
+Adopt a restrained military intelligence aesthetic.
+
+Background:
+- Deep charcoal gradient with subtle olive undertone
+- Faint map-style grid overlay (very low opacity)
+- Subtle noise/grain texture
+- No flashy neon or cyberpunk styling
+
+Panel Design:
+- Thin bordered panels
+- Subtle corner notch styling (like targeting HUD frames)
+- Small uppercase metadata labels
+- Monospace microtext for timestamps and IDs
+
+Graph Styling:
+- Nodes resemble tactical intel markers (not generic circles)
+- Edges are subtle, slightly segmented lines
+- Verified nodes = muted green glow
+- Disputed = amber glow
+- Speculative = subdued red glow
+- Selecting a node:
+   - Dim background slightly
+   - Highlight connected nodes
+   - Show right-side intel summary panel
+- Add “Focus Node” mode to isolate neighborhood
+
+Timeline Styling:
+- Looks like a briefing board timeline
+- Expandable event cards
+- Metadata strip: DATE / SOURCE COUNT / STATUS
+- Smooth expand/collapse
+
+Motion Rules:
+- Minimal, intentional motion
+- Fade transitions
+- Subtle hover glow
+- Slow pulse for LIVE indicators only
+- No excessive particle effects
+
+====================================================
+PART 6 — Micro-Interactions
+====================================================
+
+Add:
+- Card hover elevation
+- Button glow on hover
+- Smooth tab transitions
+- Animated progress bar
+- Keyboard shortcuts:
+   CMD+S = Save
+   CMD+Enter = Submit for Review
+   / = Insert Block
+
+====================================================
+DELIVERABLE SUMMARY REQUIRED
+====================================================
+
+After implementation, output:
+
+1) Structural changes made
+2) Confirmation editor is single-scroll architecture
+3) Confirmation Graph ⇄ Timeline toggle works in admin + public
+4) Confirmation military design system applied to Connections
+5) Performance impact assessment

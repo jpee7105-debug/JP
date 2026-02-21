@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Network, Loader2, GitBranch, ExternalLink } from "lucide-react";
+import { Network, Loader2, GitBranch, ExternalLink, ChevronDown, Crosshair, X } from "lucide-react";
 import type { RabbitHole } from "@shared/schema";
 
 interface GraphNode {
@@ -10,6 +10,9 @@ interface GraphNode {
   title: string;
   status: string;
   labels: string[];
+  sourceCount: number;
+  connections: number;
+  updatedAt: string;
   x: number;
   y: number;
   vx: number;
@@ -21,28 +24,46 @@ interface GraphEdge {
   target: string;
 }
 
+type ViewMode = "graph" | "timeline";
+
+function nodeGlowColor(labels: string[]): string {
+  if (labels.includes("Verified")) return "#4ade80";
+  if (labels.includes("Disputed")) return "#f59e0b";
+  if (labels.includes("Speculative")) return "#ef4444";
+  return "#6b7280";
+}
+
+function nodeGlowOpacity(labels: string[]): number {
+  if (labels.includes("Verified")) return 0.4;
+  if (labels.includes("Disputed")) return 0.4;
+  if (labels.includes("Speculative")) return 0.3;
+  return 0.2;
+}
+
 function labelColor(label: string) {
   switch (label) {
-    case "Verified": return "#22c55e";
-    case "Disputed": return "#eab308";
-    case "Speculative": return "#f97316";
+    case "Verified": return "#4ade80";
+    case "Disputed": return "#f59e0b";
+    case "Speculative": return "#ef4444";
     default: return "#6b7280";
   }
 }
 
-function statusGlow(status: string) {
-  switch (status) {
-    case "Verified": return "#22c55e";
-    case "Active": return "#8b0000";
-    case "Specialist": return "#dc2626";
-    default: return "#eab308";
-  }
+function getInitialViewMode(): ViewMode {
+  try {
+    const stored = localStorage.getItem("connections-view-mode");
+    if (stored === "graph" || stored === "timeline") return stored;
+  } catch {}
+  return "graph";
 }
 
 export default function Connections() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>(getInitialViewMode);
+  const [focusedNode, setFocusedNode] = useState<string | null>(null);
+  const [expandedCard, setExpandedCard] = useState<string | null>(null);
   const nodesRef = useRef<GraphNode[]>([]);
   const edgesRef = useRef<GraphEdge[]>([]);
   const animRef = useRef<number>(0);
@@ -51,10 +72,16 @@ export default function Connections() {
   const timeRef = useRef(0);
   const hoveredRef = useRef<string | null>(null);
   const selectedRef = useRef<string | null>(null);
+  const focusedRef = useRef<string | null>(null);
 
   const { data: holes = [], isLoading } = useQuery<RabbitHole[]>({
     queryKey: ["/api/holes"],
   });
+
+  const handleViewChange = useCallback((mode: ViewMode) => {
+    setViewMode(mode);
+    try { localStorage.setItem("connections-view-mode", mode); } catch {}
+  }, []);
 
   useEffect(() => {
     hoveredRef.current = hoveredNode?.id || null;
@@ -65,7 +92,21 @@ export default function Connections() {
   }, [selectedNode]);
 
   useEffect(() => {
-    if (holes.length === 0) return;
+    focusedRef.current = focusedNode;
+  }, [focusedNode]);
+
+  const getConnectedIds = useCallback((nodeId: string): Set<string> => {
+    const connected = new Set<string>();
+    connected.add(nodeId);
+    edgesRef.current.forEach(e => {
+      if (e.source === nodeId) connected.add(e.target);
+      if (e.target === nodeId) connected.add(e.source);
+    });
+    return connected;
+  }, []);
+
+  useEffect(() => {
+    if (holes.length === 0 || viewMode !== "graph") return;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -93,6 +134,9 @@ export default function Connections() {
         title: h.title,
         status: h.status,
         labels: (h.labels as string[]) || [],
+        sourceCount: h.sourceCount || 0,
+        connections: h.connections || 0,
+        updatedAt: h.updatedAt ? new Date(h.updatedAt).toISOString() : "",
         x: cx + radius * Math.cos(angle),
         y: cy + radius * Math.sin(angle),
         vx: 0,
@@ -163,7 +207,10 @@ export default function Connections() {
         const dy = my - (dragRef.current.node.y + dragRef.current.offsetY);
         if (Math.abs(dx) < 3 && Math.abs(dy) < 3) {
           const n = getNodeAt(mx, my);
-          if (n) setSelectedNode(prev => prev?.id === n.id ? null : n);
+          if (n) {
+            setSelectedNode(prev => prev?.id === n.id ? null : n);
+            setFocusedNode(null);
+          }
         }
       }
       dragRef.current = { node: null, offsetX: 0, offsetY: 0 };
@@ -172,6 +219,15 @@ export default function Connections() {
     canvas.addEventListener("mousemove", handleMouseMove);
     canvas.addEventListener("mousedown", handleMouseDown);
     canvas.addEventListener("mouseup", handleMouseUp);
+
+    function drawDiamond(ctx: CanvasRenderingContext2D, x: number, y: number, size: number) {
+      ctx.beginPath();
+      ctx.moveTo(x, y - size);
+      ctx.lineTo(x + size, y);
+      ctx.lineTo(x, y + size);
+      ctx.lineTo(x - size, y);
+      ctx.closePath();
+    }
 
     function simulate() {
       const ns = nodesRef.current;
@@ -234,89 +290,96 @@ export default function Connections() {
       const es = edgesRef.current;
       const hId = hoveredRef.current;
       const sId = selectedRef.current;
+      const fId = focusedRef.current;
+
+      const connectedToSelected = sId ? new Set<string>() : null;
+      if (sId && connectedToSelected) {
+        connectedToSelected.add(sId);
+        es.forEach(e => {
+          if (e.source === sId) connectedToSelected.add(e.target);
+          if (e.target === sId) connectedToSelected.add(e.source);
+        });
+      }
+
+      const focusSet = fId ? new Set<string>() : null;
+      if (fId && focusSet) {
+        focusSet.add(fId);
+        es.forEach(e => {
+          if (e.source === fId) focusSet.add(e.target);
+          if (e.target === fId) focusSet.add(e.source);
+        });
+      }
 
       for (const e of es) {
         const s = ns.find(n => n.id === e.source)!;
         const t = ns.find(n => n.id === e.target)!;
-        const isHighlighted = hId && (hId === e.source || hId === e.target);
+        if (!s || !t) continue;
+
+        if (focusSet && !focusSet.has(e.source) && !focusSet.has(e.target)) continue;
+
+        const isHighlighted = sId && (sId === e.source || sId === e.target);
+        const isDimmed = connectedToSelected && !connectedToSelected.has(e.source) && !connectedToSelected.has(e.target);
 
         ctx.beginPath();
+        ctx.setLineDash([6, 4]);
         ctx.moveTo(s.x, s.y);
         ctx.lineTo(t.x, t.y);
 
         if (isHighlighted) {
-          const grad = ctx.createLinearGradient(s.x, s.y, t.x, t.y);
-          grad.addColorStop(0, "rgba(139, 0, 0, 0.6)");
-          grad.addColorStop(0.5, "rgba(139, 0, 0, 0.3)");
-          grad.addColorStop(1, "rgba(139, 0, 0, 0.6)");
-          ctx.strokeStyle = grad;
-          ctx.lineWidth = 2;
+          const glow = nodeGlowColor(ns.find(n => n.id === sId)?.labels || []);
+          ctx.strokeStyle = glow + "60";
+          ctx.lineWidth = 1.5;
+        } else if (isDimmed) {
+          ctx.strokeStyle = "rgba(255,255,255,0.02)";
+          ctx.lineWidth = 0.5;
         } else {
           ctx.strokeStyle = "rgba(255,255,255,0.06)";
-          ctx.lineWidth = 1;
+          ctx.lineWidth = 0.8;
         }
         ctx.stroke();
-
-        if (isHighlighted) {
-          const t2 = timeRef.current % 2 / 2;
-          const px = s.x + (t.x - s.x) * t2;
-          const py = s.y + (t.y - s.y) * t2;
-          ctx.beginPath();
-          ctx.arc(px, py, 3, 0, Math.PI * 2);
-          ctx.fillStyle = "rgba(139, 0, 0, 0.8)";
-          ctx.fill();
-        }
+        ctx.setLineDash([]);
       }
 
       for (const n of ns) {
+        if (focusSet && !focusSet.has(n.id)) continue;
+
         const isHovered = hId === n.id;
         const isSelected = sId === n.id;
-        const r = isHovered || isSelected ? 24 : 18;
-        const glow = statusGlow(n.status);
-        const pulse = Math.sin(timeRef.current * 2 + parseInt(n.id) * 1.5) * 0.3 + 0.7;
+        const isDimmed = connectedToSelected && !connectedToSelected.has(n.id);
+        const r = isHovered || isSelected ? 22 : 16;
+        const glow = nodeGlowColor(n.labels);
+        const glowAlpha = nodeGlowOpacity(n.labels);
+
+        const nodeOpacity = isDimmed ? 0.15 : 1;
+        ctx.globalAlpha = nodeOpacity;
 
         if (isHovered || isSelected) {
-          ctx.beginPath();
-          ctx.arc(n.x, n.y, r + 12, 0, Math.PI * 2);
-          const outerGlow = ctx.createRadialGradient(n.x, n.y, r, n.x, n.y, r + 12);
-          outerGlow.addColorStop(0, glow + "30");
+          const outerR = r + 14;
+          const outerGlow = ctx.createRadialGradient(n.x, n.y, r, n.x, n.y, outerR);
+          outerGlow.addColorStop(0, glow + Math.round(glowAlpha * 255).toString(16).padStart(2, "0"));
           outerGlow.addColorStop(1, glow + "00");
+          drawDiamond(ctx, n.x, n.y, outerR);
           ctx.fillStyle = outerGlow;
           ctx.fill();
         }
 
-        const nodeGrad = ctx.createRadialGradient(n.x - r * 0.3, n.y - r * 0.3, 0, n.x, n.y, r);
-        nodeGrad.addColorStop(0, "#1a1a1a");
-        nodeGrad.addColorStop(1, "#0a0a0a");
-        ctx.beginPath();
-        ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
-        ctx.fillStyle = nodeGrad;
+        drawDiamond(ctx, n.x, n.y, r);
+        ctx.fillStyle = "#1a1c1e";
         ctx.fill();
 
-        const borderAlpha = isSelected ? 1 : isHovered ? 0.8 : pulse * 0.3;
-        ctx.strokeStyle = isSelected || isHovered ? glow : `rgba(255,255,255,${borderAlpha * 0.4})`;
-        ctx.lineWidth = isSelected ? 2.5 : isHovered ? 2 : 1;
+        const borderAlpha = isSelected ? 0.9 : isHovered ? 0.7 : glowAlpha;
+        ctx.strokeStyle = glow + Math.round(borderAlpha * 255).toString(16).padStart(2, "0");
+        ctx.lineWidth = isSelected ? 2 : isHovered ? 1.5 : 1;
         ctx.stroke();
 
-        ctx.fillStyle = isHovered || isSelected ? "#ededed" : `rgba(255,255,255,${0.5 + pulse * 0.3})`;
-        ctx.font = `bold ${isHovered || isSelected ? 10 : 9}px 'JetBrains Mono', monospace`;
+        ctx.fillStyle = isHovered || isSelected ? "#e0e0e0" : `rgba(255,255,255,0.6)`;
+        ctx.font = `${isHovered || isSelected ? 9 : 8}px 'JetBrains Mono', monospace`;
         ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        const shortTitle = n.title.length > 12 ? n.title.slice(0, 10) + ".." : n.title;
-        ctx.fillText(shortTitle.toUpperCase(), n.x, n.y);
+        ctx.textBaseline = "top";
+        const shortTitle = n.title.length > 14 ? n.title.slice(0, 12) + ".." : n.title;
+        ctx.fillText(shortTitle.toUpperCase(), n.x, n.y + r + 6);
 
-        if (n.labels.length > 0) {
-          const labelY = n.y + r + 14;
-          n.labels.forEach((label, li) => {
-            const lx = n.x + (li - (n.labels.length - 1) / 2) * 52;
-            const lc = labelColor(label);
-            ctx.fillStyle = lc + "20";
-            ctx.fillRect(lx - 24, labelY - 7, 48, 14);
-            ctx.fillStyle = lc;
-            ctx.font = "bold 7px 'JetBrains Mono', monospace";
-            ctx.fillText(label.toUpperCase(), lx, labelY);
-          });
-        }
+        ctx.globalAlpha = 1;
       }
 
       simulate();
@@ -332,58 +395,335 @@ export default function Connections() {
       canvas.removeEventListener("mousedown", handleMouseDown);
       canvas.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [holes]);
+  }, [holes, viewMode]);
+
+  const handleFocusNode = useCallback(() => {
+    if (selectedNode) {
+      setFocusedNode(prev => prev === selectedNode.id ? null : selectedNode.id);
+    }
+  }, [selectedNode]);
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "linear-gradient(145deg, #1a1c1e 0%, #141618 100%)" }}>
         <Loader2 className="w-8 h-8 text-primary animate-spin" />
       </div>
     );
   }
 
+  const connectedCount = selectedNode
+    ? edgesRef.current.filter(e => e.source === selectedNode.id || e.target === selectedNode.id).length
+    : 0;
+
   return (
-    <div className="min-h-screen flex flex-col" data-testid="page-connections">
-      <div className="border-b border-white/5 p-4 flex items-center justify-between">
+    <div
+      className="min-h-screen flex flex-col mil-grid"
+      data-testid="page-connections"
+      style={{
+        background: "linear-gradient(145deg, #1a1c1e 0%, #141618 100%)",
+        backgroundImage: `
+          linear-gradient(145deg, #1a1c1e 0%, #141618 100%),
+          repeating-linear-gradient(0deg, transparent, transparent 59px, rgba(255,255,255,0.015) 59px, rgba(255,255,255,0.015) 60px),
+          repeating-linear-gradient(90deg, transparent, transparent 59px, rgba(255,255,255,0.015) 59px, rgba(255,255,255,0.015) 60px)
+        `,
+      }}
+    >
+      <div className="border-b border-white/10 px-5 py-3 flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <Network className="w-5 h-5 text-primary" />
-          <h1 className="font-display text-xl font-bold uppercase tracking-wider">Connection Graph</h1>
+          <Network className="w-5 h-5" style={{ color: "#4ade80" }} />
+          <h1 className="font-mono text-sm font-bold uppercase tracking-[0.2em] text-white/90">Situation Room</h1>
         </div>
-        <div className="flex items-center gap-4 text-xs font-mono text-muted-foreground">
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500" /> Verified</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-500" /> Disputed</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-500" /> Speculative</span>
+
+        <div className="flex items-center gap-5 text-[10px] font-mono text-white/50">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: "#4ade80", opacity: 0.6 }} /> VERIFIED
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: "#f59e0b", opacity: 0.6 }} /> DISPUTED
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: "#ef4444", opacity: 0.5 }} /> SPECULATIVE
+          </span>
+        </div>
+
+        <div className="flex border border-white/10 rounded-sm overflow-hidden">
+          <button
+            data-testid="toggle-graph"
+            onClick={() => handleViewChange("graph")}
+            className="px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider transition-colors"
+            style={{
+              backgroundColor: viewMode === "graph" ? "rgba(255,255,255,0.08)" : "transparent",
+              color: viewMode === "graph" ? "#e0e0e0" : "rgba(255,255,255,0.35)",
+            }}
+          >
+            Graph View
+          </button>
+          <button
+            data-testid="toggle-timeline"
+            onClick={() => handleViewChange("timeline")}
+            className="px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider transition-colors border-l border-white/10"
+            style={{
+              backgroundColor: viewMode === "timeline" ? "rgba(255,255,255,0.08)" : "transparent",
+              color: viewMode === "timeline" ? "#e0e0e0" : "rgba(255,255,255,0.35)",
+            }}
+          >
+            Timeline View
+          </button>
         </div>
       </div>
 
       <div className="flex-1 relative">
-        <canvas ref={canvasRef} className="w-full h-[calc(100vh-120px)]" data-testid="canvas-graph" />
+        <div
+          style={{
+            opacity: viewMode === "graph" ? 1 : 0,
+            pointerEvents: viewMode === "graph" ? "auto" : "none",
+            position: "absolute",
+            inset: 0,
+            transition: "opacity 0.4s ease",
+          }}
+        >
+          <canvas ref={canvasRef} className="w-full h-[calc(100vh-120px)]" data-testid="canvas-graph" />
 
-        {selectedNode && (
-          <div className="absolute bottom-6 left-6 right-6 md:left-auto md:right-6 md:w-80 bg-card border border-white/10 p-6 backdrop-blur-sm" data-testid="panel-node-detail">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h3 className="font-display text-lg font-bold">{selectedNode.title}</h3>
-                <span className="font-mono text-xs text-primary">{selectedNode.status.toUpperCase()}</span>
+          {selectedNode && viewMode === "graph" && (
+            <div
+              className="absolute top-4 right-4 w-72 border border-white/10 p-5 backdrop-blur-sm"
+              data-testid="panel-node-detail"
+              style={{ backgroundColor: "rgba(20,22,24,0.95)" }}
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <h3 className="font-mono text-sm font-bold text-white/90 uppercase tracking-wide">{selectedNode.title}</h3>
+                  <span
+                    className="font-mono text-[10px] uppercase tracking-wider"
+                    style={{ color: nodeGlowColor(selectedNode.labels) }}
+                  >
+                    {selectedNode.status}
+                  </span>
+                </div>
+                <button
+                  onClick={() => { setSelectedNode(null); setFocusedNode(null); }}
+                  className="text-white/30 hover:text-white/70 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-              <button onClick={() => setSelectedNode(null)} className="text-muted-foreground hover:text-white text-xs font-mono">[X]</button>
+
+              <div className="space-y-3 mb-4">
+                <div>
+                  <span className="font-mono text-[9px] uppercase tracking-widest text-white/30">Labels</span>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {selectedNode.labels.map(l => (
+                      <span
+                        key={l}
+                        className="text-[9px] font-mono px-2 py-0.5 uppercase tracking-wider"
+                        style={{
+                          color: labelColor(l),
+                          backgroundColor: labelColor(l) + "15",
+                          border: `1px solid ${labelColor(l)}20`,
+                        }}
+                      >
+                        {l}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex gap-4">
+                  <div>
+                    <span className="font-mono text-[9px] uppercase tracking-widest text-white/30">Connections</span>
+                    <p className="font-mono text-xs text-white/80">{connectedCount}</p>
+                  </div>
+                  <div>
+                    <span className="font-mono text-[9px] uppercase tracking-widest text-white/30">Sources</span>
+                    <p className="font-mono text-xs text-white/80">{selectedNode.sourceCount}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <span className="font-mono text-[9px] uppercase tracking-widest text-white/30">Node ID</span>
+                  <p className="font-mono text-[10px] text-white/40">{selectedNode.id}</p>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={handleFocusNode}
+                  className="w-full flex items-center justify-center gap-1.5 py-1.5 text-[10px] font-mono uppercase tracking-wider border transition-colors"
+                  style={{
+                    borderColor: focusedNode === selectedNode.id ? "#4ade8040" : "rgba(255,255,255,0.1)",
+                    backgroundColor: focusedNode === selectedNode.id ? "#4ade8010" : "transparent",
+                    color: focusedNode === selectedNode.id ? "#4ade80" : "rgba(255,255,255,0.5)",
+                  }}
+                  data-testid="btn-focus-node"
+                >
+                  <Crosshair className="w-3 h-3" />
+                  {focusedNode === selectedNode.id ? "Show All" : "Focus Node"}
+                </button>
+                <div className="flex gap-2">
+                  <Link
+                    href={`/rabbithole/${selectedNode.slug}`}
+                    className="flex-1 flex items-center justify-center gap-1 py-1.5 text-[10px] font-mono uppercase tracking-wider border border-white/10 text-white/50 hover:text-white/80 hover:border-white/20 transition-colors"
+                    data-testid="link-view-hole"
+                  >
+                    <ExternalLink className="w-3 h-3" /> View
+                  </Link>
+                  <Link
+                    href={`/rabbithole/${selectedNode.slug}/read`}
+                    className="flex-1 flex items-center justify-center gap-1 py-1.5 text-[10px] font-mono uppercase tracking-wider border border-white/10 text-white/50 hover:text-white/80 hover:border-white/20 transition-colors"
+                    data-testid="link-read-hole"
+                  >
+                    <GitBranch className="w-3 h-3" /> Read
+                  </Link>
+                </div>
+              </div>
             </div>
-            <div className="flex flex-wrap gap-1 mb-4">
-              {selectedNode.labels.map(l => (
-                <span key={l} className="text-[10px] font-mono px-2 py-0.5" style={{ color: labelColor(l), backgroundColor: labelColor(l) + "15" }}>{l}</span>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <Link href={`/rabbithole/${selectedNode.slug}`} className="flex-1 bg-primary/10 border border-primary/30 text-primary text-center py-2 font-mono text-xs hover:bg-primary/20 transition-colors flex items-center justify-center gap-1" data-testid="link-view-hole">
-                <ExternalLink className="w-3 h-3" /> VIEW
-              </Link>
-              <Link href={`/rabbithole/${selectedNode.slug}/read`} className="flex-1 bg-white/5 border border-white/10 text-white text-center py-2 font-mono text-xs hover:bg-white/10 transition-colors flex items-center justify-center gap-1" data-testid="link-read-hole">
-                <GitBranch className="w-3 h-3" /> READ
-              </Link>
+          )}
+        </div>
+
+        <div
+          style={{
+            opacity: viewMode === "timeline" ? 1 : 0,
+            pointerEvents: viewMode === "timeline" ? "auto" : "none",
+            position: "absolute",
+            inset: 0,
+            transition: "opacity 0.4s ease",
+            overflowY: "auto",
+          }}
+        >
+          <div className="max-w-2xl mx-auto py-8 px-4">
+            <div className="relative">
+              <div
+                className="absolute left-4 top-0 bottom-0 w-px"
+                style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
+              />
+
+              {holes.map((hole, idx) => {
+                const isExpanded = expandedCard === String(hole.id);
+                const glow = nodeGlowColor((hole.labels as string[]) || []);
+                const dateStr = hole.updatedAt
+                  ? new Date(hole.updatedAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })
+                  : "—";
+
+                return (
+                  <div key={hole.id} className="relative pl-10 mb-4" data-testid={`timeline-entry-${hole.id}`}>
+                    <div
+                      className="absolute left-3 top-4 w-3 h-3 rotate-45 border"
+                      style={{
+                        borderColor: glow + "60",
+                        backgroundColor: "#1a1c1e",
+                      }}
+                    />
+
+                    <div
+                      className="corner-notch border border-white/10 transition-all duration-300"
+                      style={{
+                        backgroundColor: "rgba(20,22,24,0.8)",
+                      }}
+                    >
+                      <button
+                        className="w-full text-left p-4 flex items-center justify-between"
+                        onClick={() => setExpandedCard(isExpanded ? null : String(hole.id))}
+                        data-testid={`timeline-toggle-${hole.id}`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-mono text-xs font-bold text-white/85 uppercase tracking-wide truncate">
+                            {hole.title}
+                          </h3>
+                          <div className="flex items-center gap-3 mt-1.5 font-mono text-[9px] uppercase tracking-widest text-white/30">
+                            <span>{dateStr}</span>
+                            <span className="text-white/10">|</span>
+                            <span>{hole.sourceCount || 0} SOURCES</span>
+                            <span className="text-white/10">|</span>
+                            <span style={{ color: glow + "90" }}>{hole.status}</span>
+                          </div>
+                        </div>
+                        <ChevronDown
+                          className="w-4 h-4 text-white/20 transition-transform duration-300 flex-shrink-0 ml-2"
+                          style={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)" }}
+                        />
+                      </button>
+
+                      <div
+                        style={{
+                          maxHeight: isExpanded ? "300px" : "0px",
+                          overflow: "hidden",
+                          transition: "max-height 0.3s ease",
+                        }}
+                      >
+                        <div className="px-4 pb-4 border-t border-white/5">
+                          <div className="flex flex-wrap gap-1 mt-3 mb-3">
+                            {((hole.labels as string[]) || []).map(l => (
+                              <span
+                                key={l}
+                                className="text-[9px] font-mono px-2 py-0.5 uppercase tracking-wider"
+                                style={{
+                                  color: labelColor(l),
+                                  backgroundColor: labelColor(l) + "15",
+                                  border: `1px solid ${labelColor(l)}20`,
+                                }}
+                              >
+                                {l}
+                              </span>
+                            ))}
+                          </div>
+
+                          <div className="flex gap-4 mb-3 font-mono text-[9px] text-white/30">
+                            <div>
+                              <span className="uppercase tracking-widest">Connections</span>
+                              <p className="text-white/60 text-xs mt-0.5">{hole.connections || 0}</p>
+                            </div>
+                            <div>
+                              <span className="uppercase tracking-widest">Completion</span>
+                              <p className="text-white/60 text-xs mt-0.5">{hole.completion}%</p>
+                            </div>
+                          </div>
+
+                          <Link
+                            href={`/rabbithole/${hole.slug}`}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider border border-white/10 text-white/50 hover:text-white/80 hover:border-white/20 transition-colors"
+                            data-testid={`timeline-link-${hole.id}`}
+                          >
+                            <ExternalLink className="w-3 h-3" /> Open Investigation
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
-        )}
+        </div>
       </div>
+
+      <style>{`
+        .mil-grid {
+          position: relative;
+        }
+        .mil-grid::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          opacity: 0.03;
+          background-image: url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+          z-index: 0;
+        }
+        .mil-grid > * {
+          position: relative;
+          z-index: 1;
+        }
+        .corner-notch {
+          clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+        }
+        .pulse-live {
+          animation: pulse-slow 3s ease-in-out infinite;
+        }
+        @keyframes pulse-slow {
+          0%, 100% { opacity: 0.6; }
+          50% { opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 }

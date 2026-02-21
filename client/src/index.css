@@ -123,3 +123,222 @@
   pointer-events: none;
   z-index: 9999;
 }
+
+.mil-grid {
+  position: relative;
+  background: linear-gradient(135deg, #1a1c1e 0%, #141618 100%);
+}
+
+.mil-grid::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(107,142,35,0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(107,142,35,0.06) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.mil-grid::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(107,142,35,0.03);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.corner-notch {
+  position: relative;
+  clip-path: polygon(
+    8px 0%, calc(100% - 8px) 0%,
+    100% 8px, 100% calc(100% - 8px),
+    calc(100% - 8px) 100%, 8px 100%,
+    0% calc(100% - 8px), 0% 8px
+  );
+}
+
+.corner-notch::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(
+    8px 0%, calc(100% - 8px) 0%,
+    100% 8px, 100% calc(100% - 8px),
+    calc(100% - 8px) 100%, 8px 100%,
+    0% calc(100% - 8px), 0% 8px
+  );
+  border: 1px solid rgba(107,142,35,0.15);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.glow-verified {
+  box-shadow: 0 0 12px -3px rgba(76, 175, 80, 0.4), 0 0 4px -1px rgba(76, 175, 80, 0.2);
+}
+
+.glow-disputed {
+  box-shadow: 0 0 12px -3px rgba(255, 183, 77, 0.4), 0 0 4px -1px rgba(255, 183, 77, 0.2);
+}
+
+.glow-speculative {
+  box-shadow: 0 0 12px -3px rgba(183, 28, 28, 0.35), 0 0 4px -1px rgba(183, 28, 28, 0.18);
+}
+
+.card-hover {
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.3), 0 2px 8px -2px rgba(0, 0, 0, 0.2);
+}
+
+.btn-glow {
+  transition: box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.btn-glow:hover {
+  box-shadow: 0 0 16px -4px hsl(var(--primary) / 0.5), 0 0 6px -2px hsl(var(--primary) / 0.3);
+  border-color: hsl(var(--primary) / 0.6);
+}
+
+.smooth-tab {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.smooth-tab[data-state="inactive"] {
+  opacity: 0;
+  transform: translateY(4px);
+  position: absolute;
+  pointer-events: none;
+}
+
+.smooth-tab[data-state="active"] {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.progress-animated {
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-animated::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.12) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite linear;
+}
+
+.focus-mode-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 40;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s ease;
+}
+
+.focus-mode-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@keyframes pulse-live {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.pulse-live {
+  animation: pulse-live 2.5s ease-in-out infinite;
+}
+
+.briefing-timeline {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-left: 1.5rem;
+}
+
+.briefing-timeline::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, hsl(var(--primary) / 0.6), hsl(var(--primary) / 0.1));
+}
+
+.briefing-timeline .timeline-card {
+  position: relative;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  padding: 1rem;
+  background: hsl(var(--card));
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.briefing-timeline .timeline-card::before {
+  content: "";
+  position: absolute;
+  left: -1.75rem;
+  top: 1.25rem;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: hsl(var(--primary));
+  border: 2px solid hsl(var(--background));
+}
+
+.briefing-timeline .timeline-card:hover {
+  border-color: hsl(var(--primary) / 0.4);
+  box-shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.2);
+}
+
+.briefing-timeline .timeline-card.expanded {
+  border-color: hsl(var(--primary) / 0.5);
+}
+
+.briefing-timeline .metadata-strip {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-top: 0.5rem;
+  margin-top: 0.5rem;
+  border-top: 1px solid hsl(var(--border));
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.briefing-timeline .metadata-strip span {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
