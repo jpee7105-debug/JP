@@ -291,7 +291,8 @@ export async function registerRoutes(
   app.get("/api/holes/:slug/depth-nodes", async (req, res) => {
     try {
       const hole = await storage.getHoleBySlug(req.params.slug);
-      if (!hole || hole.status !== "Published") return res.status(404).json({ message: "Rabbit hole not found" });
+      if (!hole) return res.status(404).json({ message: "Rabbit hole not found" });
+      if (hole.status !== "Published" && !req.session.employeeId) return res.status(404).json({ message: "Rabbit hole not found" });
       const nodes = await storage.getDepthNodesByHoleId(hole.id);
 
       const FREE_PREVIEW_LIMIT = 2;
@@ -352,7 +353,8 @@ export async function registerRoutes(
   app.get("/api/holes/:slug/claims", async (req, res) => {
     try {
       const hole = await storage.getHoleBySlug(req.params.slug);
-      if (!hole || hole.status !== "Published") return res.status(404).json({ message: "Rabbit hole not found" });
+      if (!hole) return res.status(404).json({ message: "Rabbit hole not found" });
+      if (hole.status !== "Published" && !req.session.employeeId) return res.status(404).json({ message: "Rabbit hole not found" });
       const holeClaims = await storage.getClaimsByHoleId(hole.id);
       res.json(holeClaims);
     } catch (err) {
@@ -363,7 +365,8 @@ export async function registerRoutes(
   app.get("/api/holes/:slug/sources", async (req, res) => {
     try {
       const hole = await storage.getHoleBySlug(req.params.slug);
-      if (!hole || hole.status !== "Published") return res.status(404).json({ message: "Rabbit hole not found" });
+      if (!hole) return res.status(404).json({ message: "Rabbit hole not found" });
+      if (hole.status !== "Published" && !req.session.employeeId) return res.status(404).json({ message: "Rabbit hole not found" });
       const holeSources = await storage.getSourcesByHoleId(hole.id);
       res.json(holeSources);
     } catch (err) {
@@ -394,7 +397,8 @@ export async function registerRoutes(
   app.get("/api/holes/:slug/media", async (req, res) => {
     try {
       const hole = await storage.getHoleBySlug(req.params.slug);
-      if (!hole || hole.status !== "Published") return res.status(404).json({ message: "Rabbit hole not found" });
+      if (!hole) return res.status(404).json({ message: "Rabbit hole not found" });
+      if (hole.status !== "Published" && !req.session.employeeId) return res.status(404).json({ message: "Rabbit hole not found" });
       const holeMedia = await storage.getMediaByHoleId(hole.id);
       res.json(holeMedia);
     } catch (err) {
