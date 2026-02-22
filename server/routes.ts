@@ -21,12 +21,16 @@ async function requireEmployee(req: any, res: any, next: any) {
   if (!req.session.employeeId) {
     return res.status(401).json({ message: "Employee authentication required" });
   }
-  const emp = await storage.getEmployeeById(req.session.employeeId);
-  if (!emp || !emp.isActive) {
-    return res.status(401).json({ message: "Employee account not found or deactivated" });
+  try {
+    const emp = await storage.getEmployeeById(req.session.employeeId);
+    if (!emp || !emp.isActive) {
+      return res.status(401).json({ message: "Employee account not found or deactivated" });
+    }
+    req.employee = emp;
+    next();
+  } catch {
+    return res.status(500).json({ message: "Authentication check failed" });
   }
-  req.employee = emp;
-  next();
 }
 
 function requireRole(...roles: EmployeeRole[]) {
@@ -97,8 +101,11 @@ export async function registerRoutes(
   });
 
   app.post("/api/admin/logout", (req, res) => {
-    req.session.employeeId = undefined;
-    res.json({ message: "Logged out" });
+    req.session.destroy((err: any) => {
+      if (err) return res.status(500).json({ message: "Logout failed" });
+      res.clearCookie("connect.sid");
+      res.json({ message: "Logged out" });
+    });
   });
 
   app.get("/api/admin/me", async (req, res) => {
@@ -295,6 +302,10 @@ export async function registerRoutes(
       if (hole.status !== "Published" && !req.session.employeeId) return res.status(404).json({ message: "Rabbit hole not found" });
       const nodes = await storage.getDepthNodesByHoleId(hole.id);
 
+      if (req.session.employeeId) {
+        return res.json(nodes);
+      }
+
       const FREE_PREVIEW_LIMIT = 2;
       let userPlan = "Free";
       let subscriptionStatus = "none";
@@ -324,6 +335,16 @@ export async function registerRoutes(
       if (!hole || hole.status !== "Published") return res.status(404).json({ message: "Rabbit hole not found" });
       const nodes = await storage.getDepthNodesByHoleId(hole.id);
       const totalNodes = nodes.length;
+
+      if (req.session.employeeId) {
+        return res.json({
+          totalNodes,
+          previewLimit: totalNodes,
+          hasFullAccess: true,
+          loggedIn: true,
+          plan: "Employee",
+        });
+      }
 
       let userPlan = "Free";
       let subscriptionStatus = "none";

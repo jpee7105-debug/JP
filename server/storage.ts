@@ -263,10 +263,16 @@ export class DatabaseStorage implements IStorage {
   async deleteHole(id: number): Promise<boolean> {
     await db.delete(sponsoredPodcastSlots).where(eq(sponsoredPodcastSlots.rabbitHoleId, id));
     await db.delete(rabbitHolePodcastEpisodes).where(eq(rabbitHolePodcastEpisodes.rabbitHoleId, id));
-    await db.delete(depthNodes).where(eq(depthNodes.holeId, id));
+    await db.delete(relationships).where(
+      or(
+        and(eq(relationships.fromType, "hole"), eq(relationships.fromId, id)),
+        and(eq(relationships.toType, "hole"), eq(relationships.toId, id))
+      )
+    );
     await db.delete(claims).where(eq(claims.holeId, id));
-    await db.delete(sources).where(eq(sources.holeId, id));
     await db.delete(media).where(eq(media.holeId, id));
+    await db.delete(sources).where(eq(sources.holeId, id));
+    await db.delete(depthNodes).where(eq(depthNodes.holeId, id));
     await db.delete(comments).where(eq(comments.holeId, id));
     await db.delete(auditLogs).where(eq(auditLogs.holeId, id));
     const result = await db.delete(rabbitHoles).where(eq(rabbitHoles.id, id)).returning();
@@ -316,6 +322,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteDepthNode(id: number): Promise<boolean> {
+    await db.delete(claims).where(eq(claims.nodeId, id));
+    await db.delete(media).where(eq(media.nodeId, id));
     const result = await db.delete(depthNodes).where(eq(depthNodes.id, id)).returning();
     return result.length > 0;
   }
