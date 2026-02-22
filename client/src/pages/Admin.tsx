@@ -2936,6 +2936,16 @@ function RelationshipsManager({ role }: { role: string }) {
   const fromOptions = formData.fromType === "person" ? people.map(p => ({ id: p.id, label: p.fullName })) : holes.map(h => ({ id: h.id, label: h.title }));
   const toOptions = formData.toType === "person" ? people.map(p => ({ id: p.id, label: p.fullName })) : holes.map(h => ({ id: h.id, label: h.title }));
 
+  const [quickFromId, setQuickFromId] = useState(0);
+  const [quickToId, setQuickToId] = useState(0);
+
+  const quickFamilyCreate = (relType: string) => {
+    if (!quickFromId || !quickToId || quickFromId === quickToId) return;
+    createMutation.mutate({ fromType: "person", fromId: quickFromId, toType: "person", toId: quickToId, relationshipType: relType, status: "Draft" });
+    setQuickFromId(0);
+    setQuickToId(0);
+  };
+
   if (isLoading) return <div className="flex items-center justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>;
 
   return (
@@ -2954,6 +2964,41 @@ function RelationshipsManager({ role }: { role: string }) {
           {showForm ? <X className="w-3 h-3" /> : <Plus className="w-3 h-3" />} {showForm ? "CANCEL" : "ADD RELATIONSHIP"}
         </button>
       </div>
+
+      {people.length >= 2 && (
+        <div className="border border-primary/20 bg-primary/5 p-4 space-y-3" data-testid="quick-family-section">
+          <h3 className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Quick Family Link</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <FormSelect label="Person A" value={quickFromId} onChange={e => setQuickFromId(parseInt(e.target.value))} data-testid="select-quick-from">
+              <option value={0}>Select person...</option>
+              {people.map(p => <option key={p.id} value={p.id}>{p.fullName}</option>)}
+            </FormSelect>
+            <FormSelect label="Person B" value={quickToId} onChange={e => setQuickToId(parseInt(e.target.value))} data-testid="select-quick-to">
+              <option value={0}>Select person...</option>
+              {people.map(p => <option key={p.id} value={p.id}>{p.fullName}</option>)}
+            </FormSelect>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            {[
+              { label: "ADD PARENT", type: "parent_of", testId: "btn-quick-parent" },
+              { label: "ADD CHILD", type: "child_of", testId: "btn-quick-child" },
+              { label: "ADD SPOUSE", type: "spouse_of", testId: "btn-quick-spouse" },
+              { label: "ADD SIBLING", type: "sibling_of", testId: "btn-quick-sibling" },
+            ].map(btn => (
+              <button
+                key={btn.type}
+                onClick={() => quickFamilyCreate(btn.type)}
+                disabled={!quickFromId || !quickToId || quickFromId === quickToId || createMutation.isPending}
+                className="flex items-center gap-1.5 bg-white/5 border border-white/10 text-foreground font-mono text-[10px] uppercase px-2.5 py-1.5 hover:bg-white/10 transition-colors disabled:opacity-30"
+                data-testid={btn.testId}
+              >
+                <Users className="w-3 h-3" /> {btn.label}
+              </button>
+            ))}
+          </div>
+          <p className="font-mono text-[9px] text-muted-foreground">Creates relationship: Person A is [type] of Person B</p>
+        </div>
+      )}
 
       {showForm && (
         <div className="border border-primary/20 bg-primary/5 p-4 space-y-4" data-testid="relationship-form">
