@@ -193,10 +193,12 @@ export interface IStorage {
   getAllPeople(): Promise<Person[]>;
   getPublishedPeople(): Promise<Person[]>;
   getPerson(id: number): Promise<Person | undefined>;
+  getPersonByHandle(handle: string): Promise<Person | undefined>;
   createPerson(p: InsertPerson): Promise<Person>;
   updatePerson(id: number, data: Partial<InsertPerson>): Promise<Person | undefined>;
   deletePerson(id: number): Promise<boolean>;
   searchPeople(query: string): Promise<Person[]>;
+  checkDuplicateRelationship(fromType: string, fromId: number, toType: string, toId: number, relationshipType: string): Promise<boolean>;
 
   getAllRelationships(): Promise<Relationship[]>;
   getPublishedRelationships(): Promise<Relationship[]>;
@@ -932,6 +934,10 @@ export class DatabaseStorage implements IStorage {
     const [p] = await db.select().from(people).where(eq(people.id, id));
     return p;
   }
+  async getPersonByHandle(handle: string): Promise<Person | undefined> {
+    const [p] = await db.select().from(people).where(eq(people.handle, handle));
+    return p;
+  }
   async createPerson(p: InsertPerson): Promise<Person> {
     const [created] = await db.insert(people).values(p).returning();
     return created;
@@ -955,6 +961,15 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(people).where(
       or(ilike(people.fullName, pattern), ilike(people.aliases, pattern), ilike(people.description, pattern))
     ).orderBy(asc(people.fullName)).limit(20);
+  }
+  async checkDuplicateRelationship(fromType: string, fromId: number, toType: string, toId: number, relationshipType: string): Promise<boolean> {
+    const existing = await db.select().from(relationships).where(
+      or(
+        and(eq(relationships.fromType, fromType), eq(relationships.fromId, fromId), eq(relationships.toType, toType), eq(relationships.toId, toId), eq(relationships.relationshipType, relationshipType)),
+        and(eq(relationships.fromType, toType), eq(relationships.fromId, toId), eq(relationships.toType, fromType), eq(relationships.toId, fromId), eq(relationships.relationshipType, relationshipType))
+      )
+    );
+    return existing.length > 0;
   }
 
   // ---- Relationships ----

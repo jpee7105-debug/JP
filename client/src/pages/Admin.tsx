@@ -2800,14 +2800,23 @@ function PeopleManager({ role }: { role: string }) {
           <h2 className="font-mono text-xs uppercase tracking-wider">People</h2>
           <span className="font-mono text-[10px] text-muted-foreground">({people.length})</span>
         </div>
-        <button
-          onClick={() => createMutation.mutate()}
-          disabled={createMutation.isPending}
-          className="flex items-center gap-2 bg-primary/10 border border-primary/30 text-primary font-mono text-xs uppercase px-3 py-1.5 hover:bg-primary/20 transition-colors disabled:opacity-50"
-          data-testid="button-add-person"
-        >
-          {createMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />} ADD PERSON
-        </button>
+        <div className="flex items-center gap-3">
+          <a
+            href="/admin/people"
+            className="flex items-center gap-2 text-primary font-mono text-xs uppercase hover:underline"
+            data-testid="link-full-people-builder"
+          >
+            Open Full People Builder <ChevronRight className="w-3 h-3" />
+          </a>
+          <button
+            onClick={() => createMutation.mutate()}
+            disabled={createMutation.isPending}
+            className="flex items-center gap-2 bg-primary/10 border border-primary/30 text-primary font-mono text-xs uppercase px-3 py-1.5 hover:bg-primary/20 transition-colors disabled:opacity-50"
+            data-testid="button-add-person"
+          >
+            {createMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />} ADD PERSON
+          </button>
+        </div>
       </div>
 
       <div className="space-y-2">

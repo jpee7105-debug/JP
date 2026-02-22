@@ -1,0 +1,164 @@
+Build full Person Profiles for Rabbit Hole on BOTH consumer and editor sides. This is a structured “intel dossier” profile system.
+
+DO NOT add unrelated features.
+DO NOT redesign the entire site.
+Integrate cleanly with existing auth + publish workflow (Draft/Review/Published) and existing People/Relationships system.
+
+====================================================
+PART 1 — Data Model (People + Person Assets)
+====================================================
+
+1) Ensure people table includes (add missing fields only):
+- id (uuid)
+- full_name (required)
+- handle or slug (unique, for URLs)  [preferred: /people/:handle]
+- aliases (array or text)
+- bio/description (long text)
+- tags (array or text)
+- birth_date (optional)
+- death_date (optional)
+- nationality/country (optional)
+- avatar_url (optional)
+- banner_url (optional)
+- status (Draft/Review/Published)
+- created_by_employee_id, updated_by_employee_id
+- created_at, updated_at
+
+2) Add optional supporting tables (only if needed):
+A) person_media
+- id
+- person_id
+- type (image/video/doc)
+- title
+- url
+- caption
+- source_id (optional)
+- created_at
+
+B) person_sources (or reuse existing sources join model)
+- person_id
+- source_id
+- note (optional)
+
+3) Relationships
+Use the existing relationships table for:
+- Person↔Person: parent_of, child_of, spouse_of, sibling_of
+- Person↔Case/Event: involved_in, mentioned_in, witness_in, suspect_in, victim_in, associate_of
+Publishing rule: only Published people + Published relationships show publicly.
+
+====================================================
+PART 2 — Consumer Side: Person Profile Page
+====================================================
+
+Create route:
+- /people/:handle (or /people/:id if handle not implemented)
+
+Person Profile must feel like an “intel dossier”:
+
+A) Header
+- Avatar + full name
+- Aliases (collapsed with “show more”)
+- Status badge NOT shown publicly (only in admin preview)
+- Quick metadata line (birth/death, country, tags)
+
+B) Tabs (consumer)
+1) Overview
+- Bio/summary
+- Key tags
+- “Connected Cases/Events” preview (top 5)
+2) Connections
+- List of related cases/events grouped by relationship type (involved_in, mentioned_in, etc.)
+- Each item clickable to the case/event page
+3) Family
+- Person-centric family tree (default view)
+- List view toggle
+
+C) Family Tree (core requirement)
+- Center node = current person
+- Parents above, children below, spouse beside, siblings grouped
+- Stable layout (NO force simulation / no floating)
+- Default depth = 2 levels; “Load more” expands deeper
+- Clicking a person node re-centers the tree on that person (navigate or dynamic)
+- Must avoid infinite loops/cycles gracefully
+- People nodes should be small/secondary visual weight vs cases (when shown elsewhere)
+
+D) Access rules
+- Public users can view Published people.
+- Draft/Review people return Not Found publicly.
+- If user is employee and in admin preview mode, Draft/Review can be viewed with a small “Draft/Review” badge.
+
+====================================================
+PART 3 — Global Search Integration
+====================================================
+
+Update search so it returns BOTH:
+- Cases/Investigations (existing)
+- People (new)
+Show result type badges (PERSON vs CASE).
+Clicking PERSON goes to /people/:handle.
+
+====================================================
+PART 4 — Editor Side: People Management (Premium UX)
+====================================================
+
+Create /admin/people with:
+- List view with filters: status, tags, updated_at, created_by
+- Search by name/alias/handle
+- Create new person (default Draft)
+- Edit person (single page, no annoying separate tabs unless necessary)
+
+Editor layout for editing a person:
+
+LEFT (or main column):
+- Name, handle, aliases editor
+- Bio editor (long-form, rich text if available)
+- Tags editor
+- Dates + country fields
+- Media attachments (upload/link, caption, optional source link)
+
+RIGHT SIDE PANELS:
+1) Publish/Workflow panel
+- Status selector Draft/Review/Published
+- Editor can Draft->Review
+- Admin can Review->Published
+- Publish checklist (required fields)
+
+2) Family Relationships panel (CRITICAL)
+Buttons:
+- Add Parent
+- Add Child
+- Add Spouse
+- Add Sibling
+Each action:
+- Search existing person OR create new person inline
+- Immediately creates relationship
+- Displays in the panel with remove button
+- Prevent duplicates (spouse, sibling)
+
+3) Case/Event Links panel
+- Add relationship to a case/event (involved_in, mentioned_in, etc.)
+- Search/select case/event
+- Relationship evidence/source linking optional for now
+
+====================================================
+PART 5 — Validation + Safety
+====================================================
+
+1) Prevent duplicate spouse/sibling edges.
+2) Ensure parent/child consistency (either store both directions correctly or derive one direction reliably).
+3) Handle cycles in family graph gracefully (no infinite recursion).
+4) Ensure deleting a person handles related relationships safely (soft delete or cascade with warnings).
+
+====================================================
+PART 6 — Output Requirements
+====================================================
+
+After implementation, provide:
+- Exact routes added
+- Tables/columns added or modified
+- Admin pages added
+- Confirmation:
+  - Person profiles show on consumer side for Published people
+  - Family tree appears on /people/:handle and is stable (no floating)
+  - Editors can manage family links inline in /admin/people
+  - Search returns people + cases

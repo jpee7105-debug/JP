@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { insertCommentSchema, insertDepthNodeSchema, insertClaimSchema, insertSourceSchema, insertCategorySchema, insertRabbitHoleSchema, insertMediaSchema, insertPodcastSchema, insertPodcastEpisodeSchema, insertRabbitHolePodcastEpisodeSchema, insertSponsoredPodcastSlotSchema, insertCreatorSchema, insertStreamSchema, insertStreamReplaySchema, insertLiveChatMessageSchema, insertChatModerationActionSchema, insertPersonSchema, insertRelationshipSchema } from "@shared/schema";
 import { ZodError } from "zod";
 import bcrypt from "bcryptjs";
-import type { Employee } from "@shared/schema";
+import type { Employee, Person, Relationship } from "@shared/schema";
 import { autoSeedIfEmpty } from "./auto-seed";
 
 declare global {
@@ -1151,6 +1151,14 @@ export async function registerRoutes(
   app.post("/api/admin/relationships", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
     try {
       const data = insertRelationshipSchema.parse({ ...req.body, createdByEmployeeId: req.session.employeeId, updatedByEmployeeId: req.session.employeeId });
+      const symmetricTypes = ["spouse_of", "sibling_of"];
+      if (symmetricTypes.includes(data.relationshipType)) {
+        const isDuplicate = await storage.checkDuplicateRelationship(data.fromType, data.fromId, data.toType, data.toId, data.relationshipType);
+        if (isDuplicate) return res.status(409).json({ message: `Duplicate ${data.relationshipType.replace(/_/g, " ")} relationship already exists` });
+      }
+      if (data.fromType === data.toType && data.fromId === data.toId) {
+        return res.status(400).json({ message: "Cannot create a relationship from an entity to itself" });
+      }
       const rel = await storage.createRelationship(data);
       res.status(201).json(rel);
     } catch (err) {
@@ -1215,6 +1223,17 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/people/handle/:handle", async (req, res) => {
+    try {
+      const person = await storage.getPersonByHandle(req.params.handle);
+      if (!person) return res.status(404).json({ message: "Person not found" });
+      if (person.status !== "Published" && !req.session.employeeId) return res.status(404).json({ message: "Person not found" });
+      res.json(person);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch person" });
+    }
+  });
+
   app.get("/api/people/:id", async (req, res) => {
     try {
       const person = await storage.getPerson(parseInt(req.params.id));
@@ -1236,6 +1255,47 @@ export async function registerRoutes(
       res.json(filtered);
     } catch (err) {
       res.status(500).json({ message: "Failed to fetch relationships" });
+    }
+  });
+
+  app.get("/api/people/:id/family-tree", async (req, res) => {
+    try {
+      const person = await storage.getPerson(parseInt(req.params.id));
+      if (!person) return res.status(404).json({ message: "Person not found" });
+      if (person.status !== "Published" && !req.session.employeeId) return res.status(404).json({ message: "Person not found" });
+      const depth = Math.min(parseInt(req.query.depth as string) || 2, 5);
+      const familyTypes = ["parent_of", "child_of", "spouse_of", "sibling_of"];
+      const visited = new Set<number>([person.id]);
+      const peopleResult: Person[] = [person];
+      const relsResult: Relationship[] = [];
+      let frontier = [person.id];
+      for (let d = 0; d < depth && frontier.length > 0; d++) {
+        const nextFrontier: number[] = [];
+        for (const pid of frontier) {
+          const rels = await storage.getRelationshipsForEntity("person", pid);
+          const familyRels = rels.filter(r =>
+            familyTypes.includes(r.relationshipType) && r.fromType === "person" && r.toType === "person" &&
+            (req.session.employeeId || r.status === "Published")
+          );
+          for (const rel of familyRels) {
+            const alreadyAdded = relsResult.some(er => er.id === rel.id);
+            if (!alreadyAdded) relsResult.push(rel);
+            const otherId = rel.fromId === pid ? rel.toId : rel.fromId;
+            if (!visited.has(otherId)) {
+              visited.add(otherId);
+              const otherPerson = await storage.getPerson(otherId);
+              if (otherPerson && (req.session.employeeId || otherPerson.status === "Published")) {
+                peopleResult.push(otherPerson);
+                nextFrontier.push(otherId);
+              }
+            }
+          }
+        }
+        frontier = nextFrontier;
+      }
+      res.json({ people: peopleResult, relationships: relsResult });
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch family tree" });
     }
   });
 

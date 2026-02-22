@@ -1,0 +1,144 @@
+Build full Person Profiles for Rabbit Hole on BOTH consumer and editor sides with a premium editor experience and a zoomable, person-centered family tree panel for consumers.
+
+DO NOT add unrelated features.
+DO NOT redesign the entire site.
+Integrate with existing auth + publishing workflow (Draft/Review/Published) and existing People/Relationships.
+
+====================================================
+PART 1 — Data Model
+====================================================
+
+Ensure people includes (add missing only):
+- id (uuid)
+- full_name (required)
+- handle/slug (unique) for /people/:handle
+- aliases (array or text)
+- bio/description (long text)
+- tags (array or text)
+- birth_date (optional)
+- death_date (optional)
+- nationality/country (optional)
+- avatar_url (optional)
+- banner_url (optional)
+- status (Draft/Review/Published)
+- created_by_employee_id, updated_by_employee_id
+- created_at, updated_at
+
+Relationships:
+Use existing relationships table for:
+Person↔Person: parent_of, child_of, spouse_of, sibling_of
+Person↔Case/Event: involved_in, mentioned_in, witness_in, suspect_in, victim_in, associate_of
+
+Public shows only Published people + Published relationships.
+
+====================================================
+PART 2 — Consumer Side: Person Profile Page
+====================================================
+
+Create /people/:handle page (fallback /people/:id if needed).
+
+Layout requirements:
+- Main content on the left (dossier)
+- On the RIGHT side: a Family Tree panel that is zoomable/pannable.
+
+Header:
+- Avatar + full name
+- Aliases (collapsed)
+- Metadata line (birth/death, country, tags)
+
+Main left column tabs/sections:
+- Overview (bio)
+- Connections to cases/events (grouped by relationship type)
+
+RIGHT PANEL: Family Tree (CRITICAL)
+- Interactive tree centered on the current person
+- Starts zoomed IN on immediate family only (parents/spouse/children/siblings)
+- User can zoom out/pan to see more of the tree
+- Zoom controls + mouse wheel zoom + drag-to-pan
+- Stable layout (NO force simulation / no floating)
+- Clicking a node re-centers on that person
+- Default load depth = 2 levels (configurable) with “Expand branch” to load deeper relatives (avoid loading huge trees at once)
+- Provide a “Fit to screen” button to show the currently loaded tree
+- Provide a “Recenter” button to return focus to the main person + immediate family
+
+Access rules:
+- Draft/Review people are NOT visible publicly (404)
+- Employees in admin preview may view Draft/Review with a small status badge (only for employees)
+
+====================================================
+PART 3 — Global Search
+====================================================
+
+Update search to include People + Cases.
+Show type badges (PERSON vs CASE).
+Click PERSON -> /people/:handle.
+
+====================================================
+PART 4 — Editor Side: Premium People Builder
+====================================================
+
+Create /admin/people with a premium, low-friction editing experience (NOT annoying tab hunting).
+
+Admin People list:
+- Filters: status, tags, updated_at, created_by
+- Search by name/alias/handle
+- Create new person (default Draft)
+
+Person edit page layout (premium):
+- Single “dossier” editing flow with clear sections (not separate tabs for everything)
+- Autosave + visible save status
+- Inline validation and required field hints
+
+Editor sections:
+A) Identity
+- full_name, handle, aliases
+B) Profile
+- bio editor (long-form)
+- tags
+- dates/country
+- avatar/banner
+
+RIGHT SIDE PANELS:
+1) Workflow Panel
+- Status selector Draft/Review/Published
+- Editors can Draft->Review
+- Only Admin can Review->Published
+- Publish checklist for required fields
+
+2) Family Relationships Panel (SUPER IMPORTANT)
+Buttons:
+- Add Parent
+- Add Child
+- Add Spouse
+- Add Sibling
+Each action:
+- Search existing person OR create new person inline
+- Immediately creates relationship and shows it in the panel
+- Allow remove relationship
+- Prevent duplicates (spouse/sibling)
+- Enforce parent/child consistency
+
+3) Case/Event Links Panel
+- Add relationship to a case/event (involved_in, mentioned_in, etc.)
+- Search/select case/event
+- Save relationship
+
+====================================================
+PART 5 — Validation + Safety
+====================================================
+
+- Prevent duplicate spouse/sibling edges
+- Handle cycles safely (no infinite recursion)
+- Avoid loading entire family graph by default; use depth + expand
+- Ensure deleting a person safely handles related relationships (warn + cascade or soft delete)
+
+====================================================
+OUTPUT REQUIRED
+====================================================
+
+After implementation, provide:
+- Routes added
+- Tables/columns changed
+- Admin pages added
+- Confirmation that consumer profile shows right-side zoomable family tree starting zoomed in on immediate family
+- Confirmation editor side makes adding family links easy (no hunting in separate tabs)

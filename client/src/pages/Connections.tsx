@@ -637,9 +637,10 @@ export default function Connections() {
       const hole = holes.find(h => h.id === entityId);
       if (hole) navigate(`/rabbithole/${hole.slug}`);
     } else if (entityType === "person") {
-      navigate(`/people/${entityId}`);
+      const person = people.find(p => p.id === entityId);
+      navigate(`/people/${person?.handle || entityId}`);
     }
-  }, [viewMode, holes, navigate]);
+  }, [viewMode, holes, people, navigate]);
 
   if (isLoading) {
     return (

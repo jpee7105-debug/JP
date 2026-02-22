@@ -123,7 +123,7 @@ export default function SearchPage() {
                 <Link key={`hole-${hole.id}`} href={`/rabbithole/${hole.slug}`} className="block border border-white/10 p-5 hover:border-primary/30 transition-colors group" data-testid={`search-result-hole-${hole.slug}`}>
                   <div className="flex items-center gap-2 mb-2">
                     <GitBranch className="w-4 h-4 text-primary" />
-                    <span className="font-mono text-[10px] text-primary">INVESTIGATION</span>
+                    <span className="font-mono text-[10px] px-2 py-0.5 bg-primary/10 text-primary border border-primary/20">INVESTIGATION</span>
                     <span className={`font-mono text-[10px] px-2 py-0.5 ${statusColor(hole.status)}`}>{hole.status}</span>
                     {hole.categorySlug && (
                       <span className="font-mono text-[10px] px-1.5 py-0.5 text-muted-foreground bg-white/5 flex items-center gap-1">
@@ -165,12 +165,16 @@ export default function SearchPage() {
               ))}
 
               {(activeTab === "all" || activeTab === "people") && people.map(person => (
-                <Link key={`person-${person.id}`} href={`/people/${person.id}`} className="block border border-white/10 p-5 hover:border-primary/30 transition-colors group" data-testid={`search-result-person-${person.id}`}>
+                <Link key={`person-${person.id}`} href={`/people/${person.handle || person.id}`} className="block border border-white/10 p-5 hover:border-primary/30 transition-colors group" data-testid={`search-result-person-${person.id}`}>
                   <div className="flex items-center gap-2 mb-2">
-                    <User className="w-4 h-4 text-primary" />
-                    <span className="font-mono text-[10px] text-primary">PERSON</span>
+                    <User className="w-4 h-4 text-blue-400" />
+                    <span className="font-mono text-[10px] px-2 py-0.5 bg-blue-400/10 text-blue-400 border border-blue-400/20">PERSON</span>
+                    {person.nationality && (
+                      <span className="font-mono text-[10px] px-1.5 py-0.5 text-muted-foreground bg-white/5">{person.nationality}</span>
+                    )}
                   </div>
                   <h3 className="font-display text-xl font-bold group-hover:text-primary transition-colors">{person.fullName}</h3>
+                  {person.handle && <p className="text-xs text-muted-foreground font-mono mt-0.5">@{person.handle}</p>}
                   {person.aliases && <p className="text-xs text-muted-foreground font-mono mt-1">AKA: {person.aliases}</p>}
                   {person.description && <p className="text-sm text-foreground/60 mt-2 line-clamp-2">{person.description}</p>}
                 </Link>
