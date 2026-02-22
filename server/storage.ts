@@ -59,6 +59,12 @@ import {
   type InsertLiveChatMessage,
   type ChatModerationAction,
   type InsertChatModerationAction,
+  people,
+  relationships,
+  type Person,
+  type InsertPerson,
+  type Relationship,
+  type InsertRelationship,
 } from "@shared/schema";
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
@@ -183,6 +189,22 @@ export interface IStorage {
 
   getPublishedEpisodesForHole(holeId: number): Promise<(PodcastEpisode & { pinned: boolean; sortOrder: number; podcastTitle: string })[]>;
   getActiveSponsoredSlotForHole(holeId: number): Promise<(SponsoredPodcastSlot & { episodeTitle?: string }) | null>;
+
+  getAllPeople(): Promise<Person[]>;
+  getPublishedPeople(): Promise<Person[]>;
+  getPerson(id: number): Promise<Person | undefined>;
+  createPerson(p: InsertPerson): Promise<Person>;
+  updatePerson(id: number, data: Partial<InsertPerson>): Promise<Person | undefined>;
+  deletePerson(id: number): Promise<boolean>;
+  searchPeople(query: string): Promise<Person[]>;
+
+  getAllRelationships(): Promise<Relationship[]>;
+  getPublishedRelationships(): Promise<Relationship[]>;
+  getRelationship(id: number): Promise<Relationship | undefined>;
+  getRelationshipsForEntity(entityType: string, entityId: number): Promise<Relationship[]>;
+  createRelationship(r: InsertRelationship): Promise<Relationship>;
+  updateRelationship(id: number, data: Partial<InsertRelationship>): Promise<Relationship | undefined>;
+  deleteRelationship(id: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -889,6 +911,74 @@ export class DatabaseStorage implements IStorage {
   async createModerationAction(data: InsertChatModerationAction): Promise<ChatModerationAction> {
     const [a] = await db.insert(chatModerationActions).values(data).returning();
     return a;
+  }
+
+  // ---- People ----
+  async getAllPeople(): Promise<Person[]> {
+    return db.select().from(people).orderBy(desc(people.updatedAt));
+  }
+  async getPublishedPeople(): Promise<Person[]> {
+    return db.select().from(people).where(eq(people.status, "Published")).orderBy(asc(people.fullName));
+  }
+  async getPerson(id: number): Promise<Person | undefined> {
+    const [p] = await db.select().from(people).where(eq(people.id, id));
+    return p;
+  }
+  async createPerson(p: InsertPerson): Promise<Person> {
+    const [created] = await db.insert(people).values(p).returning();
+    return created;
+  }
+  async updatePerson(id: number, data: Partial<InsertPerson>): Promise<Person | undefined> {
+    const [updated] = await db.update(people).set({ ...data, updatedAt: new Date() }).where(eq(people.id, id)).returning();
+    return updated;
+  }
+  async deletePerson(id: number): Promise<boolean> {
+    await db.delete(relationships).where(
+      or(
+        and(eq(relationships.fromType, "person"), eq(relationships.fromId, id)),
+        and(eq(relationships.toType, "person"), eq(relationships.toId, id))
+      )
+    );
+    const result = await db.delete(people).where(eq(people.id, id)).returning();
+    return result.length > 0;
+  }
+  async searchPeople(query: string): Promise<Person[]> {
+    const pattern = `%${query}%`;
+    return db.select().from(people).where(
+      or(ilike(people.fullName, pattern), ilike(people.aliases, pattern), ilike(people.description, pattern))
+    ).orderBy(asc(people.fullName)).limit(20);
+  }
+
+  // ---- Relationships ----
+  async getAllRelationships(): Promise<Relationship[]> {
+    return db.select().from(relationships).orderBy(desc(relationships.updatedAt));
+  }
+  async getPublishedRelationships(): Promise<Relationship[]> {
+    return db.select().from(relationships).where(eq(relationships.status, "Published")).orderBy(desc(relationships.updatedAt));
+  }
+  async getRelationship(id: number): Promise<Relationship | undefined> {
+    const [r] = await db.select().from(relationships).where(eq(relationships.id, id));
+    return r;
+  }
+  async getRelationshipsForEntity(entityType: string, entityId: number): Promise<Relationship[]> {
+    return db.select().from(relationships).where(
+      or(
+        and(eq(relationships.fromType, entityType), eq(relationships.fromId, entityId)),
+        and(eq(relationships.toType, entityType), eq(relationships.toId, entityId))
+      )
+    ).orderBy(desc(relationships.updatedAt));
+  }
+  async createRelationship(r: InsertRelationship): Promise<Relationship> {
+    const [created] = await db.insert(relationships).values(r).returning();
+    return created;
+  }
+  async updateRelationship(id: number, data: Partial<InsertRelationship>): Promise<Relationship | undefined> {
+    const [updated] = await db.update(relationships).set({ ...data, updatedAt: new Date() }).where(eq(relationships.id, id)).returning();
+    return updated;
+  }
+  async deleteRelationship(id: number): Promise<boolean> {
+    const result = await db.delete(relationships).where(eq(relationships.id, id)).returning();
+    return result.length > 0;
   }
 }
 

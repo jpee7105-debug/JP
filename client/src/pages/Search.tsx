@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link, useSearch } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Search as SearchIcon, GitBranch, Scale, Loader2, FileText, Tag } from "lucide-react";
-import type { RabbitHole, Source, Claim } from "@shared/schema";
+import { Search as SearchIcon, GitBranch, Scale, Loader2, FileText, Tag, User } from "lucide-react";
+import type { RabbitHole, Source, Claim, Person } from "@shared/schema";
 
 function statusColor(status: string) {
   switch (status) {
@@ -29,9 +29,9 @@ export default function SearchPage() {
   const initialQuery = params.get("q") || "";
   const [query, setQuery] = useState(initialQuery);
   const [searchTerm, setSearchTerm] = useState(initialQuery);
-  const [activeTab, setActiveTab] = useState<"all" | "holes" | "sources" | "claims">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "holes" | "sources" | "claims" | "people">("all");
 
-  const { data, isLoading } = useQuery<{ holes: RabbitHole[]; sources: Source[]; claims: Claim[] }>({
+  const { data, isLoading } = useQuery<{ holes: RabbitHole[]; sources: Source[]; claims: Claim[]; people: Person[] }>({
     queryKey: [`/api/search?q=${encodeURIComponent(searchTerm)}`],
     enabled: searchTerm.length > 0,
   });
@@ -56,7 +56,8 @@ export default function SearchPage() {
   const holes = data?.holes || [];
   const sources = data?.sources || [];
   const claims = data?.claims || [];
-  const total = holes.length + sources.length + claims.length;
+  const people = data?.people || [];
+  const total = holes.length + sources.length + claims.length + people.length;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -104,6 +105,7 @@ export default function SearchPage() {
                 { id: "holes" as const, label: "INVESTIGATIONS", count: holes.length },
                 { id: "sources" as const, label: "SOURCES", count: sources.length },
                 { id: "claims" as const, label: "CLAIMS", count: claims.length },
+                { id: "people" as const, label: "PEOPLE", count: people.length },
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -160,6 +162,18 @@ export default function SearchPage() {
                   <p className="font-display text-base font-semibold">{claim.statement}</p>
                   <div className="mt-2 text-xs font-mono text-muted-foreground">CONFIDENCE: {claim.confidence}%</div>
                 </div>
+              ))}
+
+              {(activeTab === "all" || activeTab === "people") && people.map(person => (
+                <Link key={`person-${person.id}`} href={`/people/${person.id}`} className="block border border-white/10 p-5 hover:border-primary/30 transition-colors group" data-testid={`search-result-person-${person.id}`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <User className="w-4 h-4 text-primary" />
+                    <span className="font-mono text-[10px] text-primary">PERSON</span>
+                  </div>
+                  <h3 className="font-display text-xl font-bold group-hover:text-primary transition-colors">{person.fullName}</h3>
+                  {person.aliases && <p className="text-xs text-muted-foreground font-mono mt-1">AKA: {person.aliases}</p>}
+                  {person.description && <p className="text-sm text-foreground/60 mt-2 line-clamp-2">{person.description}</p>}
+                </Link>
               ))}
 
               {total === 0 && (

@@ -291,6 +291,56 @@ export type InsertLiveChatMessage = z.infer<typeof insertLiveChatMessageSchema>;
 export type ChatModerationAction = typeof chatModerationActions.$inferSelect;
 export type InsertChatModerationAction = z.infer<typeof insertChatModerationActionSchema>;
 
+export const people = pgTable("people", {
+  id: serial("id").primaryKey(),
+  fullName: text("full_name").notNull(),
+  aliases: text("aliases").default("").notNull(),
+  birthDate: text("birth_date").default("").notNull(),
+  deathDate: text("death_date").default("").notNull(),
+  description: text("description").default("").notNull(),
+  tags: jsonb("tags").$type<string[]>().default([]).notNull(),
+  status: text("status").default("Draft").notNull(),
+  graphX: integer("graph_x"),
+  graphY: integer("graph_y"),
+  createdByEmployeeId: uuid("created_by_employee_id"),
+  updatedByEmployeeId: uuid("updated_by_employee_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const relationships = pgTable("relationships", {
+  id: serial("id").primaryKey(),
+  fromType: text("from_type").notNull(),
+  fromId: integer("from_id").notNull(),
+  toType: text("to_type").notNull(),
+  toId: integer("to_id").notNull(),
+  relationshipType: text("relationship_type").notNull(),
+  label: text("label").default("").notNull(),
+  confidence: integer("confidence").default(100).notNull(),
+  sourceIds: jsonb("source_ids").$type<number[]>().default([]).notNull(),
+  status: text("status").default("Draft").notNull(),
+  createdByEmployeeId: uuid("created_by_employee_id"),
+  updatedByEmployeeId: uuid("updated_by_employee_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertPersonSchema = createInsertSchema(people).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertRelationshipSchema = createInsertSchema(relationships).omit({ id: true, createdAt: true, updatedAt: true });
+
+export type Person = typeof people.$inferSelect;
+export type InsertPerson = z.infer<typeof insertPersonSchema>;
+export type Relationship = typeof relationships.$inferSelect;
+export type InsertRelationship = z.infer<typeof insertRelationshipSchema>;
+
+export const RELATIONSHIP_TYPES = [
+  "parent_of", "child_of", "spouse_of", "sibling_of",
+  "involved_in", "mentioned_in", "witness_in", "suspect_in", "victim_in", "associate_of",
+  "connected_to",
+] as const;
+
+export const FAMILY_RELATIONSHIP_TYPES = ["parent_of", "child_of", "spouse_of", "sibling_of"] as const;
+
 export const insertPodcastSchema = createInsertSchema(podcasts).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertPodcastEpisodeSchema = createInsertSchema(podcastEpisodes).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertRabbitHolePodcastEpisodeSchema = createInsertSchema(rabbitHolePodcastEpisodes).omit({ id: true });

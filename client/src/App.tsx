@@ -22,6 +22,7 @@ import Live from "@/pages/Live";
 import Channel from "@/pages/Channel";
 import Watch from "@/pages/Watch";
 import Replay from "@/pages/Replay";
+import PersonDetail from "@/pages/PersonDetail";
 
 function Router() {
   return (
@@ -36,6 +37,7 @@ function Router() {
       <Route path="/search" component={Search} />
       <Route path="/profile" component={Profile} />
       <Route path="/connections" component={Connections} />
+      <Route path="/people/:id" component={PersonDetail} />
       <Route path="/live" component={Live} />
       <Route path="/channel/:handle" component={Channel} />
       <Route path="/watch/:streamId" component={Watch} />

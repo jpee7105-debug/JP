@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
-import { Loader2, Plus, Trash2, Edit3, Save, X, Lock, LogOut, Shield, GripVertical, Image, Link2, History, Download, Upload, AlertTriangle, CheckCircle2, Clock, Settings, Users, Eye, EyeOff, RotateCcw, UserCheck, UserX, FileText, Headphones, DollarSign, Pin, ArrowUp, ArrowDown, Search, LayoutDashboard, Maximize2, Minimize2, PanelRightClose, PanelRightOpen, BookOpen, ArrowLeft, ChevronRight, Calendar } from "lucide-react";
-import type { RabbitHole, DepthNode, Claim, Source, Category, Media, AuditLog, Employee, Podcast, PodcastEpisode, RabbitHolePodcastEpisode, SponsoredPodcastSlot } from "@shared/schema";
+import { Loader2, Plus, Trash2, Edit3, Save, X, Lock, LogOut, Shield, GripVertical, Image, Link2, History, Download, Upload, AlertTriangle, CheckCircle2, Clock, Settings, Users, Eye, EyeOff, RotateCcw, UserCheck, UserX, FileText, Headphones, DollarSign, Pin, ArrowUp, ArrowDown, Search, LayoutDashboard, Maximize2, Minimize2, PanelRightClose, PanelRightOpen, BookOpen, ArrowLeft, ChevronRight, Calendar, Users2 } from "lucide-react";
+import type { RabbitHole, DepthNode, Claim, Source, Category, Media, AuditLog, Employee, Podcast, PodcastEpisode, RabbitHolePodcastEpisode, SponsoredPodcastSlot, Person, Relationship } from "@shared/schema";
+import { RELATIONSHIP_TYPES } from "@shared/schema";
 
 type AdminEmployee = Omit<Employee, "passwordHash">;
 
@@ -25,7 +26,7 @@ function adminQueryFetch(url: string) {
   });
 }
 
-type Tab = "dashboard" | "holes" | "podcasts" | "tools" | "history" | "employees";
+type Tab = "dashboard" | "holes" | "podcasts" | "people" | "relationships" | "tools" | "history" | "employees";
 
 function ValidationPanel() {
   const [selectedHoleId, setSelectedHoleId] = useState<number | null>(null);
@@ -145,6 +146,13 @@ const NAV_SECTIONS: { group: string; items: { id: Tab; label: string; icon: type
     items: [
       { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
       { id: "holes", label: "Investigations", icon: Search },
+    ],
+  },
+  {
+    group: "INTELLIGENCE",
+    items: [
+      { id: "people", label: "People", icon: Users2 },
+      { id: "relationships", label: "Relationships", icon: Link2 },
     ],
   },
   {
@@ -318,6 +326,8 @@ export default function Admin() {
   const tabs: { id: Tab; label: string; visible: boolean }[] = [
     { id: "dashboard", label: "Dashboard", visible: canEditContent },
     { id: "holes", label: "Investigations", visible: canEditContent },
+    { id: "people", label: "People", visible: canEditContent },
+    { id: "relationships", label: "Relationships", visible: canEditContent },
     { id: "podcasts", label: "Podcasts", visible: canEditContent },
     { id: "history", label: "History", visible: canEditContent },
     { id: "tools", label: "Tools", visible: isAdmin },
@@ -456,6 +466,8 @@ export default function Admin() {
                 <>
                   {activeTab === "dashboard" && <EditorialDashboard role={role} />}
                   {activeTab === "holes" && <HolesManager role={role} onEditInvestigation={(id) => { setEditingHoleId(id); setEditingNodeId(null); }} />}
+                  {activeTab === "people" && <PeopleManager role={role} />}
+                  {activeTab === "relationships" && <RelationshipsManager role={role} />}
                   {activeTab === "podcasts" && <PodcastsManager role={role} />}
                   {activeTab === "history" && <HistoryPanel />}
                   {activeTab === "tools" && <ToolsPanel />}
@@ -2727,6 +2739,295 @@ function NodeValidationPanel({ nodeId, holeId, holeSlug }: { nodeId: number; hol
             {healthPercent === 100 ? "NODE COMPLETE" : "NEEDS WORK"}
           </span>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function PeopleManager({ role }: { role: string }) {
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [editData, setEditData] = useState<Partial<Person>>({});
+  const isAdmin = role === "Admin";
+
+  const { data: people = [], isLoading } = useQuery<Person[]>({
+    queryKey: ["/api/admin/people"],
+    queryFn: () => adminFetch("/api/admin/people").then(r => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      const res = await adminFetch("/api/admin/people", { method: "POST", body: JSON.stringify({ fullName: "New Person" }) });
+      if (!res.ok) throw new Error("Failed to create person");
+      return res.json();
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/admin/people"] }); },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Partial<Person> }) => {
+      const res = await adminFetch(`/api/admin/people/${id}`, { method: "PUT", body: JSON.stringify(data) });
+      if (!res.ok) throw new Error("Failed to update person");
+      return res.json();
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/admin/people"] }); },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await adminFetch(`/api/admin/people/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete person");
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/admin/people"] }); },
+  });
+
+  const toggleExpand = (person: Person) => {
+    if (expandedId === person.id) {
+      setExpandedId(null);
+      setEditData({});
+    } else {
+      setExpandedId(person.id);
+      setEditData({ fullName: person.fullName, aliases: person.aliases, description: person.description, birthDate: person.birthDate, deathDate: person.deathDate, status: person.status, tags: person.tags });
+    }
+  };
+
+  if (isLoading) return <div className="flex items-center justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>;
+
+  return (
+    <div data-testid="admin-people-manager" className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Users2 className="w-4 h-4 text-primary" />
+          <h2 className="font-mono text-xs uppercase tracking-wider">People</h2>
+          <span className="font-mono text-[10px] text-muted-foreground">({people.length})</span>
+        </div>
+        <button
+          onClick={() => createMutation.mutate()}
+          disabled={createMutation.isPending}
+          className="flex items-center gap-2 bg-primary/10 border border-primary/30 text-primary font-mono text-xs uppercase px-3 py-1.5 hover:bg-primary/20 transition-colors disabled:opacity-50"
+          data-testid="button-add-person"
+        >
+          {createMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />} ADD PERSON
+        </button>
+      </div>
+
+      <div className="space-y-2">
+        {people.map(person => (
+          <div key={person.id} className="border border-white/10 bg-white/5" data-testid={`person-row-${person.id}`}>
+            <button
+              onClick={() => toggleExpand(person)}
+              className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-white/5 transition-colors"
+              data-testid={`button-expand-person-${person.id}`}
+            >
+              <div className="flex items-center gap-3">
+                <Users2 className="w-4 h-4 text-primary/60" />
+                <span className="font-mono text-sm">{person.fullName}</span>
+                {person.tags && (person.tags as string[]).length > 0 && (
+                  <div className="flex gap-1">
+                    {(person.tags as string[]).slice(0, 3).map(tag => (
+                      <span key={tag} className="font-mono text-[10px] bg-primary/10 text-primary px-1.5 py-0.5">{tag}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                <span className={`font-mono text-[10px] px-2 py-0.5 ${person.status === "Published" ? "bg-green-500/10 text-green-500" : person.status === "Review" ? "bg-yellow-500/10 text-yellow-500" : "bg-white/10 text-muted-foreground"}`}>
+                  {person.status}
+                </span>
+                <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform ${expandedId === person.id ? "rotate-90" : ""}`} />
+              </div>
+            </button>
+
+            {expandedId === person.id && (
+              <div className="border-t border-white/10 px-4 py-4 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <FormInput label="Full Name" required value={editData.fullName || ""} onChange={e => setEditData(d => ({ ...d, fullName: e.target.value }))} data-testid={`input-person-name-${person.id}`} />
+                  <FormInput label="Aliases" value={editData.aliases || ""} onChange={e => setEditData(d => ({ ...d, aliases: e.target.value }))} data-testid={`input-person-aliases-${person.id}`} />
+                </div>
+                <FormTextarea label="Description" rows={3} value={editData.description || ""} onChange={e => setEditData(d => ({ ...d, description: e.target.value }))} data-testid={`input-person-description-${person.id}`} />
+                <div className="grid grid-cols-3 gap-4">
+                  <FormInput label="Birth Date" value={editData.birthDate || ""} onChange={e => setEditData(d => ({ ...d, birthDate: e.target.value }))} data-testid={`input-person-birth-${person.id}`} />
+                  <FormInput label="Death Date" value={editData.deathDate || ""} onChange={e => setEditData(d => ({ ...d, deathDate: e.target.value }))} data-testid={`input-person-death-${person.id}`} />
+                  <FormSelect label="Status" value={editData.status || "Draft"} onChange={e => setEditData(d => ({ ...d, status: e.target.value }))} data-testid={`select-person-status-${person.id}`}>
+                    <option value="Draft">Draft</option>
+                    <option value="Review">Review</option>
+                    <option value="Published">Published</option>
+                  </FormSelect>
+                </div>
+                <FormInput label="Tags (comma-separated)" value={(editData.tags as string[] || []).join(", ")} onChange={e => setEditData(d => ({ ...d, tags: e.target.value.split(",").map(t => t.trim()).filter(Boolean) }))} data-testid={`input-person-tags-${person.id}`} />
+                <div className="flex items-center gap-2 pt-2">
+                  <button
+                    onClick={() => { updateMutation.mutate({ id: person.id, data: editData }); }}
+                    disabled={updateMutation.isPending}
+                    className="flex items-center gap-2 bg-primary/10 border border-primary/30 text-primary font-mono text-xs uppercase px-3 py-1.5 hover:bg-primary/20 transition-colors disabled:opacity-50"
+                    data-testid={`button-save-person-${person.id}`}
+                  >
+                    {updateMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} SAVE
+                  </button>
+                  {isAdmin && (
+                    <button
+                      onClick={() => { if (confirm("Delete this person?")) deleteMutation.mutate(person.id); }}
+                      disabled={deleteMutation.isPending}
+                      className="flex items-center gap-2 bg-red-500/10 border border-red-500/30 text-red-500 font-mono text-xs uppercase px-3 py-1.5 hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                      data-testid={`button-delete-person-${person.id}`}
+                    >
+                      {deleteMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />} DELETE
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+        {people.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground font-mono text-xs">NO PEOPLE ADDED YET</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RelationshipsManager({ role }: { role: string }) {
+  const isAdmin = role === "Admin";
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({ fromType: "person", fromId: 0, toType: "person", toId: 0, relationshipType: RELATIONSHIP_TYPES[0] as string, status: "Draft" });
+
+  const { data: relationshipsList = [], isLoading } = useQuery<Relationship[]>({
+    queryKey: ["/api/admin/relationships"],
+    queryFn: () => adminFetch("/api/admin/relationships").then(r => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
+  });
+
+  const { data: people = [] } = useQuery<Person[]>({
+    queryKey: ["/api/admin/people"],
+    queryFn: () => adminFetch("/api/admin/people").then(r => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
+  });
+
+  const { data: holes = [] } = useQuery<RabbitHole[]>({
+    queryKey: ["/api/holes?admin=true"],
+    queryFn: () => adminQueryFetch("/api/holes"),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (data: typeof formData) => {
+      const res = await adminFetch("/api/admin/relationships", { method: "POST", body: JSON.stringify(data) });
+      if (!res.ok) throw new Error("Failed to create relationship");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/relationships"] });
+      setShowForm(false);
+      setFormData({ fromType: "person", fromId: 0, toType: "person", toId: 0, relationshipType: RELATIONSHIP_TYPES[0], status: "Draft" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await adminFetch(`/api/admin/relationships/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete relationship");
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/admin/relationships"] }); },
+  });
+
+  const getEntityName = (type: string, id: number) => {
+    if (type === "person") return people.find(p => p.id === id)?.fullName || `Person #${id}`;
+    if (type === "case") return holes.find(h => h.id === id)?.title || `Case #${id}`;
+    return `#${id}`;
+  };
+
+  const fromOptions = formData.fromType === "person" ? people.map(p => ({ id: p.id, label: p.fullName })) : holes.map(h => ({ id: h.id, label: h.title }));
+  const toOptions = formData.toType === "person" ? people.map(p => ({ id: p.id, label: p.fullName })) : holes.map(h => ({ id: h.id, label: h.title }));
+
+  if (isLoading) return <div className="flex items-center justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>;
+
+  return (
+    <div data-testid="admin-relationships-manager" className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Link2 className="w-4 h-4 text-primary" />
+          <h2 className="font-mono text-xs uppercase tracking-wider">Relationships</h2>
+          <span className="font-mono text-[10px] text-muted-foreground">({relationshipsList.length})</span>
+        </div>
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className="flex items-center gap-2 bg-primary/10 border border-primary/30 text-primary font-mono text-xs uppercase px-3 py-1.5 hover:bg-primary/20 transition-colors"
+          data-testid="button-add-relationship"
+        >
+          {showForm ? <X className="w-3 h-3" /> : <Plus className="w-3 h-3" />} {showForm ? "CANCEL" : "ADD RELATIONSHIP"}
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="border border-primary/20 bg-primary/5 p-4 space-y-4" data-testid="relationship-form">
+          <div className="grid grid-cols-2 gap-4">
+            <FormSelect label="From Type" value={formData.fromType} onChange={e => setFormData(d => ({ ...d, fromType: e.target.value, fromId: 0 }))} data-testid="select-rel-from-type">
+              <option value="person">Person</option>
+              <option value="case">Case</option>
+            </FormSelect>
+            <FormSelect label="From" value={formData.fromId} onChange={e => setFormData(d => ({ ...d, fromId: parseInt(e.target.value) }))} data-testid="select-rel-from-id">
+              <option value={0}>Select...</option>
+              {fromOptions.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+            </FormSelect>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <FormSelect label="To Type" value={formData.toType} onChange={e => setFormData(d => ({ ...d, toType: e.target.value, toId: 0 }))} data-testid="select-rel-to-type">
+              <option value="person">Person</option>
+              <option value="case">Case</option>
+            </FormSelect>
+            <FormSelect label="To" value={formData.toId} onChange={e => setFormData(d => ({ ...d, toId: parseInt(e.target.value) }))} data-testid="select-rel-to-id">
+              <option value={0}>Select...</option>
+              {toOptions.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+            </FormSelect>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <FormSelect label="Relationship Type" value={formData.relationshipType} onChange={e => setFormData(d => ({ ...d, relationshipType: e.target.value }))} data-testid="select-rel-type">
+              {RELATIONSHIP_TYPES.map(t => <option key={t} value={t}>{t.replace(/_/g, " ")}</option>)}
+            </FormSelect>
+            <FormSelect label="Status" value={formData.status} onChange={e => setFormData(d => ({ ...d, status: e.target.value }))} data-testid="select-rel-status">
+              <option value="Draft">Draft</option>
+              <option value="Review">Review</option>
+              <option value="Published">Published</option>
+            </FormSelect>
+          </div>
+          <button
+            onClick={() => { if (formData.fromId && formData.toId) createMutation.mutate(formData); }}
+            disabled={createMutation.isPending || !formData.fromId || !formData.toId}
+            className="flex items-center gap-2 bg-primary/10 border border-primary/30 text-primary font-mono text-xs uppercase px-3 py-1.5 hover:bg-primary/20 transition-colors disabled:opacity-50"
+            data-testid="button-save-relationship"
+          >
+            {createMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} CREATE RELATIONSHIP
+          </button>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        {relationshipsList.map(rel => (
+          <div key={rel.id} className="border border-white/10 bg-white/5 px-4 py-3 flex items-center justify-between" data-testid={`relationship-row-${rel.id}`}>
+            <div className="flex items-center gap-3">
+              <Link2 className="w-4 h-4 text-primary/60" />
+              <span className="font-mono text-sm">{getEntityName(rel.fromType, rel.fromId)}</span>
+              <span className="font-mono text-[10px] text-primary">→</span>
+              <span className="font-mono text-sm">{getEntityName(rel.toType, rel.toId)}</span>
+              <span className="font-mono text-[10px] bg-white/10 text-muted-foreground px-1.5 py-0.5">{rel.relationshipType.replace(/_/g, " ")}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className={`font-mono text-[10px] px-2 py-0.5 ${rel.status === "Published" ? "bg-green-500/10 text-green-500" : rel.status === "Review" ? "bg-yellow-500/10 text-yellow-500" : "bg-white/10 text-muted-foreground"}`}>
+                {rel.status}
+              </span>
+              {isAdmin && (
+                <button
+                  onClick={() => { if (confirm("Delete this relationship?")) deleteMutation.mutate(rel.id); }}
+                  disabled={deleteMutation.isPending}
+                  className="text-red-500/60 hover:text-red-500 transition-colors"
+                  data-testid={`button-delete-relationship-${rel.id}`}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+        {relationshipsList.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground font-mono text-xs">NO RELATIONSHIPS ADDED YET</div>
+        )}
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertCommentSchema, insertDepthNodeSchema, insertClaimSchema, insertSourceSchema, insertCategorySchema, insertRabbitHoleSchema, insertMediaSchema, insertPodcastSchema, insertPodcastEpisodeSchema, insertRabbitHolePodcastEpisodeSchema, insertSponsoredPodcastSlotSchema, insertCreatorSchema, insertStreamSchema, insertStreamReplaySchema, insertLiveChatMessageSchema, insertChatModerationActionSchema } from "@shared/schema";
+import { insertCommentSchema, insertDepthNodeSchema, insertClaimSchema, insertSourceSchema, insertCategorySchema, insertRabbitHoleSchema, insertMediaSchema, insertPodcastSchema, insertPodcastEpisodeSchema, insertRabbitHolePodcastEpisodeSchema, insertSponsoredPodcastSlotSchema, insertCreatorSchema, insertStreamSchema, insertStreamReplaySchema, insertLiveChatMessageSchema, insertChatModerationActionSchema, insertPersonSchema, insertRelationshipSchema } from "@shared/schema";
 import { ZodError } from "zod";
 import bcrypt from "bcryptjs";
 import type { Employee } from "@shared/schema";
@@ -386,9 +386,11 @@ export async function registerRoutes(
   app.get("/api/search", async (req, res) => {
     try {
       const q = (req.query.q as string) || "";
-      if (!q.trim()) return res.json({ holes: [], sources: [], claims: [] });
+      if (!q.trim()) return res.json({ holes: [], sources: [], claims: [], people: [] });
       const results = await storage.search(q.trim());
-      res.json(results);
+      const matchedPeople = await storage.searchPeople(q.trim());
+      const filteredPeople = req.session.employeeId ? matchedPeople : matchedPeople.filter(p => p.status === "Published");
+      res.json({ ...results, people: filteredPeople });
     } catch (err) {
       res.status(500).json({ message: "Search failed" });
     }
@@ -1059,6 +1061,147 @@ export async function registerRoutes(
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: "Failed to delete sponsored slot" });
+    }
+  });
+
+  // ===== ADMIN PEOPLE ENDPOINTS =====
+
+  app.get("/api/admin/people", requireEmployee, async (req, res) => {
+    try {
+      const allPeople = await storage.getAllPeople();
+      res.json(allPeople);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch people" });
+    }
+  });
+
+  app.get("/api/admin/people/:id", requireEmployee, async (req, res) => {
+    try {
+      const person = await storage.getPerson(parseInt(req.params.id));
+      if (!person) return res.status(404).json({ message: "Person not found" });
+      res.json(person);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch person" });
+    }
+  });
+
+  app.post("/api/admin/people", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
+    try {
+      const data = insertPersonSchema.parse({ ...req.body, createdByEmployeeId: req.session.employeeId, updatedByEmployeeId: req.session.employeeId });
+      const person = await storage.createPerson(data);
+      res.status(201).json(person);
+    } catch (err) {
+      if (err instanceof ZodError) return res.status(400).json({ message: "Validation failed", errors: err.errors });
+      res.status(500).json({ message: "Failed to create person" });
+    }
+  });
+
+  app.put("/api/admin/people/:id", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
+    try {
+      const updated = await storage.updatePerson(parseInt(req.params.id), { ...req.body, updatedByEmployeeId: req.session.employeeId });
+      if (!updated) return res.status(404).json({ message: "Person not found" });
+      res.json(updated);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to update person" });
+    }
+  });
+
+  app.delete("/api/admin/people/:id", requireEmployee, requireRole("Admin"), async (req, res) => {
+    try {
+      const deleted = await storage.deletePerson(parseInt(req.params.id));
+      if (!deleted) return res.status(404).json({ message: "Person not found" });
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ message: "Failed to delete person" });
+    }
+  });
+
+  // ===== ADMIN RELATIONSHIPS ENDPOINTS =====
+
+  app.get("/api/admin/relationships", requireEmployee, async (req, res) => {
+    try {
+      const allRels = await storage.getAllRelationships();
+      res.json(allRels);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch relationships" });
+    }
+  });
+
+  app.post("/api/admin/relationships", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
+    try {
+      const data = insertRelationshipSchema.parse({ ...req.body, createdByEmployeeId: req.session.employeeId, updatedByEmployeeId: req.session.employeeId });
+      const rel = await storage.createRelationship(data);
+      res.status(201).json(rel);
+    } catch (err) {
+      if (err instanceof ZodError) return res.status(400).json({ message: "Validation failed", errors: err.errors });
+      res.status(500).json({ message: "Failed to create relationship" });
+    }
+  });
+
+  app.put("/api/admin/relationships/:id", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
+    try {
+      const updated = await storage.updateRelationship(parseInt(req.params.id), { ...req.body, updatedByEmployeeId: req.session.employeeId });
+      if (!updated) return res.status(404).json({ message: "Relationship not found" });
+      res.json(updated);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to update relationship" });
+    }
+  });
+
+  app.delete("/api/admin/relationships/:id", requireEmployee, requireRole("Admin"), async (req, res) => {
+    try {
+      const deleted = await storage.deleteRelationship(parseInt(req.params.id));
+      if (!deleted) return res.status(404).json({ message: "Relationship not found" });
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ message: "Failed to delete relationship" });
+    }
+  });
+
+  // ===== PUBLIC PEOPLE ENDPOINTS =====
+
+  app.get("/api/people", async (req, res) => {
+    try {
+      const publishedPeople = await storage.getPublishedPeople();
+      res.json(publishedPeople);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch people" });
+    }
+  });
+
+  app.get("/api/people/:id", async (req, res) => {
+    try {
+      const person = await storage.getPerson(parseInt(req.params.id));
+      if (!person) return res.status(404).json({ message: "Person not found" });
+      if (person.status !== "Published" && !req.session.employeeId) return res.status(404).json({ message: "Person not found" });
+      res.json(person);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch person" });
+    }
+  });
+
+  app.get("/api/people/:id/relationships", async (req, res) => {
+    try {
+      const person = await storage.getPerson(parseInt(req.params.id));
+      if (!person) return res.status(404).json({ message: "Person not found" });
+      if (person.status !== "Published" && !req.session.employeeId) return res.status(404).json({ message: "Person not found" });
+      const rels = await storage.getRelationshipsForEntity("person", person.id);
+      const filtered = req.session.employeeId ? rels : rels.filter(r => r.status === "Published");
+      res.json(filtered);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch relationships" });
+    }
+  });
+
+  app.get("/api/relationships", async (req, res) => {
+    try {
+      if (req.session.employeeId) {
+        res.json(await storage.getAllRelationships());
+      } else {
+        res.json(await storage.getPublishedRelationships());
+      }
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch relationships" });
     }
   });
 

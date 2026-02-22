@@ -1,0 +1,205 @@
+Upgrade the Connections Graph into a structured multi-entity intelligence system with People + Family Trees + Static Graph Behavior.
+
+DO NOT break existing investigations/cases.
+Extend the system cleanly.
+
+========================================
+GOALS
+========================================
+
+1) Add “People” as a searchable entity.
+2) Support typed relationships:
+   - Person ↔ Person (family)
+   - Person ↔ Case/Event
+   - Case/Event ↔ Case/Event
+3) People render smaller than cases/events.
+4) Connections graph must NOT continuously float or simulate physics.
+   Nodes should remain static unless manually dragged.
+5) Add Family Tree view mode.
+
+========================================
+PART 1 — Data Model
+========================================
+
+Add:
+
+TABLE: people
+- id (uuid)
+- full_name (required)
+- aliases (optional)
+- birth_date (optional)
+- death_date (optional)
+- description (optional)
+- tags (optional)
+- status (Draft/Review/Published)
+- created_by_employee_id
+- updated_by_employee_id
+- created_at
+- updated_at
+
+TABLE: relationships
+- id (uuid)
+- from_type (person|case|event)
+- from_id
+- to_type (person|case|event)
+- to_id
+- relationship_type (enum)
+- label (optional)
+- confidence (optional)
+- source_ids (optional)
+- status (Draft/Review/Published)
+- created_by_employee_id
+- updated_by_employee_id
+- created_at
+- updated_at
+
+Required relationship types:
+Person ↔ Person:
+- parent_of
+- child_of
+- spouse_of
+- sibling_of
+
+Person ↔ Case/Event:
+- involved_in
+- mentioned_in
+- witness_in
+- suspect_in
+- victim_in
+- associate_of
+
+Case/Event ↔ Case/Event:
+- connected_to
+
+========================================
+PART 2 — Search Integration
+========================================
+
+Update global search:
+- Include people.
+- Show type badge: PERSON vs CASE/EVENT.
+- Clicking person opens /people/:id.
+
+========================================
+PART 3 — Person Detail Page
+========================================
+
+Create /people/:id page:
+- Name + aliases
+- Bio
+- Related cases/events (grouped by relationship type)
+- Family section (parents/spouse/children/siblings)
+- Optional sources
+
+========================================
+PART 4 — Graph View Upgrade
+========================================
+
+Multi-type nodes:
+
+CASE/EVENT:
+- Normal size (primary node)
+- Stronger visual weight
+
+PERSON:
+- Smaller (~60% size)
+- Smaller label
+- Lower visual weight
+
+Edges:
+- Show relationship_type on hover
+- Family edges thinner or slightly dashed
+- Case-event edges solid
+
+Add filters:
+- Toggle People on/off
+- Toggle Family edges
+- Filter by relationship type
+
+Click behavior:
+- Case → open investigation
+- Person → open person detail
+
+========================================
+PART 5 — STATIC GRAPH BEHAVIOR (CRITICAL)
+========================================
+
+The graph must NOT continuously float or simulate physics.
+
+Requirements:
+
+1) Disable continuous force simulation after initial layout.
+2) On initial render:
+   - Run layout algorithm once.
+   - Freeze node positions.
+3) Nodes should only move if manually dragged by the user.
+4) When a node is dragged:
+   - Persist its x/y position (store in DB or local cache per graph context).
+5) On reload:
+   - Use saved positions.
+6) Remove drifting, bouncing, or constant motion.
+7) Optional: Add "Reset Layout" button to recompute layout once.
+
+Graph must feel stable like a military planning board, not a floating physics demo.
+
+========================================
+PART 6 — Family Tree Mode
+========================================
+
+Add view toggle:
+
+[ Graph View ] [ Family Tree Mode ]
+
+Family Tree Mode:
+- Center on selected person.
+- Parents above.
+- Children below.
+- Spouse beside.
+- Siblings grouped.
+- Static layout (no physics).
+- Expandable nodes.
+
+========================================
+PART 7 — Admin Tools
+========================================
+
+Add:
+- /admin/people
+- /admin/relationships
+
+People editor:
+- Create/edit person
+- Status workflow
+
+Relationship editor:
+- Create relationship by selecting:
+  - from node
+  - relationship type
+  - to node
+- Quick family buttons:
+  - Add Parent
+  - Add Child
+  - Add Spouse
+  - Add Sibling
+
+========================================
+PART 8 — Publishing Rules
+========================================
+
+Public graph:
+- Only Published people
+- Only Published relationships
+
+Admin preview:
+- Can view Draft/Review
+
+========================================
+OUTPUT REQUIRED
+========================================
+
+1) DB changes made
+2) API routes added
+3) Admin pages added
+4) Confirmation people render smaller than cases
+5) Confirmation graph no longer floats and remains static
+6) Confirmation drag-to-move works and persists
