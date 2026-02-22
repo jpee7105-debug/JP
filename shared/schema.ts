@@ -27,6 +27,8 @@ export const rabbitHoles = pgTable("rabbit_holes", {
   timeline: jsonb("timeline").$type<{ year: string; event: string; type: string }[]>().default([]).notNull(),
   labels: jsonb("labels").$type<string[]>().default([]).notNull(),
   connectedSlugs: jsonb("connected_slugs").$type<string[]>().default([]).notNull(),
+  graphX: integer("graph_x"),
+  graphY: integer("graph_y"),
 });
 
 export const depthNodes = pgTable("depth_nodes", {

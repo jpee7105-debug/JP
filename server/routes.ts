@@ -1158,6 +1158,31 @@ export async function registerRoutes(
     }
   });
 
+  // ===== GRAPH POSITION ENDPOINTS =====
+
+  app.patch("/api/admin/graph-positions", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
+    try {
+      const { positions } = req.body as { positions: { type: string; id: number; x: number; y: number }[] };
+      if (!Array.isArray(positions) || positions.length === 0) {
+        return res.status(400).json({ message: "positions array required" });
+      }
+
+      for (const p of positions) {
+        if (!p.type || !p.id || typeof p.x !== "number" || typeof p.y !== "number") continue;
+        if (p.type !== "case" && p.type !== "person") continue;
+
+        if (p.type === "case") {
+          await storage.updateHole(p.id, { graphX: Math.round(p.x), graphY: Math.round(p.y) } as any);
+        } else {
+          await storage.updatePerson(p.id, { graphX: Math.round(p.x), graphY: Math.round(p.y) });
+        }
+      }
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ message: "Failed to update positions" });
+    }
+  });
+
   // ===== PUBLIC PEOPLE ENDPOINTS =====
 
   app.get("/api/people", async (req, res) => {

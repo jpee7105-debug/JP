@@ -1,30 +1,29 @@
-import { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useCallback, useMemo, memo, useEffect, useRef } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
-import { Network, Loader2, ExternalLink, ChevronDown, RotateCcw, Users, GitFork, Eye, EyeOff } from "lucide-react";
+import { Network, Loader2, ExternalLink, ChevronDown, RotateCcw, Users, GitFork, Eye, EyeOff, Map } from "lucide-react";
 import type { RabbitHole, Person, Relationship } from "@shared/schema";
 import { FAMILY_RELATIONSHIP_TYPES } from "@shared/schema";
-
-interface GraphNode {
-  id: string;
-  entityType: "case" | "person";
-  entityId: number;
-  slug?: string;
-  title: string;
-  status: string;
-  labels: string[];
-  sourceCount: number;
-  connections: number;
-  x: number;
-  y: number;
-}
-
-interface GraphEdge {
-  source: string;
-  target: string;
-  relationshipType: string;
-  isFamily: boolean;
-}
+import {
+  ReactFlow,
+  Background,
+  MiniMap,
+  Controls,
+  useNodesState,
+  useEdgesState,
+  type Node,
+  type Edge,
+  type NodeProps,
+  type EdgeProps,
+  type OnNodesChange,
+  type NodeChange,
+  Handle,
+  Position,
+  getBezierPath,
+  useReactFlow,
+  ReactFlowProvider,
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
 
 type ViewMode = "graph" | "family" | "timeline";
 
@@ -36,20 +35,6 @@ function getInitialViewMode(): ViewMode {
   return "graph";
 }
 
-function getSavedPositions(): Record<string, { x: number; y: number }> {
-  try {
-    const stored = localStorage.getItem("graph-positions");
-    if (stored) return JSON.parse(stored);
-  } catch {}
-  return {};
-}
-
-function savePositions(positions: Record<string, { x: number; y: number }>) {
-  try {
-    localStorage.setItem("graph-positions", JSON.stringify(positions));
-  } catch {}
-}
-
 function labelColor(label: string) {
   switch (label) {
     case "Verified": return "#4ade80";
@@ -59,160 +44,570 @@ function labelColor(label: string) {
   }
 }
 
-function computeForceLayout(
-  nodes: GraphNode[],
-  edges: GraphEdge[],
-  width: number,
-  height: number,
-  iterations = 120
-): void {
-  const cx = width / 2;
-  const cy = height / 2;
+const CaseNode = memo(({ data, selected }: NodeProps) => {
+  const isHovered = data.isHovered as boolean;
+  const highlight = selected || isHovered;
+  const size = highlight ? 52 : 44;
+  const half = size / 2;
 
-  for (let iter = 0; iter < iterations; iter++) {
-    const alpha = 1 - iter / iterations;
-    const vx = new Float64Array(nodes.length);
-    const vy = new Float64Array(nodes.length);
+  return (
+    <div
+      data-testid={`node-case-${data.entityId}`}
+      style={{ width: size, height: size, position: "relative", cursor: "pointer" }}
+    >
+      <Handle type="target" position={Position.Top} style={{ opacity: 0, pointerEvents: "none" }} />
+      <Handle type="source" position={Position.Bottom} style={{ opacity: 0, pointerEvents: "none" }} />
 
-    for (let i = 0; i < nodes.length; i++) {
-      for (let j = i + 1; j < nodes.length; j++) {
-        let dx = nodes[j].x - nodes[i].x;
-        let dy = nodes[j].y - nodes[i].y;
-        let dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        let force = 3000 / (dist * dist);
-        vx[i] -= (dx / dist) * force;
-        vy[i] -= (dy / dist) * force;
-        vx[j] += (dx / dist) * force;
-        vy[j] += (dy / dist) * force;
+      {highlight && (
+        <div
+          style={{
+            position: "absolute",
+            inset: -8,
+            background: "radial-gradient(circle, rgba(139,0,0,0.35) 0%, transparent 70%)",
+            borderRadius: "50%",
+          }}
+        />
+      )}
+
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ position: "absolute", top: 0, left: 0 }}>
+        <polygon
+          points={`${half},2 ${size - 2},${half} ${half},${size - 2} 2,${half}`}
+          fill="#1a1c1e"
+          stroke={highlight ? "#8B0000" : "rgba(139,0,0,0.4)"}
+          strokeWidth={highlight ? 2 : 1}
+        />
+      </svg>
+
+      <div
+        style={{
+          position: "absolute",
+          bottom: -18,
+          left: "50%",
+          transform: "translateX(-50%)",
+          whiteSpace: "nowrap",
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: "9px",
+          color: highlight ? "#e0e0e0" : "rgba(255,255,255,0.6)",
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
+          textAlign: "center",
+          pointerEvents: "none",
+        }}
+      >
+        {(data.label as string).length > 16 ? (data.label as string).slice(0, 14) + ".." : data.label as string}
+      </div>
+    </div>
+  );
+});
+CaseNode.displayName = "CaseNode";
+
+const PersonNode = memo(({ data, selected }: NodeProps) => {
+  const isHovered = data.isHovered as boolean;
+  const highlight = selected || isHovered;
+  const size = highlight ? 32 : 28;
+
+  return (
+    <div
+      data-testid={`node-person-${data.entityId}`}
+      style={{ width: size, height: size, position: "relative", cursor: "pointer" }}
+    >
+      <Handle type="target" position={Position.Top} style={{ opacity: 0, pointerEvents: "none" }} />
+      <Handle type="source" position={Position.Bottom} style={{ opacity: 0, pointerEvents: "none" }} />
+
+      {highlight && (
+        <div
+          style={{
+            position: "absolute",
+            inset: -8,
+            background: "radial-gradient(circle, rgba(59,130,246,0.35) 0%, transparent 70%)",
+            borderRadius: "50%",
+          }}
+        />
+      )}
+
+      <div
+        style={{
+          width: size,
+          height: size,
+          borderRadius: "50%",
+          background: "#1a1c1e",
+          border: `${highlight ? 2 : 1}px solid ${highlight ? "#3b82f6" : "rgba(59,130,246,0.4)"}`,
+          boxSizing: "border-box",
+        }}
+      />
+
+      <div
+        className="node-label-person"
+        style={{
+          position: "absolute",
+          bottom: -16,
+          left: "50%",
+          transform: "translateX(-50%)",
+          whiteSpace: "nowrap",
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: "8px",
+          color: highlight ? "#e0e0e0" : "rgba(255,255,255,0.5)",
+          textTransform: "uppercase",
+          letterSpacing: "0.03em",
+          textAlign: "center",
+          pointerEvents: "none",
+        }}
+      >
+        {(data.label as string).length > 12 ? (data.label as string).slice(0, 10) + ".." : data.label as string}
+      </div>
+    </div>
+  );
+});
+PersonNode.displayName = "PersonNode";
+
+const RelationshipEdge = memo(({
+  id, sourceX, sourceY, targetX, targetY,
+  sourcePosition, targetPosition, data, style,
+}: EdgeProps) => {
+  const isFamily = data?.isFamily as boolean;
+  const isHovered = data?.isHovered as boolean;
+
+  const [edgePath, labelX, labelY] = getBezierPath({
+    sourceX, sourceY, targetX, targetY,
+    sourcePosition, targetPosition,
+  });
+
+  return (
+    <>
+      <path
+        id={id}
+        d={edgePath}
+        fill="none"
+        stroke={isHovered ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.12)"}
+        strokeWidth={isHovered ? 2 : (isFamily ? 0.8 : 1)}
+        strokeDasharray={isFamily ? "5,5" : undefined}
+        style={style}
+      />
+      {isHovered && data?.relationshipType && (
+        <foreignObject
+          x={labelX - 60}
+          y={labelY - 10}
+          width={120}
+          height={20}
+          style={{ overflow: "visible", pointerEvents: "none" }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <span
+              style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: "9px",
+                color: "rgba(255,255,255,0.7)",
+                backgroundColor: "rgba(14,14,14,0.95)",
+                padding: "2px 6px",
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {(data.relationshipType as string).replace(/_/g, " ")}
+            </span>
+          </div>
+        </foreignObject>
+      )}
+    </>
+  );
+});
+RelationshipEdge.displayName = "RelationshipEdge";
+
+const nodeTypes = { caseNode: CaseNode, personNode: PersonNode };
+const edgeTypes = { relationship: RelationshipEdge };
+
+function computeInitialLayout(
+  caseNodes: { id: string; entityId: number; label: string; graphX?: number | null; graphY?: number | null }[],
+  personNodes: { id: string; entityId: number; label: string; graphX?: number | null; graphY?: number | null }[],
+  edges: { source: string; target: string; relationshipType: string; isFamily: boolean }[]
+): Node[] {
+  const rfNodes: Node[] = [];
+  const cx = 600;
+  const cy = 400;
+
+  caseNodes.forEach((c, i) => {
+    const hasPos = c.graphX != null && c.graphY != null;
+    const angle = (2 * Math.PI * i) / Math.max(caseNodes.length, 1) - Math.PI / 2;
+    const radius = 280;
+    rfNodes.push({
+      id: c.id,
+      type: "caseNode",
+      position: {
+        x: hasPos ? c.graphX! : cx + radius * Math.cos(angle),
+        y: hasPos ? c.graphY! : cy + radius * Math.sin(angle),
+      },
+      data: { label: c.label, entityId: c.entityId, entityType: "case", isHovered: false },
+    });
+  });
+
+  personNodes.forEach((p, i) => {
+    const hasPos = p.graphX != null && p.graphY != null;
+    const angle = (2 * Math.PI * i) / Math.max(personNodes.length, 1);
+    const radius = 180;
+    rfNodes.push({
+      id: p.id,
+      type: "personNode",
+      position: {
+        x: hasPos ? p.graphX! : cx + radius * Math.cos(angle),
+        y: hasPos ? p.graphY! : cy + radius * Math.sin(angle),
+      },
+      data: { label: p.label, entityId: p.entityId, entityType: "person", isHovered: false },
+    });
+  });
+
+  return rfNodes;
+}
+
+function computeFamilyLayout(
+  people: Person[],
+  relationships: Relationship[],
+  centeredId?: number
+): Node[] {
+  const center = centeredId ? people.find(p => p.id === centeredId) || people[0] : people[0];
+  if (!center) return [];
+
+  const familyRels = relationships.filter(r =>
+    (FAMILY_RELATIONSHIP_TYPES as readonly string[]).includes(r.relationshipType) &&
+    r.fromType === "person" && r.toType === "person"
+  );
+
+  const parents: Person[] = [];
+  const children: Person[] = [];
+  const spouses: Person[] = [];
+  const siblings: Person[] = [];
+  const others: Person[] = [];
+
+  for (const p of people) {
+    if (p.id === center.id) continue;
+    const rel = familyRels.find(
+      r => (r.fromId === center.id && r.toId === p.id) || (r.toId === center.id && r.fromId === p.id)
+    );
+    if (!rel) { others.push(p); continue; }
+    const type = rel.relationshipType;
+    if (type === "parent_of" && rel.fromId === p.id) parents.push(p);
+    else if (type === "parent_of" && rel.toId === p.id) children.push(p);
+    else if (type === "child_of" && rel.fromId === p.id) children.push(p);
+    else if (type === "child_of" && rel.toId === p.id) parents.push(p);
+    else if (type === "spouse_of") spouses.push(p);
+    else if (type === "sibling_of") siblings.push(p);
+    else others.push(p);
+  }
+
+  const cx = 500;
+  const cy = 400;
+  const spacing = 140;
+  const nodes: Node[] = [];
+
+  nodes.push({
+    id: `person-${center.id}`,
+    type: "personNode",
+    position: { x: cx, y: cy },
+    data: { label: center.fullName, entityId: center.id, entityType: "person", isHovered: false },
+  });
+
+  parents.forEach((p, i) => {
+    nodes.push({
+      id: `person-${p.id}`,
+      type: "personNode",
+      position: { x: cx + (i - (parents.length - 1) / 2) * spacing, y: cy - spacing * 1.5 },
+      data: { label: p.fullName, entityId: p.id, entityType: "person", isHovered: false },
+    });
+  });
+
+  children.forEach((p, i) => {
+    nodes.push({
+      id: `person-${p.id}`,
+      type: "personNode",
+      position: { x: cx + (i - (children.length - 1) / 2) * spacing, y: cy + spacing * 1.5 },
+      data: { label: p.fullName, entityId: p.id, entityType: "person", isHovered: false },
+    });
+  });
+
+  spouses.forEach((p, i) => {
+    nodes.push({
+      id: `person-${p.id}`,
+      type: "personNode",
+      position: { x: cx + spacing * (i + 1), y: cy },
+      data: { label: p.fullName, entityId: p.id, entityType: "person", isHovered: false },
+    });
+  });
+
+  siblings.forEach((p, i) => {
+    nodes.push({
+      id: `person-${p.id}`,
+      type: "personNode",
+      position: { x: cx - spacing * (i + 1), y: cy },
+      data: { label: p.fullName, entityId: p.id, entityType: "person", isHovered: false },
+    });
+  });
+
+  others.forEach((p, i) => {
+    const angle = (2 * Math.PI * i) / Math.max(others.length, 1);
+    nodes.push({
+      id: `person-${p.id}`,
+      type: "personNode",
+      position: { x: cx + Math.cos(angle) * spacing * 2.5, y: cy + Math.sin(angle) * spacing * 2.5 },
+      data: { label: p.fullName, entityId: p.id, entityType: "person", isHovered: false },
+    });
+  });
+
+  return nodes;
+}
+
+function GraphView({
+  holes,
+  people,
+  relationships,
+  showPeople,
+  showFamilyEdges,
+  viewMode,
+  familyCenterId,
+  onNodeClick,
+}: {
+  holes: RabbitHole[];
+  people: Person[];
+  relationships: Relationship[];
+  showPeople: boolean;
+  showFamilyEdges: boolean;
+  viewMode: ViewMode;
+  familyCenterId?: number;
+  onNodeClick: (entityType: string, entityId: number, slug?: string) => void;
+}) {
+  const [hoveredEdge, setHoveredEdge] = useState<string | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const saveMutation = useMutation({
+    mutationFn: async (positions: { type: string; id: number; x: number; y: number }[]) => {
+      const res = await fetch("/api/admin/graph-positions", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ positions }),
+      });
+      return res.ok;
+    },
+  });
+
+  const initialData = useMemo(() => {
+    if (viewMode === "family") {
+      const familyNodes = computeFamilyLayout(people, relationships, familyCenterId);
+      const familyEdges: Edge[] = [];
+      const nodeIdSet = new Set(familyNodes.map(n => n.id));
+
+      relationships.forEach(r => {
+        if (r.fromType !== "person" || r.toType !== "person") return;
+        if (!(FAMILY_RELATIONSHIP_TYPES as readonly string[]).includes(r.relationshipType)) return;
+        const fromId = `person-${r.fromId}`;
+        const toId = `person-${r.toId}`;
+        if (!nodeIdSet.has(fromId) || !nodeIdSet.has(toId)) return;
+
+        familyEdges.push({
+          id: `rel-${r.id}`,
+          source: fromId,
+          target: toId,
+          type: "relationship",
+          data: { relationshipType: r.relationshipType, isFamily: true, isHovered: false },
+        });
+      });
+
+      return { nodes: familyNodes, edges: familyEdges };
+    }
+
+    const caseData = holes.map(h => ({
+      id: `case-${h.id}`,
+      entityId: h.id,
+      label: h.title,
+      graphX: (h as any).graphX as number | null | undefined,
+      graphY: (h as any).graphY as number | null | undefined,
+    }));
+
+    const personData = people.map(p => ({
+      id: `person-${p.id}`,
+      entityId: p.id,
+      label: p.fullName,
+      graphX: p.graphX,
+      graphY: p.graphY,
+    }));
+
+    const allEdgesRaw: { source: string; target: string; relationshipType: string; isFamily: boolean }[] = [];
+    const slugToId: Record<string, string> = {};
+    holes.forEach(h => { slugToId[h.slug] = `case-${h.id}`; });
+
+    holes.forEach(h => {
+      const connected = (h.connectedSlugs as string[]) || [];
+      connected.forEach(cs => {
+        const sourceId = `case-${h.id}`;
+        const targetId = slugToId[cs];
+        if (targetId && !allEdgesRaw.find(e =>
+          (e.source === sourceId && e.target === targetId) ||
+          (e.source === targetId && e.target === sourceId)
+        )) {
+          allEdgesRaw.push({ source: sourceId, target: targetId, relationshipType: "connected", isFamily: false });
+        }
+      });
+    });
+
+    relationships.forEach(r => {
+      const fromId = r.fromType === "person" ? `person-${r.fromId}` : `case-${r.fromId}`;
+      const toId = r.toType === "person" ? `person-${r.toId}` : `case-${r.toId}`;
+      const isFamily = (FAMILY_RELATIONSHIP_TYPES as readonly string[]).includes(r.relationshipType);
+      if (!allEdgesRaw.find(e =>
+        (e.source === fromId && e.target === toId) ||
+        (e.source === toId && e.target === fromId)
+      )) {
+        allEdgesRaw.push({ source: fromId, target: toId, relationshipType: r.relationshipType, isFamily });
+      }
+    });
+
+    const initialNodes = computeInitialLayout(caseData, showPeople ? personData : [], allEdgesRaw);
+    const nodeIdSet = new Set(initialNodes.map(n => n.id));
+
+    const initialEdges: Edge[] = allEdgesRaw
+      .filter(e => {
+        if (!nodeIdSet.has(e.source) || !nodeIdSet.has(e.target)) return false;
+        if (!showFamilyEdges && e.isFamily) return false;
+        return true;
+      })
+      .map((e, i) => ({
+        id: `edge-${i}`,
+        source: e.source,
+        target: e.target,
+        type: "relationship",
+        data: { relationshipType: e.relationshipType, isFamily: e.isFamily, isHovered: false },
+      }));
+
+    return { nodes: initialNodes, edges: initialEdges };
+  }, [holes, people, relationships, showPeople, showFamilyEdges, viewMode, familyCenterId]);
+
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialData.nodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialData.edges);
+  const prevKeyRef = useRef("");
+
+  useEffect(() => {
+    const key = JSON.stringify({ hLen: holes.length, pLen: people.length, rLen: relationships.length, showPeople, showFamilyEdges, viewMode, familyCenterId });
+    if (key !== prevKeyRef.current) {
+      prevKeyRef.current = key;
+      setNodes(initialData.nodes);
+      setEdges(initialData.edges);
+    }
+  }, [initialData, setNodes, setEdges]);
+
+  const draggedNodeIds = useRef<Set<string>>(new Set());
+
+  const handleNodesChange: OnNodesChange = useCallback((changes: NodeChange[]) => {
+    onNodesChange(changes);
+
+    for (const c of changes) {
+      if (c.type === "position" && (c as any).dragging === true) {
+        draggedNodeIds.current.add(c.id);
       }
     }
 
-    const nodeMap = new Map<string, number>();
-    nodes.forEach((n, i) => nodeMap.set(n.id, i));
-
-    for (const e of edges) {
-      const si = nodeMap.get(e.source);
-      const ti = nodeMap.get(e.target);
-      if (si === undefined || ti === undefined) continue;
-      let dx = nodes[ti].x - nodes[si].x;
-      let dy = nodes[ti].y - nodes[si].y;
-      let dist = Math.sqrt(dx * dx + dy * dy) || 1;
-      let force = (dist - 180) * 0.015;
-      vx[si] += (dx / dist) * force;
-      vy[si] += (dy / dist) * force;
-      vx[ti] -= (dx / dist) * force;
-      vy[ti] -= (dy / dist) * force;
-    }
-
-    for (let i = 0; i < nodes.length; i++) {
-      let dx = cx - nodes[i].x;
-      let dy = cy - nodes[i].y;
-      vx[i] += dx * 0.001;
-      vy[i] += dy * 0.001;
-    }
-
-    for (let i = 0; i < nodes.length; i++) {
-      nodes[i].x += vx[i] * alpha;
-      nodes[i].y += vy[i] * alpha;
-      nodes[i].x = Math.max(60, Math.min(width - 60, nodes[i].x));
-      nodes[i].y = Math.max(60, Math.min(height - 60, nodes[i].y));
-    }
-  }
-}
-
-function computeFamilyTreeLayout(
-  nodes: GraphNode[],
-  edges: GraphEdge[],
-  width: number,
-  height: number,
-  centeredPersonId?: string
-): void {
-  const personNodes = nodes.filter(n => n.entityType === "person");
-  if (personNodes.length === 0) return;
-
-  const centerNode = centeredPersonId
-    ? personNodes.find(n => n.id === centeredPersonId) || personNodes[0]
-    : personNodes[0];
-
-  const familyEdges = edges.filter(e => e.isFamily);
-
-  const parents: GraphNode[] = [];
-  const children: GraphNode[] = [];
-  const spouses: GraphNode[] = [];
-  const siblings: GraphNode[] = [];
-  const others: GraphNode[] = [];
-
-  for (const node of personNodes) {
-    if (node.id === centerNode.id) continue;
-    const rel = familyEdges.find(
-      e => (e.source === centerNode.id && e.target === node.id) ||
-           (e.target === centerNode.id && e.source === node.id)
+    const dragEnded = changes.some(
+      c => c.type === "position" && (c as any).dragging === false
     );
-    if (!rel) { others.push(node); continue; }
-    const type = rel.relationshipType;
-    if (type === "parent_of" && rel.source === node.id) parents.push(node);
-    else if (type === "parent_of" && rel.target === node.id) children.push(node);
-    else if (type === "child_of" && rel.source === node.id) children.push(node);
-    else if (type === "child_of" && rel.target === node.id) parents.push(node);
-    else if (type === "spouse_of") spouses.push(node);
-    else if (type === "sibling_of") siblings.push(node);
-    else others.push(node);
-  }
 
-  const cx = width / 2;
-  const cy = height / 2;
-  centerNode.x = cx;
-  centerNode.y = cy;
+    if (dragEnded && draggedNodeIds.current.size > 0 && viewMode === "graph") {
+      const movedIds = new Set(draggedNodeIds.current);
+      draggedNodeIds.current.clear();
 
-  const spacing = 120;
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => {
+        setNodes(currentNodes => {
+          const positions = currentNodes
+            .filter(n => movedIds.has(n.id))
+            .map(n => ({
+              type: n.type === "caseNode" ? "case" : "person",
+              id: n.data.entityId as number,
+              x: n.position.x,
+              y: n.position.y,
+            }));
+          if (positions.length > 0) saveMutation.mutate(positions);
+          return currentNodes;
+        });
+      }, 500);
+    }
+  }, [onNodesChange, viewMode, saveMutation, setNodes]);
 
-  parents.forEach((n, i) => {
-    n.x = cx + (i - (parents.length - 1) / 2) * spacing;
-    n.y = cy - spacing * 1.5;
-  });
+  const onEdgeMouseEnter = useCallback((_: React.MouseEvent, edge: Edge) => {
+    setHoveredEdge(edge.id);
+    setEdges(eds => eds.map(e =>
+      e.id === edge.id ? { ...e, data: { ...e.data, isHovered: true } } : e
+    ));
+  }, [setEdges]);
 
-  children.forEach((n, i) => {
-    n.x = cx + (i - (children.length - 1) / 2) * spacing;
-    n.y = cy + spacing * 1.5;
-  });
+  const onEdgeMouseLeave = useCallback(() => {
+    setHoveredEdge(null);
+    setEdges(eds => eds.map(e => ({ ...e, data: { ...e.data, isHovered: false } })));
+  }, [setEdges]);
 
-  spouses.forEach((n, i) => {
-    n.x = cx + spacing * (i + 1);
-    n.y = cy;
-  });
+  const handleNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
+    const entityType = node.data.entityType as string;
+    const entityId = node.data.entityId as number;
+    onNodeClick(entityType, entityId);
+  }, [onNodeClick]);
 
-  siblings.forEach((n, i) => {
-    n.x = cx - spacing * (i + 1);
-    n.y = cy;
-  });
-
-  others.forEach((n, i) => {
-    const angle = (2 * Math.PI * i) / Math.max(others.length, 1);
-    n.x = cx + Math.cos(angle) * spacing * 2.5;
-    n.y = cy + Math.sin(angle) * spacing * 2.5;
-  });
+  return (
+    <div style={{ width: "100%", height: "100%" }} data-testid="reactflow-graph">
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={handleNodesChange}
+        onEdgesChange={onEdgesChange}
+        onEdgeMouseEnter={onEdgeMouseEnter}
+        onEdgeMouseLeave={onEdgeMouseLeave}
+        onNodeClick={handleNodeClick}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        minZoom={0.2}
+        maxZoom={2.5}
+        defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
+        fitView
+        fitViewOptions={{ padding: 0.2, maxZoom: 1.2 }}
+        nodesDraggable={viewMode === "graph"}
+        nodesConnectable={false}
+        elementsSelectable={true}
+        panOnDrag
+        zoomOnScroll
+        zoomOnPinch
+        proOptions={{ hideAttribution: true }}
+        style={{ background: "transparent" }}
+      >
+        <Background color="rgba(255,255,255,0.03)" gap={60} />
+        <MiniMap
+          nodeColor={(node) => node.type === "caseNode" ? "#8B0000" : "#3b82f6"}
+          maskColor="rgba(14,14,14,0.85)"
+          style={{ background: "#111", border: "1px solid rgba(255,255,255,0.1)" }}
+          pannable
+          zoomable
+        />
+        <Controls
+          showInteractive={false}
+          style={{
+            background: "#111",
+            border: "1px solid rgba(255,255,255,0.1)",
+            borderRadius: 0,
+          }}
+        />
+      </ReactFlow>
+    </div>
+  );
 }
 
 export default function Connections() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [viewMode, setViewMode] = useState<ViewMode>(getInitialViewMode);
   const [showPeople, setShowPeople] = useState(true);
   const [showFamilyEdges, setShowFamilyEdges] = useState(true);
-  const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
-  const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
-  const [hoveredEdge, setHoveredEdge] = useState<GraphEdge | null>(null);
-  const [familyCenterId, setFamilyCenterId] = useState<string | undefined>();
+  const [familyCenterId, setFamilyCenterId] = useState<number | undefined>();
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
   const [, navigate] = useLocation();
-  const nodesRef = useRef<GraphNode[]>([]);
-  const edgesRef = useRef<GraphEdge[]>([]);
-  const animRef = useRef<number>(0);
-  const dragRef = useRef<{ node: GraphNode | null; offsetX: number; offsetY: number; didDrag: boolean }>({ node: null, offsetX: 0, offsetY: 0, didDrag: false });
-  const hoveredRef = useRef<string | null>(null);
-  const selectedRef = useRef<string | null>(null);
-  const hoveredEdgeRef = useRef<GraphEdge | null>(null);
-  const layoutComputedRef = useRef(false);
-  const needsRenderRef = useRef(true);
 
   const { data: holes = [], isLoading: holesLoading } = useQuery<RabbitHole[]>({
     queryKey: ["/api/holes"],
@@ -230,387 +625,21 @@ export default function Connections() {
 
   const handleViewChange = useCallback((mode: ViewMode) => {
     setViewMode(mode);
-    layoutComputedRef.current = false;
-    needsRenderRef.current = true;
     try { localStorage.setItem("connections-view-mode", mode); } catch {}
   }, []);
 
-  useEffect(() => { hoveredRef.current = hoveredNode?.id || null; }, [hoveredNode]);
-  useEffect(() => { selectedRef.current = selectedNode?.id || null; }, [selectedNode]);
-  useEffect(() => { hoveredEdgeRef.current = hoveredEdge; }, [hoveredEdge]);
-
-  const { nodes: graphNodes, edges: graphEdges } = useMemo(() => {
-    const nodes: GraphNode[] = [];
-    const edges: GraphEdge[] = [];
-
-    const slugToNodeId: Record<string, string> = {};
-
-    holes.forEach(h => {
-      const nodeId = `case-${h.id}`;
-      slugToNodeId[h.slug] = nodeId;
-      nodes.push({
-        id: nodeId,
-        entityType: "case",
-        entityId: h.id,
-        slug: h.slug,
-        title: h.title,
-        status: h.status,
-        labels: (h.labels as string[]) || [],
-        sourceCount: h.sourceCount || 0,
-        connections: h.connections || 0,
-        x: 0,
-        y: 0,
-      });
-    });
-
-    people.forEach(p => {
-      nodes.push({
-        id: `person-${p.id}`,
-        entityType: "person",
-        entityId: p.id,
-        title: p.fullName,
-        status: p.status,
-        labels: (p.tags as string[]) || [],
-        sourceCount: 0,
-        connections: 0,
-        x: 0,
-        y: 0,
-      });
-    });
-
-    holes.forEach(h => {
-      const connected = (h.connectedSlugs as string[]) || [];
-      connected.forEach(cs => {
-        const sourceId = `case-${h.id}`;
-        const targetId = slugToNodeId[cs];
-        if (targetId && !edges.find(e =>
-          (e.source === sourceId && e.target === targetId) ||
-          (e.source === targetId && e.target === sourceId)
-        )) {
-          edges.push({ source: sourceId, target: targetId, relationshipType: "connected", isFamily: false });
-        }
-      });
-    });
-
-    relationships.forEach(r => {
-      const fromNodeId = r.fromType === "person" ? `person-${r.fromId}` : `case-${r.fromId}`;
-      const toNodeId = r.toType === "person" ? `person-${r.toId}` : `case-${r.toId}`;
-      const isFamily = (FAMILY_RELATIONSHIP_TYPES as readonly string[]).includes(r.relationshipType);
-      if (!edges.find(e =>
-        (e.source === fromNodeId && e.target === toNodeId) ||
-        (e.source === toNodeId && e.target === fromNodeId)
-      )) {
-        edges.push({ source: fromNodeId, target: toNodeId, relationshipType: r.relationshipType, isFamily });
-      }
-    });
-
-    return { nodes, edges };
-  }, [holes, people, relationships]);
-
-  const resetLayout = useCallback(() => {
-    layoutComputedRef.current = false;
-    try { localStorage.removeItem("graph-positions"); } catch {}
-    needsRenderRef.current = true;
-  }, []);
-
-  useEffect(() => {
-    if (graphNodes.length === 0 || (viewMode !== "graph" && viewMode !== "family")) return;
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const resize = () => {
-      canvas.width = canvas.offsetWidth * window.devicePixelRatio;
-      canvas.height = canvas.offsetHeight * window.devicePixelRatio;
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-      needsRenderRef.current = true;
-    };
-    resize();
-    window.addEventListener("resize", resize);
-
-    const w = canvas.offsetWidth;
-    const h = canvas.offsetHeight;
-
-    const nodesCopy: GraphNode[] = graphNodes.map(n => ({ ...n }));
-
-    if (viewMode === "graph") {
-      const saved = getSavedPositions();
-      let needsLayout = false;
-
-      nodesCopy.forEach((n, i) => {
-        if (saved[n.id]) {
-          n.x = saved[n.id].x;
-          n.y = saved[n.id].y;
-        } else {
-          const angle = (2 * Math.PI * i) / nodesCopy.length - Math.PI / 2;
-          const radius = Math.min(w, h) * 0.35;
-          n.x = w / 2 + radius * Math.cos(angle);
-          n.y = h / 2 + radius * Math.sin(angle);
-          needsLayout = true;
-        }
-      });
-
-      if (needsLayout && !layoutComputedRef.current) {
-        computeForceLayout(nodesCopy, graphEdges, w, h);
-        const positions: Record<string, { x: number; y: number }> = {};
-        nodesCopy.forEach(n => { positions[n.id] = { x: n.x, y: n.y }; });
-        savePositions(positions);
-      }
-    } else if (viewMode === "family") {
-      computeFamilyTreeLayout(nodesCopy, graphEdges, w, h, familyCenterId);
+  const handleNodeClick = useCallback((entityType: string, entityId: number) => {
+    if (viewMode === "family" && entityType === "person") {
+      setFamilyCenterId(entityId);
+      return;
     }
-
-    layoutComputedRef.current = true;
-    nodesRef.current = nodesCopy;
-    edgesRef.current = graphEdges;
-
-    function getNodeAt(mx: number, my: number): GraphNode | null {
-      for (let i = nodesRef.current.length - 1; i >= 0; i--) {
-        const n = nodesRef.current[i];
-        if (!showPeople && n.entityType === "person") continue;
-        if (viewMode === "family" && n.entityType === "case") continue;
-        const dx = mx - n.x;
-        const dy = my - n.y;
-        const hitR = n.entityType === "case" ? 30 : 20;
-        if (dx * dx + dy * dy < hitR * hitR) return n;
-      }
-      return null;
+    if (entityType === "case") {
+      const hole = holes.find(h => h.id === entityId);
+      if (hole) navigate(`/rabbithole/${hole.slug}`);
+    } else if (entityType === "person") {
+      navigate(`/people/${entityId}`);
     }
-
-    function getEdgeAt(mx: number, my: number): GraphEdge | null {
-      const ns = nodesRef.current;
-      for (const e of edgesRef.current) {
-        const s = ns.find(n => n.id === e.source);
-        const t = ns.find(n => n.id === e.target);
-        if (!s || !t) continue;
-
-        const dx = t.x - s.x;
-        const dy = t.y - s.y;
-        const lenSq = dx * dx + dy * dy;
-        if (lenSq === 0) continue;
-
-        const param = Math.max(0, Math.min(1, ((mx - s.x) * dx + (my - s.y) * dy) / lenSq));
-        const projX = s.x + param * dx;
-        const projY = s.y + param * dy;
-        const distSq = (mx - projX) * (mx - projX) + (my - projY) * (my - projY);
-        if (distSq < 64) return e;
-      }
-      return null;
-    }
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const rect = canvas.getBoundingClientRect();
-      const mx = e.clientX - rect.left;
-      const my = e.clientY - rect.top;
-
-      if (dragRef.current.node) {
-        dragRef.current.node.x = mx - dragRef.current.offsetX;
-        dragRef.current.node.y = my - dragRef.current.offsetY;
-        dragRef.current.didDrag = true;
-        needsRenderRef.current = true;
-      }
-
-      const n = getNodeAt(mx, my);
-      setHoveredNode(n);
-      if (!n) {
-        const edge = getEdgeAt(mx, my);
-        setHoveredEdge(edge);
-      } else {
-        setHoveredEdge(null);
-      }
-      canvas.style.cursor = n ? "pointer" : "default";
-      needsRenderRef.current = true;
-    };
-
-    const handleMouseDown = (e: MouseEvent) => {
-      const rect = canvas.getBoundingClientRect();
-      const mx = e.clientX - rect.left;
-      const my = e.clientY - rect.top;
-      const n = getNodeAt(mx, my);
-      if (n) {
-        dragRef.current = { node: n, offsetX: mx - n.x, offsetY: my - n.y, didDrag: false };
-      }
-    };
-
-    const handleMouseUp = (e: MouseEvent) => {
-      if (dragRef.current.node) {
-        if (dragRef.current.didDrag && viewMode === "graph") {
-          const positions = getSavedPositions();
-          nodesRef.current.forEach(n => { positions[n.id] = { x: n.x, y: n.y }; });
-          savePositions(positions);
-        }
-
-        if (!dragRef.current.didDrag) {
-          const rect = canvas.getBoundingClientRect();
-          const mx = e.clientX - rect.left;
-          const my = e.clientY - rect.top;
-          const n = getNodeAt(mx, my);
-          if (n) {
-            if (viewMode === "family" && n.entityType === "person") {
-              setFamilyCenterId(n.id);
-              layoutComputedRef.current = false;
-            } else {
-              if (n.entityType === "case" && n.slug) {
-                navigate(`/rabbithole/${n.slug}`);
-              } else if (n.entityType === "person") {
-                navigate(`/people/${n.entityId}`);
-              }
-            }
-          }
-        }
-      }
-      dragRef.current = { node: null, offsetX: 0, offsetY: 0, didDrag: false };
-    };
-
-    canvas.addEventListener("mousemove", handleMouseMove);
-    canvas.addEventListener("mousedown", handleMouseDown);
-    canvas.addEventListener("mouseup", handleMouseUp);
-
-    function drawDiamond(ctx: CanvasRenderingContext2D, x: number, y: number, size: number) {
-      ctx.beginPath();
-      ctx.moveTo(x, y - size);
-      ctx.lineTo(x + size, y);
-      ctx.lineTo(x, y + size);
-      ctx.lineTo(x - size, y);
-      ctx.closePath();
-    }
-
-    function draw() {
-      if (!ctx || !canvas) return;
-      if (!needsRenderRef.current) {
-        animRef.current = requestAnimationFrame(draw);
-        return;
-      }
-      needsRenderRef.current = false;
-
-      const w = canvas.offsetWidth;
-      const h = canvas.offsetHeight;
-      ctx.clearRect(0, 0, w, h);
-
-      const ns = nodesRef.current;
-      const es = edgesRef.current;
-      const hId = hoveredRef.current;
-      const sId = selectedRef.current;
-      const hEdge = hoveredEdgeRef.current;
-
-      const visibleNodes = viewMode === "family"
-        ? ns.filter(n => n.entityType === "person")
-        : showPeople ? ns : ns.filter(n => n.entityType === "case");
-
-      const visibleNodeIds = new Set(visibleNodes.map(n => n.id));
-
-      const visibleEdges = es.filter(e => {
-        if (!visibleNodeIds.has(e.source) || !visibleNodeIds.has(e.target)) return false;
-        if (viewMode === "family") return e.isFamily;
-        if (!showFamilyEdges && e.isFamily) return false;
-        return true;
-      });
-
-      for (const e of visibleEdges) {
-        const s = ns.find(n => n.id === e.source);
-        const t = ns.find(n => n.id === e.target);
-        if (!s || !t) continue;
-
-        const isHoveredEdge = hEdge && hEdge.source === e.source && hEdge.target === e.target;
-
-        ctx.beginPath();
-        if (e.isFamily) {
-          ctx.setLineDash([4, 4]);
-          ctx.lineWidth = isHoveredEdge ? 1.5 : 0.8;
-        } else {
-          ctx.setLineDash([]);
-          ctx.lineWidth = isHoveredEdge ? 2 : 1;
-        }
-
-        ctx.moveTo(s.x, s.y);
-        ctx.lineTo(t.x, t.y);
-        ctx.strokeStyle = isHoveredEdge ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.12)";
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        if (isHoveredEdge) {
-          const midX = (s.x + t.x) / 2;
-          const midY = (s.y + t.y) / 2;
-          const label = e.relationshipType.replace(/_/g, " ");
-          ctx.font = "10px 'JetBrains Mono', monospace";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          const tw = ctx.measureText(label.toUpperCase()).width;
-          ctx.fillStyle = "rgba(14,14,14,0.9)";
-          ctx.fillRect(midX - tw / 2 - 6, midY - 8, tw + 12, 16);
-          ctx.fillStyle = "rgba(255,255,255,0.7)";
-          ctx.fillText(label.toUpperCase(), midX, midY);
-        }
-      }
-
-      for (const n of visibleNodes) {
-        const isHovered = hId === n.id;
-        const isSelected = sId === n.id;
-        const isCaseNode = n.entityType === "case";
-        const r = isCaseNode ? (isHovered || isSelected ? 26 : 22) : (isHovered || isSelected ? 16 : 14);
-        const glowColor = isCaseNode ? "#8B0000" : "#3b82f6";
-
-        if (isHovered || isSelected) {
-          const outerR = r + 16;
-          const outerGlow = ctx.createRadialGradient(n.x, n.y, r, n.x, n.y, outerR);
-          outerGlow.addColorStop(0, glowColor + "60");
-          outerGlow.addColorStop(1, glowColor + "00");
-          if (isCaseNode) {
-            drawDiamond(ctx, n.x, n.y, outerR);
-          } else {
-            ctx.beginPath();
-            ctx.arc(n.x, n.y, outerR, 0, Math.PI * 2);
-          }
-          ctx.fillStyle = outerGlow;
-          ctx.fill();
-        }
-
-        if (isCaseNode) {
-          drawDiamond(ctx, n.x, n.y, r);
-        } else {
-          ctx.beginPath();
-          ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
-        }
-        ctx.fillStyle = "#1a1c1e";
-        ctx.fill();
-
-        const borderAlpha = isSelected ? 0.9 : isHovered ? 0.7 : 0.4;
-        ctx.strokeStyle = glowColor + Math.round(borderAlpha * 255).toString(16).padStart(2, "0");
-        ctx.lineWidth = isSelected ? 2 : isHovered ? 1.5 : 1;
-        ctx.stroke();
-
-        ctx.fillStyle = isHovered || isSelected ? "#e0e0e0" : "rgba(255,255,255,0.6)";
-        ctx.font = `${isHovered || isSelected ? 9 : 8}px 'JetBrains Mono', monospace`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "top";
-        const maxLen = isCaseNode ? 14 : 12;
-        const shortTitle = n.title.length > maxLen ? n.title.slice(0, maxLen - 2) + ".." : n.title;
-        ctx.fillText(shortTitle.toUpperCase(), n.x, n.y + r + 6);
-
-        if (!isCaseNode) {
-          ctx.fillStyle = "rgba(255,255,255,0.25)";
-          ctx.font = "7px 'JetBrains Mono', monospace";
-          ctx.fillText("PERSON", n.x, n.y + r + 18);
-        }
-      }
-
-      animRef.current = requestAnimationFrame(draw);
-    }
-
-    needsRenderRef.current = true;
-    draw();
-
-    return () => {
-      cancelAnimationFrame(animRef.current);
-      window.removeEventListener("resize", resize);
-      canvas.removeEventListener("mousemove", handleMouseMove);
-      canvas.removeEventListener("mousedown", handleMouseDown);
-      canvas.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [graphNodes, graphEdges, viewMode, showPeople, showFamilyEdges, familyCenterId, navigate]);
+  }, [viewMode, holes, navigate]);
 
   if (isLoading) {
     return (
@@ -646,7 +675,7 @@ export default function Connections() {
             <>
               <button
                 data-testid="toggle-show-people"
-                onClick={() => { setShowPeople(p => !p); needsRenderRef.current = true; }}
+                onClick={() => setShowPeople(p => !p)}
                 className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider border transition-colors"
                 style={{
                   borderColor: showPeople ? "#3b82f640" : "rgba(255,255,255,0.1)",
@@ -660,7 +689,7 @@ export default function Connections() {
 
               <button
                 data-testid="toggle-family-edges"
-                onClick={() => { setShowFamilyEdges(f => !f); needsRenderRef.current = true; }}
+                onClick={() => setShowFamilyEdges(f => !f)}
                 className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider border transition-colors"
                 style={{
                   borderColor: showFamilyEdges ? "#4ade8040" : "rgba(255,255,255,0.1)",
@@ -670,15 +699,6 @@ export default function Connections() {
               >
                 <GitFork className="w-3 h-3" />
                 Family
-              </button>
-
-              <button
-                data-testid="btn-reset-layout"
-                onClick={resetLayout}
-                className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider border border-white/10 text-white/40 hover:text-white/70 hover:border-white/20 transition-colors"
-              >
-                <RotateCcw className="w-3 h-3" />
-                Reset
               </button>
             </>
           )}
@@ -731,10 +751,23 @@ export default function Connections() {
             transition: "opacity 0.4s ease",
           }}
         >
-          <canvas ref={canvasRef} className="w-full h-[calc(100vh-120px)]" data-testid="canvas-graph" />
+          <div style={{ width: "100%", height: "calc(100vh - 60px)" }}>
+            <ReactFlowProvider>
+              <GraphView
+                holes={holes}
+                people={people}
+                relationships={relationships}
+                showPeople={showPeople}
+                showFamilyEdges={showFamilyEdges}
+                viewMode={viewMode}
+                familyCenterId={familyCenterId}
+                onNodeClick={handleNodeClick}
+              />
+            </ReactFlowProvider>
+          </div>
 
           {viewMode === "family" && (
-            <div className="absolute top-4 left-4 px-3 py-2 border border-white/10 bg-black/70 backdrop-blur-sm">
+            <div className="absolute top-4 left-4 px-3 py-2 border border-white/10 bg-black/70 backdrop-blur-sm z-10">
               <p className="font-mono text-[10px] uppercase tracking-wider text-white/50">
                 Click a person node to re-center the tree
               </p>
@@ -875,6 +908,25 @@ export default function Connections() {
         }
         .corner-notch {
           clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+        }
+        .react-flow__node {
+          cursor: pointer !important;
+        }
+        .react-flow__controls button {
+          background: #111 !important;
+          border: 1px solid rgba(255,255,255,0.1) !important;
+          color: rgba(255,255,255,0.5) !important;
+          border-radius: 0 !important;
+        }
+        .react-flow__controls button:hover {
+          background: #222 !important;
+          color: rgba(255,255,255,0.8) !important;
+        }
+        .react-flow__controls button svg {
+          fill: currentColor !important;
+        }
+        .react-flow__minimap {
+          border-radius: 0 !important;
         }
       `}</style>
     </div>
