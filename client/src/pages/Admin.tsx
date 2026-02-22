@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
-import { Loader2, Plus, Trash2, Edit3, Save, X, Lock, Shield, GripVertical, Image, Link2, History, Download, Upload, AlertTriangle, CheckCircle2, Clock, Settings, Users, RotateCcw, UserCheck, UserX, FileText, Headphones, DollarSign, Pin, ArrowUp, ArrowDown, Search, Maximize2, Minimize2, PanelRightClose, PanelRightOpen, BookOpen, ArrowLeft, ChevronRight, Calendar, Users2 } from "lucide-react";
+import { Loader2, Plus, Trash2, Edit3, Save, X, Lock, Shield, GripVertical, Image, Link2, History, Download, Upload, AlertTriangle, CheckCircle2, Clock, Settings, Users, RotateCcw, UserCheck, UserX, FileText, Headphones, DollarSign, Pin, ArrowUp, ArrowDown, Search, Maximize2, Minimize2, PanelRightClose, PanelRightOpen, BookOpen, ArrowLeft, ChevronRight, Calendar, Users2, LayoutDashboard, Eye } from "lucide-react";
 import type { RabbitHole, DepthNode, Claim, Source, Category, Media, AuditLog, Employee, Podcast, PodcastEpisode, RabbitHolePodcastEpisode, SponsoredPodcastSlot, Person, Relationship } from "@shared/schema";
 import { RELATIONSHIP_TYPES } from "@shared/schema";
 import { useAdminContext } from "@/components/AdminLayout";
