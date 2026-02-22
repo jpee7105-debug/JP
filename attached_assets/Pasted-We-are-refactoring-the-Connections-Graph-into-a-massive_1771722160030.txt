@@ -1,0 +1,105 @@
+We are refactoring the Connections Graph into a massive, stable, zoomable intelligence board.
+
+GOAL:
+- Infinite canvas
+- Smooth zoom in/out
+- Stable node positions
+- No force simulation
+- Everything remains anchored unless manually dragged
+
+DO NOT use force-directed physics layouts.
+Disable continuous node movement entirely.
+
+========================================
+PART 1 — Switch Graph Engine
+========================================
+
+Replace current graph rendering with React Flow (or equivalent deterministic graph library).
+
+Requirements:
+- Infinite canvas
+- Smooth zoom (mouse wheel)
+- Pan by dragging background
+- Double-click to center on node
+- Optional minimap in corner
+- Zoom limits (min 0.2, max 2.5)
+- Smooth animated zoom transitions
+
+========================================
+PART 2 — Static Position System
+========================================
+
+Each node must have:
+- id
+- type (case | person)
+- x
+- y
+- width (optional)
+- height (optional)
+
+Store x/y in database.
+
+On load:
+- Use stored coordinates.
+- No auto-layout.
+- No physics simulation.
+
+Dragging a node:
+- Updates its x/y in DB.
+- Position persists on reload.
+
+Add “Reset Layout” button:
+- Recalculate layout once.
+- Freeze after calculation.
+
+========================================
+PART 3 — Zoom-Based Rendering Logic
+========================================
+
+When zoomed out:
+- Hide person labels.
+- Reduce edge thickness.
+- Hide edge labels.
+
+When zoomed in:
+- Show labels.
+- Show relationship types.
+- Increase detail level.
+
+Use conditional rendering based on zoom scale.
+
+========================================
+PART 4 — Visual Hierarchy
+========================================
+
+Case/Event nodes:
+- Larger size.
+- Stronger border.
+
+Person nodes:
+- 60% size of case nodes.
+- Lighter weight styling.
+
+Edges:
+- Thin lines.
+- Relationship type visible on hover.
+- Family edges dashed.
+
+========================================
+PART 5 — Performance
+========================================
+
+Implement:
+- Node virtualization (if available).
+- Memoization of node rendering.
+- Avoid re-rendering entire graph on small changes.
+
+========================================
+OUTPUT REQUIRED
+========================================
+
+1) Confirm force simulation removed.
+2) Confirm nodes remain static unless dragged.
+3) Confirm zoom works smoothly.
+4) Confirm positions persist in DB.
+5) List any performance considerations.
