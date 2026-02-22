@@ -1,10 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
-import { Loader2, Plus, Trash2, Edit3, Save, X, Shield, LogOut, Radio, Users, MessageSquare, Play, Pause, Square, Eye, EyeOff, Clock, AlertTriangle, Crown } from "lucide-react";
-import type { Employee, Creator, Stream, StreamReplay, LiveChatMessage, ChatModerationAction } from "@shared/schema";
-
-type AdminEmployee = Omit<Employee, "passwordHash">;
+import { Loader2, Plus, Trash2, Edit3, Save, X, Shield, Users, MessageSquare, Play, Pause, Square, Eye, EyeOff, Clock, AlertTriangle, Crown } from "lucide-react";
+import type { Creator, Stream, StreamReplay, LiveChatMessage, ChatModerationAction } from "@shared/schema";
+import { useAdminContext } from "@/components/AdminLayout";
 
 function adminFetch(url: string, opts?: RequestInit) {
   return fetch(url, { ...opts, credentials: "include", headers: { "Content-Type": "application/json", ...opts?.headers } });
@@ -13,32 +12,8 @@ function adminFetch(url: string, opts?: RequestInit) {
 type LiveTab = "creators" | "streams" | "chat";
 
 export default function AdminLive() {
-  const [employee, setEmployee] = useState<AdminEmployee | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { employee, role, isAdmin, canEdit } = useAdminContext();
   const [activeTab, setActiveTab] = useState<LiveTab>("streams");
-
-  useEffect(() => {
-    fetch("/api/admin/me", { credentials: "include" })
-      .then(r => r.ok ? r.json() : null)
-      .then(emp => { setEmployee(emp); setIsLoading(false); })
-      .catch(() => setIsLoading(false));
-  }, []);
-
-  if (isLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
-  if (!employee) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center">
-        <p className="text-muted-foreground font-mono text-sm mb-4">Please log in to the admin panel first.</p>
-        <a href="/admin" className="text-primary font-mono text-sm hover:underline" data-testid="link-admin-login">Go to Admin Login</a>
-      </div>
-    </div>
-  );
-
-  const role = employee.role as "Admin" | "Editor" | "Moderator";
-  const canEdit = role === "Admin" || role === "Editor";
-  const isAdmin = role === "Admin";
-
-  if (!canEdit) return <div className="min-h-screen flex items-center justify-center"><p className="text-muted-foreground font-mono">Insufficient permissions</p></div>;
 
   const tabs: { id: LiveTab; label: string; icon: any }[] = [
     { id: "streams", label: "Streams", icon: Play },
@@ -47,18 +22,7 @@ export default function AdminLive() {
   ];
 
   return (
-    <div className="min-h-screen" data-testid="page-admin-live">
-      <div className="border-b border-white/5 p-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Radio className="w-5 h-5 text-primary" />
-          <h1 className="font-display text-xl font-bold uppercase tracking-wider">Live Admin</h1>
-        </div>
-        <div className="flex items-center gap-4">
-          <a href="/admin" className="text-xs font-mono text-muted-foreground hover:text-white" data-testid="link-back-admin">← Admin CMS</a>
-          <span className="text-xs font-mono text-muted-foreground">{employee.name} <span className="text-primary/60">({role})</span></span>
-        </div>
-      </div>
-
+    <div data-testid="page-admin-live">
       <div className="flex border-b border-white/5">
         {tabs.map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
@@ -72,8 +36,8 @@ export default function AdminLive() {
 
       <div className="container mx-auto px-6 py-8">
         {activeTab === "creators" && <CreatorsManager isAdmin={isAdmin} />}
-        {activeTab === "streams" && <StreamsManager isAdmin={isAdmin} role={role} employeeId={employee.id} />}
-        {activeTab === "chat" && <ChatModeration employeeId={employee.id} />}
+        {activeTab === "streams" && <StreamsManager isAdmin={isAdmin} role={role} employeeId={employee!.id} />}
+        {activeTab === "chat" && <ChatModeration employeeId={employee!.id} />}
       </div>
     </div>
   );
@@ -107,7 +71,7 @@ function CreatorsManager({ isAdmin }: { isAdmin: boolean }) {
     queryFn: () => adminFetch("/api/admin/creators").then(r => r.json()),
   });
 
-  const { data: employees = [] } = useQuery<AdminEmployee[]>({
+  const { data: employees = [] } = useQuery<any[]>({
     queryKey: ["/api/admin/employees-list"],
     queryFn: () => adminFetch("/api/admin/me").then(async r => {
       const allEmps = await adminFetch("/api/admin/employees").then(r2 => r2.json());

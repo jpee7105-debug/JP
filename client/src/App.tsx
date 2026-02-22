@@ -1,9 +1,10 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Navbar from "@/components/Navbar";
+import AdminLayout from "@/components/AdminLayout";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import Discover from "@/pages/Discover";
@@ -25,7 +26,7 @@ import Replay from "@/pages/Replay";
 import PersonDetail from "@/pages/PersonDetail";
 import AdminPeople from "@/pages/AdminPeople";
 
-function Router() {
+function PublicRouter() {
   return (
     <Switch>
       <Route path="/" component={Home} />
@@ -43,12 +44,38 @@ function Router() {
       <Route path="/channel/:handle" component={Channel} />
       <Route path="/watch/:streamId" component={Watch} />
       <Route path="/replay/:streamId" component={Replay} />
-      <Route path="/admin" component={Admin} />
-      <Route path="/admin/live" component={AdminLive} />
-      <Route path="/admin/people" component={AdminPeople} />
       <Route path="/qa" component={QA} />
       <Route component={NotFound} />
     </Switch>
+  );
+}
+
+function AdminRouter() {
+  return (
+    <AdminLayout>
+      <Switch>
+        <Route path="/admin" component={Admin} />
+        <Route path="/admin/live" component={AdminLive} />
+        <Route path="/admin/people" component={AdminPeople} />
+        <Route component={Admin} />
+      </Switch>
+    </AdminLayout>
+  );
+}
+
+function AppRouter() {
+  const [location] = useLocation();
+  const isAdmin = location.startsWith("/admin");
+
+  if (isAdmin) {
+    return <AdminRouter />;
+  }
+
+  return (
+    <>
+      <Navbar />
+      <PublicRouter />
+    </>
   );
 }
 
@@ -57,9 +84,8 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <div className="min-h-screen bg-background text-foreground texture-overlay">
-          <Navbar />
           <Toaster />
-          <Router />
+          <AppRouter />
         </div>
       </TooltipProvider>
     </QueryClientProvider>

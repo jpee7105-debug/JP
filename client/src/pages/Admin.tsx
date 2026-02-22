@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
-import { Loader2, Plus, Trash2, Edit3, Save, X, Lock, LogOut, Shield, GripVertical, Image, Link2, History, Download, Upload, AlertTriangle, CheckCircle2, Clock, Settings, Users, Eye, EyeOff, RotateCcw, UserCheck, UserX, FileText, Headphones, DollarSign, Pin, ArrowUp, ArrowDown, Search, LayoutDashboard, Maximize2, Minimize2, PanelRightClose, PanelRightOpen, BookOpen, ArrowLeft, ChevronRight, Calendar, Users2 } from "lucide-react";
+import { Loader2, Plus, Trash2, Edit3, Save, X, Lock, Shield, GripVertical, Image, Link2, History, Download, Upload, AlertTriangle, CheckCircle2, Clock, Settings, Users, RotateCcw, UserCheck, UserX, FileText, Headphones, DollarSign, Pin, ArrowUp, ArrowDown, Search, Maximize2, Minimize2, PanelRightClose, PanelRightOpen, BookOpen, ArrowLeft, ChevronRight, Calendar, Users2 } from "lucide-react";
 import type { RabbitHole, DepthNode, Claim, Source, Category, Media, AuditLog, Employee, Podcast, PodcastEpisode, RabbitHolePodcastEpisode, SponsoredPodcastSlot, Person, Relationship } from "@shared/schema";
 import { RELATIONSHIP_TYPES } from "@shared/schema";
+import { useAdminContext } from "@/components/AdminLayout";
 
 type AdminEmployee = Omit<Employee, "passwordHash">;
 
@@ -140,63 +141,20 @@ function ValidationPanel() {
   );
 }
 
-const NAV_SECTIONS: { group: string; items: { id: Tab; label: string; icon: typeof Shield }[] }[] = [
-  {
-    group: "EDITORIAL",
-    items: [
-      { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { id: "holes", label: "Investigations", icon: Search },
-    ],
-  },
-  {
-    group: "INTELLIGENCE",
-    items: [
-      { id: "people", label: "People", icon: Users2 },
-      { id: "relationships", label: "Relationships", icon: Link2 },
-    ],
-  },
-  {
-    group: "CONTENT",
-    items: [
-      { id: "podcasts", label: "Podcasts", icon: Headphones },
-    ],
-  },
-  {
-    group: "SYSTEM",
-    items: [
-      { id: "history", label: "History", icon: History },
-      { id: "tools", label: "Tools", icon: Settings },
-      { id: "employees", label: "Employees", icon: Users },
-    ],
-  },
-];
 
 export default function Admin() {
-  const [employee, setEmployee] = useState<AdminEmployee | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [loginError, setLoginError] = useState("");
-  const [activeTab, setActiveTab] = useState<Tab>("dashboard");
-  const [focusMode, setFocusMode] = useState(false);
+  const { employee, role, isAdmin, canEdit } = useAdminContext();
+
+  const searchParams = new URLSearchParams(window.location.search);
+  const tabFromUrl = searchParams.get("tab") as Tab | null;
+  const activeTab: Tab = tabFromUrl || "dashboard";
+
   const [showValidation, setShowValidation] = useState(true);
   const [editingHoleId, setEditingHoleId] = useState<number | null>(null);
   const [editingNodeId, setEditingNodeId] = useState<number | null>(null);
 
   useEffect(() => {
-    fetch("/api/admin/me", { credentials: "include" })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data) setEmployee(data); })
-      .finally(() => setIsLoading(false));
-  }, []);
-
-  useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "b") {
-        e.preventDefault();
-        setFocusMode(prev => !prev);
-      }
       if (e.key === "/" && !e.metaKey && !e.ctrlKey && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement) && !(e.target instanceof HTMLSelectElement)) {
         e.preventDefault();
         const searchInput = document.querySelector('[data-testid="input-dash-search"]') as HTMLInputElement;
@@ -206,34 +164,6 @@ export default function Admin() {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, []);
-
-  const handleLogin = async () => {
-    setLoginError("");
-    try {
-      const res = await fetch("/api/admin/login", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setEmployee(data);
-      } else {
-        const err = await res.json();
-        setLoginError(err.message || "Invalid credentials");
-      }
-    } catch {
-      setLoginError("Connection error");
-    }
-  };
-
-  const handleLogout = async () => {
-    await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
-    setEmployee(null);
-    setEmail("");
-    setPassword("");
-  };
 
   const { data: adminHoles = [] } = useQuery<RabbitHole[]>({
     queryKey: ["/api/holes?admin=true"],
@@ -268,223 +198,114 @@ export default function Admin() {
     },
   });
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!employee) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" data-testid="page-admin-login">
-        <div className="w-full max-w-sm border border-white/10 bg-card p-8">
-          <div className="flex items-center gap-3 mb-6">
-            <Shield className="w-5 h-5 text-primary" />
-            <h1 className="font-display text-xl font-bold uppercase">Admin Access</h1>
-          </div>
-          <input
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            placeholder="Email address"
-            className="w-full bg-white/5 border border-white/10 p-3 text-sm font-mono mb-3 focus:outline-none focus:border-primary/50"
-            data-testid="input-admin-email"
-          />
-          <div className="relative mb-3">
-            <input
-              type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && handleLogin()}
-              placeholder="Password"
-              className="w-full bg-white/5 border border-white/10 p-3 pr-10 text-sm font-mono focus:outline-none focus:border-primary/50"
-              data-testid="input-admin-password"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white"
-            >
-              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
-          {loginError && <p className="text-xs text-red-500 font-mono mb-3" data-testid="text-admin-login-error">{loginError}</p>}
-          <button onClick={handleLogin} className="w-full bg-primary/10 border border-primary/30 text-primary font-mono text-xs uppercase py-2.5 hover:bg-primary/20 transition-colors" data-testid="button-admin-login">
-            AUTHENTICATE
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const role = employee.role as "Admin" | "Editor" | "Moderator";
-  const canEditContent = role === "Admin" || role === "Editor";
-  const isAdmin = role === "Admin";
-
-  const tabs: { id: Tab; label: string; visible: boolean }[] = [
-    { id: "dashboard", label: "Dashboard", visible: canEditContent },
-    { id: "holes", label: "Investigations", visible: canEditContent },
-    { id: "people", label: "People", visible: canEditContent },
-    { id: "relationships", label: "Relationships", visible: canEditContent },
-    { id: "podcasts", label: "Podcasts", visible: canEditContent },
-    { id: "history", label: "History", visible: canEditContent },
-    { id: "tools", label: "Tools", visible: isAdmin },
-    { id: "employees", label: "Employees", visible: isAdmin },
-  ];
-
-  const visibleTabs = tabs.filter(t => t.visible);
-
-  if (!visibleTabs.find(t => t.id === activeTab)) {
-    if (visibleTabs.length > 0 && activeTab !== visibleTabs[0].id) {
-      setActiveTab(visibleTabs[0].id);
-    }
-  }
-
   return (
-    <div className="min-h-screen flex" data-testid="page-admin">
-      <aside
-        data-testid="admin-sidebar"
-        className={`w-56 bg-[#0a0a0a] border-r border-white/5 flex flex-col fixed top-0 left-0 h-screen z-30 transition-transform duration-300 ${focusMode ? "-translate-x-full" : "translate-x-0"}`}
-      >
-        <div className="p-4 flex items-center gap-3 border-b border-white/5">
-          <Shield className="w-5 h-5 text-primary" />
-          <h1 className="font-display text-xl font-bold uppercase tracking-wider">Admin CMS</h1>
-        </div>
-
-        <nav className="flex-1 overflow-y-auto py-2">
-          {editingHoleId ? (
-            <div>
-              <button
-                onClick={() => { setEditingHoleId(null); setEditingNodeId(null); }}
-                className="flex items-center gap-2 px-4 py-3 text-muted-foreground hover:text-white font-mono text-xs border-b border-white/5 w-full"
-                data-testid="button-back-to-cms"
-              >
-                <ArrowLeft className="w-4 h-4" /> BACK TO CMS
-              </button>
-              <div className="px-4 py-3 border-b border-white/5">
-                <p className="font-mono text-[10px] text-muted-foreground/50 uppercase tracking-widest mb-1">INVESTIGATION</p>
-                <p className="font-mono text-xs text-white truncate">{editingHole?.title}</p>
-              </div>
-              <div className="px-4 py-2">
-                <span className="font-mono text-[10px] text-muted-foreground/50 uppercase tracking-widest">NODES</span>
-              </div>
-              {editingNodes.sort((a, b) => a.position - b.position).map(node => (
-                <button
-                  key={node.id}
-                  onClick={() => setEditingNodeId(node.id)}
-                  className={`w-full text-left px-4 py-3 font-mono text-xs border-l-2 transition-colors ${editingNodeId === node.id ? "border-primary text-primary bg-primary/5" : "border-transparent text-muted-foreground hover:text-white"}`}
-                  data-testid={`node-sidebar-item-${node.id}`}
-                >
-                  <span className="text-primary/60 mr-2">#{node.position}</span>
-                  {node.title}
-                </button>
-              ))}
-              <button
-                onClick={() => { if (!createNodeMutation.isPending) createNodeMutation.mutate({ holeId: editingHoleId, title: "New Node", summary: "", content: "", position: editingNodes.length + 1, status: "unlocked", branchLinks: [], timeline: [] }); }}
-                disabled={createNodeMutation.isPending}
-                className="w-full flex items-center gap-2 px-4 py-3 font-mono text-xs text-primary/60 hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                data-testid="button-add-node-sidebar"
-              >
-                {createNodeMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />} ADD NODE
-              </button>
-              {createNodeError && <p className="px-4 py-1 font-mono text-[10px] text-red-500">{createNodeError}</p>}
-            </div>
-          ) : (
-            NAV_SECTIONS.map(section => {
-              const sectionItems = section.items.filter(item => visibleTabs.some(t => t.id === item.id));
-              if (sectionItems.length === 0) return null;
-              return (
-                <div key={section.group} className="mb-2">
-                  <div className="px-4 py-2">
-                    <span className="font-mono text-[10px] text-muted-foreground/50 uppercase tracking-widest">{section.group}</span>
-                  </div>
-                  {sectionItems.map(item => {
-                    const Icon = item.icon;
-                    const isActive = activeTab === item.id;
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => setActiveTab(item.id)}
-                        className={`w-full flex items-center gap-3 px-4 py-2.5 font-mono text-xs uppercase transition-colors border-l-2 ${isActive ? "border-primary text-primary bg-primary/5" : "border-transparent text-muted-foreground hover:text-white"}`}
-                        data-testid={`admin-tab-${item.id}`}
-                      >
-                        <Icon className="w-4 h-4" />
-                        {item.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              );
-            })
-          )}
-        </nav>
-
-        <div className="border-t border-white/5 p-4 space-y-3">
-          <div className="text-xs font-mono text-muted-foreground">
-            {employee.name} <span className="text-primary/60">({role})</span>
-          </div>
-          <button onClick={handleLogout} className="flex items-center gap-2 text-muted-foreground hover:text-white font-mono text-xs transition-colors w-full" data-testid="button-admin-logout">
-            <LogOut className="w-4 h-4" /> LOGOUT
-          </button>
-        </div>
-      </aside>
-
-      <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${focusMode ? "ml-0" : "ml-56"}`}>
-        <div className="border-b border-white/5 bg-background/50 backdrop-blur-sm p-3 flex items-center justify-between sticky top-0 z-20">
-          <div className="flex items-center gap-2">
+    <div data-testid="page-admin">
+      {editingHoleId && (
+        <div className="border-b border-white/5 bg-[#0a0a0a]/50 px-8 py-2">
+          <div className="flex items-center gap-3">
             <button
-              onClick={() => setFocusMode(!focusMode)}
-              className="flex items-center gap-2 text-muted-foreground hover:text-white font-mono text-xs transition-colors px-2 py-1.5 border border-white/10 hover:border-white/20"
-              data-testid="button-toggle-focus"
+              onClick={() => { setEditingHoleId(null); setEditingNodeId(null); }}
+              className="flex items-center gap-2 text-muted-foreground hover:text-white font-mono text-xs transition-colors"
+              data-testid="button-back-to-cms"
             >
-              {focusMode ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-              {focusMode ? "EXIT FOCUS" : "FOCUS MODE"}
+              <ArrowLeft className="w-4 h-4" /> Investigations
             </button>
+            <ChevronRight className="w-3 h-3 text-muted-foreground/50" />
+            <span className="font-mono text-xs text-white truncate">{editingHole?.title}</span>
+            {editingNodeId && (
+              <>
+                <ChevronRight className="w-3 h-3 text-muted-foreground/50" />
+                <span className="font-mono text-xs text-primary truncate">
+                  {editingNodes.find(n => n.id === editingNodeId)?.title}
+                </span>
+              </>
+            )}
           </div>
-          <button
-            onClick={() => setShowValidation(!showValidation)}
-            className="flex items-center gap-2 text-muted-foreground hover:text-white font-mono text-xs transition-colors px-2 py-1.5 border border-white/10 hover:border-white/20"
-            data-testid="button-toggle-validation"
-          >
-            {showValidation ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
-            VALIDATION
-          </button>
         </div>
+      )}
 
-        <div className="flex flex-1 overflow-hidden">
-          <div data-testid="admin-main-content" className="flex-1 overflow-y-auto mil-grid">
-            <div className="container mx-auto px-8 py-6">
-              {editingHoleId ? (
-                editingNodeId && editingHoleSlug ? (
-                  <NodeEditor nodeId={editingNodeId} holeId={editingHoleId} holeSlug={editingHoleSlug} />
-                ) : (
-                  <InvestigationOverview holeId={editingHoleId} holes={adminHoles} nodes={editingNodes} onSelectNode={setEditingNodeId} onAddNode={() => { if (!createNodeMutation.isPending) createNodeMutation.mutate({ holeId: editingHoleId, title: "New Node", summary: "", content: "", position: editingNodes.length + 1, status: "unlocked", branchLinks: [], timeline: [] }); }} isAddingNode={createNodeMutation.isPending} />
-                )
-              ) : (
-                <>
-                  {activeTab === "dashboard" && <EditorialDashboard role={role} />}
-                  {activeTab === "holes" && <HolesManager role={role} onEditInvestigation={(id) => { setEditingHoleId(id); setEditingNodeId(null); }} />}
-                  {activeTab === "people" && <PeopleManager role={role} />}
-                  {activeTab === "relationships" && <RelationshipsManager role={role} />}
-                  {activeTab === "podcasts" && <PodcastsManager role={role} />}
-                  {activeTab === "history" && <HistoryPanel />}
-                  {activeTab === "tools" && <ToolsPanel />}
-                  {activeTab === "employees" && <EmployeesManager />}
-                </>
-              )}
+      <div className="flex flex-1 overflow-hidden">
+        {editingHoleId && (
+          <div className="w-52 border-r border-white/5 bg-[#0a0a0a] flex-shrink-0 overflow-y-auto" data-testid="admin-node-sidebar">
+            <div className="px-3 py-2">
+              <span className="font-mono text-[10px] text-muted-foreground/50 uppercase tracking-widest">NODES</span>
             </div>
+            {editingNodes.sort((a, b) => a.position - b.position).map(node => (
+              <button
+                key={node.id}
+                onClick={() => setEditingNodeId(node.id)}
+                className={`w-full text-left px-3 py-2.5 font-mono text-xs border-l-2 transition-colors ${editingNodeId === node.id ? "border-primary text-primary bg-primary/5" : "border-transparent text-muted-foreground hover:text-white"}`}
+                data-testid={`node-sidebar-item-${node.id}`}
+              >
+                <span className="text-primary/60 mr-2">#{node.position}</span>
+                {node.title}
+              </button>
+            ))}
+            <button
+              onClick={() => { if (!createNodeMutation.isPending) createNodeMutation.mutate({ holeId: editingHoleId, title: "New Node", summary: "", content: "", position: editingNodes.length + 1, status: "unlocked", branchLinks: [], timeline: [] }); }}
+              disabled={createNodeMutation.isPending}
+              className="w-full flex items-center gap-2 px-3 py-2.5 font-mono text-xs text-primary/60 hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              data-testid="button-add-node-sidebar"
+            >
+              {createNodeMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />} ADD NODE
+            </button>
+            {createNodeError && <p className="px-3 py-1 font-mono text-[10px] text-red-500">{createNodeError}</p>}
+          </div>
+        )}
+
+        <div className="flex-1 overflow-y-auto">
+          <div className="flex">
+            <div className="flex-1">
+              <div className="container mx-auto px-8 py-6">
+                {editingHoleId ? (
+                  editingNodeId && editingHoleSlug ? (
+                    <NodeEditor nodeId={editingNodeId} holeId={editingHoleId} holeSlug={editingHoleSlug} />
+                  ) : (
+                    <InvestigationOverview holeId={editingHoleId} holes={adminHoles} nodes={editingNodes} onSelectNode={setEditingNodeId} onAddNode={() => { if (!createNodeMutation.isPending) createNodeMutation.mutate({ holeId: editingHoleId, title: "New Node", summary: "", content: "", position: editingNodes.length + 1, status: "unlocked", branchLinks: [], timeline: [] }); }} isAddingNode={createNodeMutation.isPending} />
+                  )
+                ) : (
+                  <>
+                    {activeTab === "dashboard" && <EditorialDashboard role={role} />}
+                    {activeTab === "holes" && <HolesManager role={role} onEditInvestigation={(id) => { setEditingHoleId(id); setEditingNodeId(null); }} />}
+                    {activeTab === "people" && <PeopleManager role={role} />}
+                    {activeTab === "relationships" && <RelationshipsManager role={role} />}
+                    {activeTab === "podcasts" && <PodcastsManager role={role} />}
+                    {activeTab === "history" && <HistoryPanel />}
+                    {activeTab === "tools" && <ToolsPanel />}
+                    {activeTab === "employees" && <EmployeesManager />}
+                  </>
+                )}
+              </div>
+            </div>
+
+            {showValidation && (
+              <div className="w-72 border-l border-white/5 bg-[#0a0a0a] flex-shrink-0 overflow-y-auto">
+                <div className="sticky top-0 bg-[#0a0a0a] border-b border-white/5 p-2 flex justify-end">
+                  <button
+                    onClick={() => setShowValidation(false)}
+                    className="text-muted-foreground hover:text-white font-mono text-[10px] flex items-center gap-1 px-2 py-1 border border-white/10 hover:border-white/20 transition-colors"
+                    data-testid="button-close-validation"
+                  >
+                    <PanelRightClose className="w-3 h-3" /> HIDE
+                  </button>
+                </div>
+                {editingNodeId && editingHoleSlug ? (
+                  <NodeValidationPanel nodeId={editingNodeId} holeId={editingHoleId!} holeSlug={editingHoleSlug} />
+                ) : (
+                  <ValidationPanel />
+                )}
+              </div>
+            )}
           </div>
 
-          {showValidation && !focusMode && (
-            <div className="w-72 border-l border-white/5 bg-[#0a0a0a] flex-shrink-0 overflow-hidden">
-              {editingNodeId && editingHoleSlug ? (
-                <NodeValidationPanel nodeId={editingNodeId} holeId={editingHoleId!} holeSlug={editingHoleSlug} />
-              ) : (
-                <ValidationPanel />
-              )}
-            </div>
+          {!showValidation && (
+            <button
+              onClick={() => setShowValidation(true)}
+              className="fixed bottom-4 right-4 flex items-center gap-2 text-muted-foreground hover:text-white font-mono text-xs transition-colors px-3 py-2 border border-white/10 hover:border-white/20 bg-[#0a0a0a] z-10"
+              data-testid="button-show-validation"
+            >
+              <PanelRightOpen className="w-4 h-4" /> VALIDATION
+            </button>
           )}
         </div>
       </div>

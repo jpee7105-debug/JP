@@ -1,17 +1,15 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
-import { useLocation } from "wouter";
+import { useAdminContext } from "@/components/AdminLayout";
 import {
-  Loader2, Plus, Trash2, Save, X, Shield, ArrowLeft, Search,
-  Users2, ChevronRight, CheckCircle2, AlertTriangle, Eye, EyeOff,
-  LogOut, Link2, UserPlus, Heart, Baby, Users, FileText,
-  Calendar, Globe, Image, Tag, Hash, Clock
+  Loader2, Plus, Trash2, X, ArrowLeft, Search,
+  Users2, CheckCircle2, AlertTriangle,
+  Link2, UserPlus, Heart, Baby, Users, FileText,
+  Hash, Clock
 } from "lucide-react";
-import type { Person, Relationship, RabbitHole, Employee } from "@shared/schema";
+import type { Person, Relationship, RabbitHole } from "@shared/schema";
 import { FAMILY_RELATIONSHIP_TYPES } from "@shared/schema";
-
-type AdminEmployee = Omit<Employee, "passwordHash">;
 
 function adminFetch(url: string, opts?: RequestInit) {
   return fetch(url, {
@@ -75,100 +73,13 @@ function generateHandle(name: string): string {
 const CASE_REL_TYPES = ["involved_in", "mentioned_in", "witness_in", "suspect_in", "victim_in", "associate_of"] as const;
 
 export default function AdminPeople() {
-  const [employee, setEmployee] = useState<AdminEmployee | null>(null);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [loginError, setLoginError] = useState("");
+  const { role, isAdmin } = useAdminContext();
   const [selectedPersonId, setSelectedPersonId] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [, navigate] = useLocation();
-
-  useEffect(() => {
-    fetch("/api/admin/me", { credentials: "include" })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data) setEmployee(data); })
-      .finally(() => setIsAuthLoading(false));
-  }, []);
-
-  const handleLogin = async () => {
-    setLoginError("");
-    try {
-      const res = await fetch("/api/admin/login", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setEmployee(data);
-      } else {
-        const err = await res.json();
-        setLoginError(err.message || "Invalid credentials");
-      }
-    } catch {
-      setLoginError("Connection error");
-    }
-  };
-
-  if (isAuthLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0E0E0E]">
-        <Loader2 className="w-6 h-6 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!employee) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0E0E0E]" data-testid="page-admin-people-login">
-        <div className="w-full max-w-sm border border-white/10 bg-card p-8">
-          <div className="flex items-center gap-3 mb-6">
-            <Shield className="w-5 h-5 text-primary" />
-            <h1 className="font-display text-xl font-bold uppercase">Admin Access</h1>
-          </div>
-          <input
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            placeholder="Email address"
-            className="w-full bg-white/5 border border-white/10 p-3 text-sm font-mono mb-3 focus:outline-none focus:border-primary/50"
-            data-testid="input-admin-email"
-          />
-          <div className="relative mb-3">
-            <input
-              type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && handleLogin()}
-              placeholder="Password"
-              className="w-full bg-white/5 border border-white/10 p-3 pr-10 text-sm font-mono focus:outline-none focus:border-primary/50"
-              data-testid="input-admin-password"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white"
-            >
-              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
-          {loginError && <p className="text-xs text-red-500 font-mono mb-3" data-testid="text-login-error">{loginError}</p>}
-          <button onClick={handleLogin} className="w-full bg-primary/10 border border-primary/30 text-primary font-mono text-xs uppercase py-2.5 hover:bg-primary/20 transition-colors" data-testid="button-admin-login">
-            AUTHENTICATE
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const role = employee.role as "Admin" | "Editor" | "Moderator";
 
   return (
-    <div className="min-h-screen bg-[#0E0E0E]" data-testid="page-admin-people">
+    <div data-testid="page-admin-people">
       {selectedPersonId ? (
         <PersonEditor
           personId={selectedPersonId}
@@ -463,7 +374,7 @@ function PersonEditor({
     return (
       <div className="max-w-6xl mx-auto px-6 py-8">
         <button onClick={onBack} className="flex items-center gap-2 text-muted-foreground hover:text-white font-mono text-xs mb-4" data-testid="button-back-list">
-          <ArrowLeft className="w-4 h-4" /> BACK TO LIST
+          <ArrowLeft className="w-4 h-4" /> People List
         </button>
         <p className="font-mono text-sm text-red-500">Person not found.</p>
       </div>
@@ -482,7 +393,7 @@ function PersonEditor({
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="flex items-center gap-2 text-muted-foreground hover:text-white font-mono text-xs transition-colors" data-testid="button-back-list">
-            <ArrowLeft className="w-4 h-4" /> BACK TO LIST
+            <ArrowLeft className="w-4 h-4" /> People List
           </button>
           <div className="w-px h-4 bg-white/10" />
           <h1 className="font-mono text-sm uppercase tracking-wider truncate max-w-[300px]" data-testid="text-editing-name">
