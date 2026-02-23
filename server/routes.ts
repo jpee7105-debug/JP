@@ -1605,5 +1605,60 @@ export async function registerRoutes(
     } catch { res.status(500).json({ message: "Failed to send message" }); }
   });
 
+  // ===== LIBRARY ROUTES =====
+
+  app.get("/api/library/works", async (_req: Request, res: Response) => {
+    try {
+      const works = await storage.getLibraryWorks();
+      res.json(works);
+    } catch { res.status(500).json({ message: "Failed to fetch library works" }); }
+  });
+
+  app.get("/api/library/works/:workSlug/books", async (req: Request, res: Response) => {
+    try {
+      const books = await storage.getLibraryBooksByWorkSlug(req.params.workSlug as string);
+      res.json(books);
+    } catch { res.status(500).json({ message: "Failed to fetch books" }); }
+  });
+
+  app.get("/api/library/works/:workSlug/books/:bookSlug/chapters/:chapterNumber", async (req: Request, res: Response) => {
+    try {
+      const book = await storage.getLibraryBookBySlug(req.params.workSlug as string, req.params.bookSlug as string);
+      if (!book) return res.status(404).json({ message: "Book not found" });
+      const chapterNumber = parseInt(req.params.chapterNumber as string);
+      if (isNaN(chapterNumber)) return res.status(400).json({ message: "Invalid chapter number" });
+      const chapter = await storage.getLibraryChapter(book.id, chapterNumber);
+      if (!chapter) return res.status(404).json({ message: "Chapter not found" });
+      const verses = await storage.getLibraryVersesByChapterId(chapter.id);
+      res.json({ book, chapter, verses });
+    } catch { res.status(500).json({ message: "Failed to fetch chapter" }); }
+  });
+
+  app.get("/api/library/search", async (req: Request, res: Response) => {
+    try {
+      const workSlug = (req.query.workSlug as string) || "bible-kjv";
+      const q = (req.query.q as string) || "";
+      const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+      if (!q || q.length < 2) return res.json([]);
+      const results = await storage.searchLibrary(workSlug, q, limit);
+      res.json(results);
+    } catch { res.status(500).json({ message: "Search failed" }); }
+  });
+
+  app.get("/api/library/verse-preview", async (req: Request, res: Response) => {
+    try {
+      const bookSlug = req.query.bookSlug as string;
+      const chapterNumber = parseInt(req.query.chapter as string);
+      const verseNumber = parseInt(req.query.verse as string);
+      const workSlug = (req.query.workSlug as string) || "bible-kjv";
+      if (!bookSlug || isNaN(chapterNumber) || isNaN(verseNumber)) {
+        return res.status(400).json({ message: "bookSlug, chapter, verse required" });
+      }
+      const preview = await storage.getVersePreview(bookSlug, chapterNumber, verseNumber, workSlug);
+      if (!preview) return res.status(404).json({ message: "Verse not found" });
+      res.json(preview);
+    } catch { res.status(500).json({ message: "Preview failed" }); }
+  });
+
   return httpServer;
 }

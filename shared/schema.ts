@@ -348,6 +348,60 @@ export const RELATIONSHIP_TYPES = [
 
 export const FAMILY_RELATIONSHIP_TYPES = ["parent_of", "child_of", "spouse_of", "sibling_of"] as const;
 
+// ===== LIBRARY =====
+
+export const libraryWorks = pgTable("library_works", {
+  id: serial("id").primaryKey(),
+  slug: text("slug").unique().notNull(),
+  title: text("title").notNull(),
+  description: text("description").default("").notNull(),
+  author: text("author").default("").notNull(),
+  language: text("language").default("en").notNull(),
+  year: text("year").default("").notNull(),
+  bookCount: integer("book_count").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const libraryBooks = pgTable("library_books", {
+  id: serial("id").primaryKey(),
+  workId: integer("work_id").references(() => libraryWorks.id, { onDelete: "cascade" }).notNull(),
+  slug: text("slug").notNull(),
+  name: text("name").notNull(),
+  abbreviation: text("abbreviation").default("").notNull(),
+  position: integer("position").default(0).notNull(),
+  testament: text("testament").default("").notNull(),
+  chapterCount: integer("chapter_count").default(0).notNull(),
+});
+
+export const libraryChapters = pgTable("library_chapters", {
+  id: serial("id").primaryKey(),
+  bookId: integer("book_id").references(() => libraryBooks.id, { onDelete: "cascade" }).notNull(),
+  chapterNumber: integer("chapter_number").notNull(),
+  verseCount: integer("verse_count").default(0).notNull(),
+});
+
+export const libraryVerses = pgTable("library_verses", {
+  id: serial("id").primaryKey(),
+  chapterId: integer("chapter_id").references(() => libraryChapters.id, { onDelete: "cascade" }).notNull(),
+  bookId: integer("book_id").references(() => libraryBooks.id, { onDelete: "cascade" }).notNull(),
+  verseNumber: integer("verse_number").notNull(),
+  text: text("text").notNull(),
+});
+
+export const insertLibraryWorkSchema = createInsertSchema(libraryWorks).omit({ id: true, createdAt: true });
+export const insertLibraryBookSchema = createInsertSchema(libraryBooks).omit({ id: true });
+export const insertLibraryChapterSchema = createInsertSchema(libraryChapters).omit({ id: true });
+export const insertLibraryVerseSchema = createInsertSchema(libraryVerses).omit({ id: true });
+
+export type LibraryWork = typeof libraryWorks.$inferSelect;
+export type InsertLibraryWork = z.infer<typeof insertLibraryWorkSchema>;
+export type LibraryBook = typeof libraryBooks.$inferSelect;
+export type InsertLibraryBook = z.infer<typeof insertLibraryBookSchema>;
+export type LibraryChapter = typeof libraryChapters.$inferSelect;
+export type InsertLibraryChapter = z.infer<typeof insertLibraryChapterSchema>;
+export type LibraryVerse = typeof libraryVerses.$inferSelect;
+export type InsertLibraryVerse = z.infer<typeof insertLibraryVerseSchema>;
+
 export const insertPodcastSchema = createInsertSchema(podcasts).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertPodcastEpisodeSchema = createInsertSchema(podcastEpisodes).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertRabbitHolePodcastEpisodeSchema = createInsertSchema(rabbitHolePodcastEpisodes).omit({ id: true });

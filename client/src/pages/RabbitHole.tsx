@@ -8,6 +8,7 @@ import {
   Layers, Scale, Database, Tag, Headphones, DollarSign, Play
 } from "lucide-react";
 import ThreadComment from "@/components/RedThread";
+import RichText from "@/components/RichText";
 import type { RabbitHole as RabbitHoleType, Comment, DepthNode, Claim, Source, PodcastEpisode, Podcast, SponsoredPodcastSlot } from "@shared/schema";
 
 function statusBadge(status: string) {
@@ -382,7 +383,7 @@ export default function RabbitHolePage() {
                             <h3 className="font-display text-lg font-bold">{node.title}</h3>
                             {!isUnlocked && <span className="font-mono text-[10px] text-yellow-500 bg-yellow-500/10 px-2 py-0.5">LOCKED</span>}
                           </div>
-                          <p className="text-sm text-muted-foreground line-clamp-2">{node.summary}</p>
+                          <p className="text-sm text-muted-foreground line-clamp-2"><RichText text={node.summary} /></p>
                         </div>
                         {isUnlocked && (
                           isExpanded ? <ChevronDown className="w-5 h-5 text-primary flex-shrink-0 mt-2" /> : <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0 mt-2" />
@@ -393,7 +394,7 @@ export default function RabbitHolePage() {
                           <div className="pt-6 pl-14">
                             <div className="prose prose-invert prose-sm max-w-none">
                               {node.content.split('\n\n').map((p, pi) => (
-                                <p key={pi} className="text-foreground/80 leading-relaxed mb-4">{p}</p>
+                                <p key={pi} className="text-foreground/80 leading-relaxed mb-4"><RichText text={p} /></p>
                               ))}
                             </div>
                             {(node.branchLinks as { label: string; targetSlug: string }[]).length > 0 && (
@@ -486,7 +487,7 @@ export default function RabbitHolePage() {
                         className="w-full text-left p-6"
                       >
                         <div className="flex items-start justify-between gap-4 mb-3">
-                          <p className="font-display text-base font-semibold flex-1">{claim.statement}</p>
+                          <p className="font-display text-base font-semibold flex-1"><RichText text={claim.statement} /></p>
                           {isExpanded ? <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-1" /> : <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-1" />}
                         </div>
                         <div className="flex items-center gap-3">

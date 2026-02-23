@@ -26,6 +26,10 @@ import Replay from "@/pages/Replay";
 import PersonDetail from "@/pages/PersonDetail";
 import AdminPeople from "@/pages/AdminPeople";
 import AdminInvestigationEditor from "@/pages/AdminInvestigationEditor";
+import Library from "@/pages/Library";
+import LibraryWork from "@/pages/LibraryWork";
+import LibraryBook from "@/pages/LibraryBook";
+import LibraryChapter from "@/pages/LibraryChapter";
 
 function PublicRouter() {
   return (
@@ -45,6 +49,10 @@ function PublicRouter() {
       <Route path="/channel/:handle" component={Channel} />
       <Route path="/watch/:streamId" component={Watch} />
       <Route path="/replay/:streamId" component={Replay} />
+      <Route path="/library/:workSlug/:bookSlug/:chapterNumber" component={LibraryChapter} />
+      <Route path="/library/:workSlug/:bookSlug" component={LibraryBook} />
+      <Route path="/library/:workSlug" component={LibraryWork} />
+      <Route path="/library" component={Library} />
       <Route path="/qa" component={QA} />
       <Route component={NotFound} />
     </Switch>

@@ -17,7 +17,7 @@ The application follows a monorepo structure, separating the frontend (`client/`
 
 ### Frontend Architecture
 - **Framework**: React 18 with TypeScript, using Vite for bundling and HMR.
-- **Routing**: Wouter handles client-side navigation with routes for Home, Discover, RabbitHole details, DepthReader, Search, Profile, Connections, Live Streaming, and an Admin CMS.
+- **Routing**: Wouter handles client-side navigation with routes for Home, Discover, RabbitHole details, DepthReader, Search, Profile, Connections, Live Streaming, Library, and an Admin CMS.
 - **State Management**: TanStack React Query manages server state, data fetching, and caching.
 - **UI/UX**: shadcn/ui (New York style) built on Radix UI primitives, styled with Tailwind CSS v4. Features a dark mode by default, custom fonts (Inter, Space Grotesk, JetBrains Mono), and a deep red accent color.
 - **Key Features**:
@@ -30,6 +30,7 @@ The application follows a monorepo structure, separating the frontend (`client/`
     - **Admin CMS**: 3-column layout with left sidebar navigation (grouped into Editorial/Intelligence/Content/System sections), main content area with clean charcoal background, and collapsible right-side validation panel. Features focus mode (Cmd+B), keyboard shortcuts, publish readiness checks, depth meter, and estimated read time calculator. Uses a **node-centric editing architecture**: clicking "EDIT NODES" on an investigation transforms the sidebar into a node list; selecting a node loads the NodeEditor with all associated content (narrative, media, claims, timeline, sources) managed inline. NodeValidationPanel shows node-specific health checks. Intelligence section includes People and Relationships management tabs.
     - **Admin People Builder** (`/admin/people`): Dedicated page for managing people with list view (status filters, search), two-column edit mode (left: identity + profile dossier editor with auto-save on blur, right: workflow status panel with publish checklist, family relationships panel with inline search/add/remove, case/event links panel). Role-based permissions (Admin-only publish/delete).
     - **Persistent AdminLayout**: Centralized auth, persistent top nav (logo → Dashboard, Dashboard button, global search across people/investigations, quick-create dropdown, user dropdown), left sidebar (Editorial/Intelligence/Content/System sections), breadcrumb navigation, mobile drawer support. Unsaved changes warning blocks navigation when forms are dirty. Reusable `AutosaveIndicator` component and `useUnsavedChanges` hook.
+    - **Library**: Built-in library system for browsing primary source texts. Pages: `/library` (work list), `/library/:workSlug` (book grid by testament with search), `/library/:workSlug/:bookSlug` (chapter grid), `/library/:workSlug/:bookSlug/:chapterNumber` (verse display with `#v4` anchors and prev/next navigation). First work: KJV Bible (31,100 verses, 66 books, 1,189 chapters). Citation detection auto-links Bible references (e.g., "Genesis 6:4", "1 Corinthians 13:4-7") in investigation content via `RichText` component with hover preview tooltips.
     - **Admin Live**: Manage creators, streams (with Draft→Review→Published workflow and live/upcoming/ended states), and chat moderation.
 
 ### Backend Architecture
@@ -47,8 +48,8 @@ The application follows a monorepo structure, separating the frontend (`client/`
 ### Database
 - **Type**: PostgreSQL.
 - **ORM**: Drizzle ORM with `node-postgres` driver.
-- **Schema**: Defined in `shared/schema.ts`, including tables for `categories`, `rabbit_holes`, `depth_nodes`, `claims`, `sources`, `comments`, `employees`, `users`, `podcasts`, `podcast_episodes`, `rabbit_hole_podcast_episodes`, `sponsored_podcast_slots`, `audit_logs`, `user_sessions`, `creators`, `streams`, `stream_replays`, `live_chat_messages`, `chat_moderation_actions`, `people`, and `relationships`. People support typed relationships (family, case involvement, etc.) with a polymorphic from/to entity system. People have handle (unique slug), nationality, avatarUrl, bannerUrl fields. Duplicate spouse_of/sibling_of relationships are prevented bidirectionally.
-- **Seeding**: Initial data is provided for development, and a default Admin employee is created if none exists.
+- **Schema**: Defined in `shared/schema.ts`, including tables for `categories`, `rabbit_holes`, `depth_nodes`, `claims`, `sources`, `comments`, `employees`, `users`, `podcasts`, `podcast_episodes`, `rabbit_hole_podcast_episodes`, `sponsored_podcast_slots`, `audit_logs`, `user_sessions`, `creators`, `streams`, `stream_replays`, `live_chat_messages`, `chat_moderation_actions`, `people`, `relationships`, `library_works`, `library_books`, `library_chapters`, and `library_verses`. People support typed relationships (family, case involvement, etc.) with a polymorphic from/to entity system. People have handle (unique slug), nationality, avatarUrl, bannerUrl fields. Duplicate spouse_of/sibling_of relationships are prevented bidirectionally. Library tables have cascade deletes and unique indexes on (work_id, slug), (book_id, chapter_number), (chapter_id, verse_number).
+- **Seeding**: Initial data is provided for development, and a default Admin employee is created if none exists. KJV Bible data is seeded via `server/seed-bible.ts` which fetches public domain data from GitHub and imports 66 books, 1,189 chapters, 31,100 verses. Run with `npx tsx server/seed-bible.ts`.
 
 ## External Dependencies
 

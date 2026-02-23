@@ -65,6 +65,14 @@ import {
   type InsertPerson,
   type Relationship,
   type InsertRelationship,
+  libraryWorks,
+  libraryBooks,
+  libraryChapters,
+  libraryVerses,
+  type LibraryWork,
+  type LibraryBook,
+  type LibraryChapter,
+  type LibraryVerse,
 } from "@shared/schema";
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
@@ -210,6 +218,15 @@ export interface IStorage {
   createRelationship(r: InsertRelationship): Promise<Relationship>;
   updateRelationship(id: number, data: Partial<InsertRelationship>): Promise<Relationship | undefined>;
   deleteRelationship(id: number): Promise<boolean>;
+
+  getLibraryWorks(): Promise<LibraryWork[]>;
+  getLibraryWorkBySlug(slug: string): Promise<LibraryWork | undefined>;
+  getLibraryBooksByWorkSlug(workSlug: string): Promise<LibraryBook[]>;
+  getLibraryBookBySlug(workSlug: string, bookSlug: string): Promise<LibraryBook | undefined>;
+  getLibraryChapter(bookId: number, chapterNumber: number): Promise<LibraryChapter | undefined>;
+  getLibraryVersesByChapterId(chapterId: number): Promise<LibraryVerse[]>;
+  searchLibrary(workSlug: string, query: string, limit: number): Promise<{ bookName: string; bookSlug: string; chapterNumber: number; verseNumber: number; text: string }[]>;
+  getVersePreview(bookSlug: string, chapterNumber: number, verseNumber: number, workSlug: string): Promise<{ text: string; reference: string } | null>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1018,6 +1035,67 @@ export class DatabaseStorage implements IStorage {
   async deleteRelationship(id: number): Promise<boolean> {
     const result = await db.delete(relationships).where(eq(relationships.id, id)).returning();
     return result.length > 0;
+  }
+
+  async getLibraryWorks(): Promise<LibraryWork[]> {
+    return db.select().from(libraryWorks).orderBy(asc(libraryWorks.title));
+  }
+
+  async getLibraryWorkBySlug(slug: string): Promise<LibraryWork | undefined> {
+    const [work] = await db.select().from(libraryWorks).where(eq(libraryWorks.slug, slug));
+    return work;
+  }
+
+  async getLibraryBooksByWorkSlug(workSlug: string): Promise<LibraryBook[]> {
+    const [work] = await db.select().from(libraryWorks).where(eq(libraryWorks.slug, workSlug));
+    if (!work) return [];
+    return db.select().from(libraryBooks).where(eq(libraryBooks.workId, work.id)).orderBy(asc(libraryBooks.position));
+  }
+
+  async getLibraryBookBySlug(workSlug: string, bookSlug: string): Promise<LibraryBook | undefined> {
+    const [work] = await db.select().from(libraryWorks).where(eq(libraryWorks.slug, workSlug));
+    if (!work) return undefined;
+    const [book] = await db.select().from(libraryBooks).where(and(eq(libraryBooks.workId, work.id), eq(libraryBooks.slug, bookSlug)));
+    return book;
+  }
+
+  async getLibraryChapter(bookId: number, chapterNumber: number): Promise<LibraryChapter | undefined> {
+    const [chapter] = await db.select().from(libraryChapters).where(and(eq(libraryChapters.bookId, bookId), eq(libraryChapters.chapterNumber, chapterNumber)));
+    return chapter;
+  }
+
+  async getLibraryVersesByChapterId(chapterId: number): Promise<LibraryVerse[]> {
+    return db.select().from(libraryVerses).where(eq(libraryVerses.chapterId, chapterId)).orderBy(asc(libraryVerses.verseNumber));
+  }
+
+  async searchLibrary(workSlug: string, query: string, limit: number): Promise<{ bookName: string; bookSlug: string; chapterNumber: number; verseNumber: number; text: string }[]> {
+    const [work] = await db.select().from(libraryWorks).where(eq(libraryWorks.slug, workSlug));
+    if (!work) return [];
+    const results = await db
+      .select({
+        bookName: libraryBooks.name,
+        bookSlug: libraryBooks.slug,
+        chapterNumber: libraryChapters.chapterNumber,
+        verseNumber: libraryVerses.verseNumber,
+        text: libraryVerses.text,
+      })
+      .from(libraryVerses)
+      .innerJoin(libraryChapters, eq(libraryVerses.chapterId, libraryChapters.id))
+      .innerJoin(libraryBooks, eq(libraryVerses.bookId, libraryBooks.id))
+      .where(and(eq(libraryBooks.workId, work.id), ilike(libraryVerses.text, `%${query}%`)))
+      .orderBy(asc(libraryBooks.position), asc(libraryChapters.chapterNumber), asc(libraryVerses.verseNumber))
+      .limit(limit);
+    return results;
+  }
+
+  async getVersePreview(bookSlug: string, chapterNumber: number, verseNumber: number, workSlug: string): Promise<{ text: string; reference: string } | null> {
+    const book = await this.getLibraryBookBySlug(workSlug, bookSlug);
+    if (!book) return null;
+    const chapter = await this.getLibraryChapter(book.id, chapterNumber);
+    if (!chapter) return null;
+    const [verse] = await db.select().from(libraryVerses).where(and(eq(libraryVerses.chapterId, chapter.id), eq(libraryVerses.verseNumber, verseNumber)));
+    if (!verse) return null;
+    return { text: verse.text, reference: `${book.name} ${chapterNumber}:${verseNumber}` };
   }
 }
 
