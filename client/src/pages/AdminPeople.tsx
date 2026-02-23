@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { useAdminContext } from "@/components/AdminLayout";
+import AutosaveIndicator from "@/components/AutosaveIndicator";
 import {
   Loader2, Plus, Trash2, X, ArrowLeft, Search,
   Users2, CheckCircle2, AlertTriangle,
@@ -254,6 +255,7 @@ function PersonEditor({
   onBack: () => void;
 }) {
   const isAdmin = role === "Admin";
+  const { setDirty } = useAdminContext();
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -310,6 +312,7 @@ function PersonEditor({
         });
         if (!res.ok) throw new Error("Save failed");
         setSaveStatus("saved");
+        setDirty(false);
         queryClient.invalidateQueries({ queryKey: ["/api/admin/people", personId] });
         queryClient.invalidateQueries({ queryKey: ["/api/admin/people"] });
         setTimeout(() => setSaveStatus("idle"), 2000);
@@ -320,12 +323,13 @@ function PersonEditor({
   }, [personId]);
 
   const updateField = useCallback((field: string, value: any) => {
+    setDirty(true);
     setLocalData(prev => {
       const next = { ...prev, [field]: value };
       autoSave(next);
       return next;
     });
-  }, [autoSave]);
+  }, [autoSave, setDirty]);
 
   const handleBlurWithAutoHandle = useCallback(() => {
     if (!localData.handle && localData.fullName) {
@@ -402,11 +406,7 @@ function PersonEditor({
           <StatusBadge status={localData.status || "Draft"} />
         </div>
         <div className="flex items-center gap-3">
-          <div className="font-mono text-[10px] flex items-center gap-1.5" data-testid="text-save-status">
-            {saveStatus === "saving" && <><Loader2 className="w-3 h-3 animate-spin text-yellow-500" /><span className="text-yellow-500">SAVING...</span></>}
-            {saveStatus === "saved" && <><CheckCircle2 className="w-3 h-3 text-green-500" /><span className="text-green-500">SAVED</span></>}
-            {saveStatus === "error" && <><AlertTriangle className="w-3 h-3 text-red-500" /><span className="text-red-500">ERROR</span></>}
-          </div>
+          <AutosaveIndicator status={saveStatus} />
           {isAdmin && (
             <button
               onClick={() => setDeleteConfirm(true)}

@@ -310,7 +310,7 @@ export default function RabbitHolePage() {
                 <span className="text-muted-foreground">DEPTH LEVEL</span>
                 <span className="text-primary">{hole.completion}%</span>
               </div>
-              <div className="h-1 bg-black w-full overflow-hidden">
+              <div className="h-1 bg-white/5 w-full overflow-hidden">
                 <div 
                   className="h-full bg-primary transition-all duration-1000 ease-out"
                   style={{ width: `${hole.completion}%` }}
@@ -641,7 +641,7 @@ export default function RabbitHolePage() {
         </div>
       </main>
 
-      <aside className="w-full md:w-96 bg-[#0a0a0a] border-l border-white/5 flex flex-col relative z-20">
+      <aside className="w-full md:w-96 bg-[#111418] border-l border-white/5 flex flex-col relative z-20">
         <div className="p-4 border-b border-white/5 bg-background/50 backdrop-blur-md z-10">
           <h3 className="font-display font-bold flex items-center gap-2">
             <div className="w-4 h-4 relative">
@@ -684,7 +684,7 @@ export default function RabbitHolePage() {
           )}
         </div>
 
-        <div className="p-4 border-t border-white/5 bg-black/50 space-y-3">
+        <div className="p-4 border-t border-white/5 bg-card/50 space-y-3">
           <textarea
             value={commentText}
             onChange={(e) => setCommentText(e.target.value)}

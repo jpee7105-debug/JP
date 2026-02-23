@@ -36,6 +36,9 @@ type AdminContextType = {
   role: string;
   isAdmin: boolean;
   canEdit: boolean;
+  navigate: (href: string) => void;
+  isDirty: boolean;
+  setDirty: (dirty: boolean) => void;
 };
 
 export const AdminContext = createContext<AdminContextType>({
@@ -43,6 +46,9 @@ export const AdminContext = createContext<AdminContextType>({
   role: "",
   isAdmin: false,
   canEdit: false,
+  navigate: () => {},
+  isDirty: false,
+  setDirty: () => {},
 });
 
 export function useAdminContext() {
@@ -140,6 +146,8 @@ function getBreadcrumbs(location: string): { label: string; href: string }[] {
   return crumbs;
 }
 
+type SearchResult = { holes: { id: number; slug: string; title: string; status: string }[]; people: { id: number; handle: string; fullName: string; status: string }[] };
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [employee, setEmployee] = useState<AdminEmployee | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -151,9 +159,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [createDropdown, setCreateDropdown] = useState(false);
   const [userDropdown, setUserDropdown] = useState(false);
   const [searchStr, setSearchStr] = useState(window.location.search);
+  const [isDirty, setDirty] = useState(false);
+  const [globalSearch, setGlobalSearch] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const createRef = useRef<HTMLDivElement>(null);
   const userRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [location, setLocation] = useLocation();
 
@@ -180,10 +194,37 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       if (userRef.current && !userRef.current.contains(e.target as Node)) {
         setUserDropdown(false);
       }
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setSearchOpen(false);
+      }
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
+
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirty) { e.preventDefault(); e.returnValue = ""; }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
+
+  const handleSearchInput = (val: string) => {
+    setGlobalSearch(val);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    if (!val.trim()) { setSearchResults(null); setSearchOpen(false); return; }
+    searchTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(val.trim())}`, { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          setSearchResults(data);
+          setSearchOpen(true);
+        }
+      } catch {}
+    }, 300);
+  };
 
   const handleLogin = async () => {
     setLoginError("");
@@ -213,13 +254,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     setPassword("");
   };
 
-  const navigate = (href: string) => {
+  const doNavigate = (href: string) => {
     if (href.includes("?")) {
       window.history.pushState(null, "", href);
       setSearchStr(new URL(href, window.location.origin).search);
     } else {
       setLocation(href);
       setSearchStr("");
+    }
+    setDirty(false);
+  };
+
+  const navigate = (href: string) => {
+    if (isDirty) {
+      if (window.confirm("You have unsaved changes. Leave without saving?")) {
+        doNavigate(href);
+      }
+    } else {
+      doNavigate(href);
     }
   };
 
@@ -287,7 +339,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const isAdmin = role === "Admin";
   const canEdit = role === "Admin" || role === "Editor";
 
-  const contextValue: AdminContextType = { employee, role, isAdmin, canEdit };
+  const contextValue: AdminContextType = { employee, role, isAdmin, canEdit, navigate, isDirty, setDirty };
 
   const fullLocation = location + (searchStr || "");
   const breadcrumbs = getBreadcrumbs(fullLocation);
@@ -366,6 +418,73 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <span className="text-[10px] font-mono uppercase text-primary bg-primary/10 border border-primary/20 px-1.5 py-0.5" data-testid="admin-badge">
               ADMIN
             </span>
+
+            <div className="hidden md:block w-px h-5 bg-white/10 mx-1" />
+            <a
+              href="/admin"
+              onClick={(e) => { e.preventDefault(); navigate("/admin"); }}
+              className="hidden md:flex items-center gap-1.5 text-muted-foreground hover:text-white font-mono text-xs px-2 py-1.5 transition-colors"
+              data-testid="button-dashboard"
+            >
+              <LayoutDashboard className="w-3.5 h-3.5" />
+              Dashboard
+            </a>
+          </div>
+
+          <div ref={searchRef} className="relative hidden md:block flex-1 max-w-xs mx-4">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+              <input
+                type="text"
+                value={globalSearch}
+                onChange={(e) => handleSearchInput(e.target.value)}
+                onFocus={() => { if (searchResults) setSearchOpen(true); }}
+                placeholder="Search people, investigations..."
+                className="w-full h-8 pl-8 pr-3 bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-primary/40 transition-colors"
+                data-testid="input-admin-search"
+              />
+            </div>
+            {searchOpen && searchResults && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-[#111418] border border-white/10 z-50 max-h-80 overflow-y-auto" data-testid="dropdown-search-results">
+                {searchResults.holes.length === 0 && searchResults.people.length === 0 && (
+                  <div className="px-3 py-4 text-center font-mono text-xs text-muted-foreground">No results found</div>
+                )}
+                {searchResults.holes.length > 0 && (
+                  <div>
+                    <div className="px-3 py-1.5 font-mono text-[10px] text-muted-foreground/50 uppercase tracking-widest border-b border-white/5">Investigations</div>
+                    {searchResults.holes.slice(0, 5).map((h) => (
+                      <a
+                        key={`hole-${h.id}`}
+                        href={`/admin?tab=holes`}
+                        onClick={(e) => { e.preventDefault(); navigate("/admin?tab=holes"); setSearchOpen(false); setGlobalSearch(""); }}
+                        className="flex items-center justify-between px-3 py-2 text-xs font-mono hover:bg-white/5 transition-colors cursor-pointer"
+                        data-testid={`search-result-hole-${h.id}`}
+                      >
+                        <span className="truncate text-white/80">{h.title}</span>
+                        <span className="text-[10px] text-muted-foreground ml-2 shrink-0">{h.status}</span>
+                      </a>
+                    ))}
+                  </div>
+                )}
+                {searchResults.people.length > 0 && (
+                  <div>
+                    <div className="px-3 py-1.5 font-mono text-[10px] text-muted-foreground/50 uppercase tracking-widest border-b border-white/5">People</div>
+                    {searchResults.people.slice(0, 5).map((p) => (
+                      <a
+                        key={`person-${p.id}`}
+                        href="/admin/people"
+                        onClick={(e) => { e.preventDefault(); navigate("/admin/people"); setSearchOpen(false); setGlobalSearch(""); }}
+                        className="flex items-center justify-between px-3 py-2 text-xs font-mono hover:bg-white/5 transition-colors cursor-pointer"
+                        data-testid={`search-result-person-${p.id}`}
+                      >
+                        <span className="truncate text-white/80">{p.fullName}</span>
+                        <span className="text-[10px] text-muted-foreground ml-2 shrink-0">@{p.handle}</span>
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-2">

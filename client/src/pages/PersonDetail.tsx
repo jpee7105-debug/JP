@@ -53,7 +53,7 @@ const FamilyNode = memo(({ data, selected }: NodeProps) => {
         <div
           style={{
             width: size, height: size, borderRadius: "50%",
-            background: isCurrent ? "rgba(139,0,0,0.15)" : "#161a1e",
+            background: isCurrent ? "hsla(0,72%,30%,0.15)" : "#161a1e",
             border: `${highlight ? 2 : 1}px solid ${isCurrent ? "hsl(0 72% 30%)" : highlight ? "#3b82f6" : "rgba(255,255,255,0.2)"}`,
             display: "flex", alignItems: "center", justifyContent: "center",
           }}

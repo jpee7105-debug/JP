@@ -201,7 +201,7 @@ export default function Admin() {
   return (
     <div data-testid="page-admin">
       {editingHoleId && (
-        <div className="border-b border-white/5 bg-[#0a0a0a]/50 px-8 py-2">
+        <div className="border-b border-white/5 bg-[#111418]/50 px-8 py-2">
           <div className="flex items-center gap-3">
             <button
               onClick={() => { setEditingHoleId(null); setEditingNodeId(null); }}
@@ -226,7 +226,7 @@ export default function Admin() {
 
       <div className="flex flex-1 overflow-hidden">
         {editingHoleId && (
-          <div className="w-52 border-r border-white/5 bg-[#0a0a0a] flex-shrink-0 overflow-y-auto" data-testid="admin-node-sidebar">
+          <div className="w-52 border-r border-white/5 bg-[#111418] flex-shrink-0 overflow-y-auto" data-testid="admin-node-sidebar">
             <div className="px-3 py-2">
               <span className="font-mono text-[10px] text-muted-foreground/50 uppercase tracking-widest">NODES</span>
             </div>
@@ -279,8 +279,8 @@ export default function Admin() {
             </div>
 
             {showValidation && (
-              <div className="w-72 border-l border-white/5 bg-[#0a0a0a] flex-shrink-0 overflow-y-auto">
-                <div className="sticky top-0 bg-[#0a0a0a] border-b border-white/5 p-2 flex justify-end">
+              <div className="w-72 border-l border-white/5 bg-[#111418] flex-shrink-0 overflow-y-auto">
+                <div className="sticky top-0 bg-[#111418] border-b border-white/5 p-2 flex justify-end">
                   <button
                     onClick={() => setShowValidation(false)}
                     className="text-muted-foreground hover:text-white font-mono text-[10px] flex items-center gap-1 px-2 py-1 border border-white/10 hover:border-white/20 transition-colors"
@@ -301,7 +301,7 @@ export default function Admin() {
           {!showValidation && (
             <button
               onClick={() => setShowValidation(true)}
-              className="fixed bottom-4 right-4 flex items-center gap-2 text-muted-foreground hover:text-white font-mono text-xs transition-colors px-3 py-2 border border-white/10 hover:border-white/20 bg-[#0a0a0a] z-10"
+              className="fixed bottom-4 right-4 flex items-center gap-2 text-muted-foreground hover:text-white font-mono text-xs transition-colors px-3 py-2 border border-white/10 hover:border-white/20 bg-[#111418] z-10"
               data-testid="button-show-validation"
             >
               <PanelRightOpen className="w-4 h-4" /> VALIDATION

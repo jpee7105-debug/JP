@@ -192,7 +192,7 @@ const RelationshipEdge = memo(({
                 fontFamily: "'JetBrains Mono', monospace",
                 fontSize: "9px",
                 color: "rgba(255,255,255,0.7)",
-                backgroundColor: "rgba(14,14,14,0.95)",
+                backgroundColor: "rgba(17,20,24,0.95)",
                 padding: "2px 6px",
                 textTransform: "uppercase",
                 letterSpacing: "0.05em",
