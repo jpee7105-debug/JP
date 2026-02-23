@@ -43,7 +43,7 @@ The application follows a monorepo structure, separating the frontend (`client/`
 - **Validation**: Zod schemas are used for API request validation.
 - **Storage Layer**: Implements full CRUD operations for all entities, including search capabilities and cascade deletes for related content.
 - **Content Workflow**: Investigations support `Draft`, `Review`, `Published` statuses. Public APIs only expose `Published` content, while admin APIs can access all statuses with appropriate authentication.
-- **Paywall**: Free users are limited to a preview of depth nodes; Pro users with an active subscription gain full access.
+- **Paywall & Stripe Integration**: Tier model: Free (overview + first 2 depth nodes) vs Pro (full access). Users table has `plan` ("Free"/"Pro"), `subscriptionStatus` ("none"/"active"/"past_due"/"canceled"), `stripeCustomerId`, and `stripeSubscriptionId`. Stripe integration via `stripe-replit-sync` handles schema sync, webhooks, and backfill. API routes: `/api/stripe/prices` (public), `/api/stripe/checkout` (auth, creates Stripe Checkout session), `/api/stripe/portal` (auth, billing portal), `/api/stripe/sync-subscription` (auth, syncs subscription status from stripe schema to users table). Gating: depth nodes endpoint returns only preview nodes for free users; admin/employee bypass. Frontend shows lock screen with upgrade CTA after preview limit. Pricing page at `/pricing` with monthly ($9) and yearly ($79) plans. Stripe product seeded via `npx tsx server/seed-stripe.ts`.
 - **Podcast System**: Manages podcast shows, episodes, their attachment to investigations, and sponsored slots, exposing them on investigation detail pages.
 - **Live Streaming Module**: Full CRUD for creators, streams, replays, chat messages, and chat moderation. Streams follow Draft→Review→Published editorial workflow. Public APIs filter by Published status only. Chat supports polling with premium gating.
 
@@ -70,4 +70,6 @@ The application follows a monorepo structure, separating the frontend (`client/`
 - **Zod**: Schema validation library.
 - **tsx**: TypeScript execution for Node.js development.
 - **esbuild**: Server-side bundling.
+- **Stripe**: Payment processing for Pro subscriptions.
+- **stripe-replit-sync**: Replit integration for Stripe schema sync, webhooks, and backfill.
 - **Spotify/YouTube**: For embedding podcast players.

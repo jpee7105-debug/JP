@@ -109,6 +109,8 @@ export const users = pgTable("users", {
   name: text("name"),
   plan: text("plan").default("Free").notNull(),
   subscriptionStatus: text("subscription_status").default("none").notNull(),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   lastLoginAt: timestamp("last_login_at"),

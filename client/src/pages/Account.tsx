@@ -1,6 +1,9 @@
+import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation, Link } from "wouter";
-import { User, Crown, Calendar, Mail, Shield, ArrowUpRight, RotateCcw, HelpCircle } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { User, Crown, Calendar, Mail, Shield, ArrowUpRight, RotateCcw, HelpCircle, Settings, Loader2, CheckCircle2 } from "lucide-react";
 import { useOnboardingContext } from "@/App";
 
 const planBadge: Record<string, { color: string; bg: string; border: string; label: string }> = {
@@ -13,12 +16,41 @@ const statusLabels: Record<string, string> = {
   active: "Active",
   past_due: "Past due",
   canceled: "Canceled",
+  trialing: "Trial",
 };
 
 export default function Account() {
   const { user, isAuthenticated, isLoading, logout } = useAuth();
   const [, navigate] = useLocation();
   const { restartTour } = useOnboardingContext();
+
+  const syncMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/stripe/sync-subscription");
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    },
+  });
+
+  const portalMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/stripe/portal");
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      if (data.url) window.location.href = data.url;
+    },
+  });
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("upgraded") === "true" && user) {
+      syncMutation.mutate();
+      window.history.replaceState({}, "", "/account");
+    }
+  }, [user]);
 
   if (isLoading) {
     return (
@@ -34,6 +66,7 @@ export default function Account() {
   }
 
   const badge = planBadge[user.plan] || planBadge.Free;
+  const isPro = user.plan === "Pro" && user.subscriptionStatus === "active";
   const memberSince = new Date(user.createdAt).toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
@@ -52,6 +85,13 @@ export default function Account() {
           MY <span className="text-primary">PROFILE</span>
         </h1>
       </div>
+
+      {syncMutation.isSuccess && (syncMutation.data as any)?.plan === "Pro" && (
+        <div className="border border-green-500/20 bg-green-500/[0.03] p-4 mb-6 flex items-center gap-3" data-testid="upgrade-success">
+          <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
+          <p className="text-sm font-mono text-green-400">Welcome to Pro. Full access is now unlocked.</p>
+        </div>
+      )}
 
       <div className="border border-white/10 bg-card/40 p-8 mb-6">
         <div className="flex items-start justify-between mb-6">
@@ -103,7 +143,31 @@ export default function Account() {
         </div>
       </div>
 
-      {user.plan === "Free" && (
+      {isPro ? (
+        <div className="border border-primary/20 bg-primary/[0.03] p-8 mb-6">
+          <div className="flex items-start gap-4">
+            <Crown className="w-8 h-8 text-primary flex-shrink-0 mt-1" />
+            <div className="flex-1">
+              <h3 className="font-display text-lg font-bold mb-2">PRO ACTIVE</h3>
+              <p className="text-muted-foreground text-sm mb-4">
+                You have full access to all depth content, investigations, and research materials.
+              </p>
+              <button
+                onClick={() => portalMutation.mutate()}
+                disabled={portalMutation.isPending}
+                className="inline-flex items-center gap-2 px-6 py-3 border border-primary/20 text-primary font-mono text-sm uppercase tracking-wider hover:bg-primary/10 transition-colors"
+                data-testid="button-manage-subscription"
+              >
+                {portalMutation.isPending ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> LOADING...</>
+                ) : (
+                  <><Settings className="w-4 h-4" /> MANAGE SUBSCRIPTION</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
         <div className="border border-primary/20 bg-primary/[0.03] p-8 mb-6">
           <div className="flex items-start gap-4">
             <Crown className="w-8 h-8 text-primary flex-shrink-0 mt-1" />
@@ -126,13 +190,13 @@ export default function Account() {
                   Priority access to new content
                 </li>
               </ul>
-              <button
+              <Link
+                href="/pricing"
                 className="inline-flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/80 text-white font-mono text-sm uppercase tracking-wider transition-colors"
                 data-testid="button-upgrade"
               >
                 UPGRADE NOW <ArrowUpRight className="w-4 h-4" />
-              </button>
-              <p className="text-xs font-mono text-muted-foreground/50 mt-3">Payment integration coming soon</p>
+              </Link>
             </div>
           </div>
         </div>

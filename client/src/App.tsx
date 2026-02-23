@@ -34,6 +34,7 @@ import LibraryWork from "@/pages/LibraryWork";
 import LibraryBook from "@/pages/LibraryBook";
 import LibraryChapter from "@/pages/LibraryChapter";
 import Guide from "@/pages/Guide";
+import Pricing from "@/pages/Pricing";
 
 interface OnboardingContextType {
   restartTour: () => void;
@@ -65,6 +66,7 @@ function PublicRouter() {
       <Route path="/library/:workSlug" component={LibraryWork} />
       <Route path="/library" component={Library} />
       <Route path="/guide" component={Guide} />
+      <Route path="/pricing" component={Pricing} />
       <Route path="/qa" component={QA} />
       <Route component={NotFound} />
     </Switch>
