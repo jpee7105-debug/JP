@@ -18,6 +18,8 @@ declare global {
   }
 }
 
+const FREE_NODE_LIMIT = 2;
+
 type EmployeeRole = "Admin" | "Editor" | "Moderator";
 
 async function requireEmployee(req: any, res: any, next: any) {
@@ -306,10 +308,9 @@ export async function registerRoutes(
       const nodes = await storage.getDepthNodesByHoleId(hole.id);
 
       if (req.session.employeeId) {
-        return res.json(nodes);
+        return res.json(nodes.map(n => ({ ...n, locked: false })));
       }
 
-      const FREE_PREVIEW_LIMIT = 2;
       let userPlan = "Free";
       let subscriptionStatus = "none";
       if (req.session.userId) {
@@ -322,10 +323,19 @@ export async function registerRoutes(
       const hasFullAccess = userPlan === "Pro" && subscriptionStatus === "active";
 
       if (hasFullAccess) {
-        res.json(nodes);
+        res.json(nodes.map(n => ({ ...n, locked: false })));
       } else {
-        const preview = nodes.slice(0, FREE_PREVIEW_LIMIT);
-        res.json(preview);
+        const gated = nodes.map((n, i) => {
+          if (i < FREE_NODE_LIMIT) {
+            return { ...n, locked: false };
+          }
+          return {
+            ...n,
+            content: "",
+            locked: true,
+          };
+        });
+        res.json(gated);
       }
     } catch (err) {
       res.status(500).json({ message: "Failed to fetch depth nodes" });
@@ -364,7 +374,7 @@ export async function registerRoutes(
 
       res.json({
         totalNodes,
-        previewLimit: hasFullAccess ? totalNodes : 2,
+        previewLimit: hasFullAccess ? totalNodes : FREE_NODE_LIMIT,
         hasFullAccess,
         loggedIn,
         plan: userPlan,

@@ -376,40 +376,50 @@ export default function RabbitHolePage() {
                 </div>
               ) : (
                 <>
-                  {depthNodesList.map((node, i) => {
+                  {depthNodesList.map((node: any, i: number) => {
                     const isExpanded = expandedNode === node.id;
+                    const isLocked = !!node.locked;
                     return (
                       <div 
                         key={node.id} 
-                        className="border transition-all duration-300 border-white/10 hover:border-primary/30"
+                        className={`border transition-all duration-300 ${isLocked ? 'border-white/5 opacity-70' : 'border-white/10 hover:border-primary/30'}`}
                         data-testid={`depth-node-${node.id}`}
                       >
                         <button
                           onClick={() => setExpandedNode(isExpanded ? null : node.id)}
                           className="w-full text-left p-6 flex items-start gap-4"
                         >
-                          <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center border-2 font-mono text-sm font-bold border-primary text-primary">
+                          <div className={`flex-shrink-0 w-10 h-10 flex items-center justify-center border-2 font-mono text-sm font-bold ${isLocked ? 'border-white/20 text-white/30' : 'border-primary text-primary'}`}>
                             {i + 1}
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
                               <h3 className="font-display text-lg font-bold">{node.title}</h3>
+                              {isLocked && (
+                                <span className="inline-flex items-center gap-1 font-mono text-[10px] text-primary bg-primary/10 px-2 py-0.5 border border-primary/20">
+                                  <Lock className="w-2.5 h-2.5" /> PRO
+                                </span>
+                              )}
                             </div>
                             <p className="text-sm text-muted-foreground line-clamp-2"><RichText text={node.summary} /></p>
                           </div>
-                          {isExpanded ? <ChevronDown className="w-5 h-5 text-primary flex-shrink-0 mt-2" /> : <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0 mt-2" />}
+                          {isLocked ? (
+                            <Lock className="w-5 h-5 text-white/20 flex-shrink-0 mt-2" />
+                          ) : (
+                            isExpanded ? <ChevronDown className="w-5 h-5 text-primary flex-shrink-0 mt-2" /> : <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0 mt-2" />
+                          )}
                         </button>
-                        {isExpanded && (
+                        {isExpanded && !isLocked && (
                           <div className="px-6 pb-6 border-t border-white/5">
                             <div className="pt-6 pl-14">
                               <div className="prose prose-invert prose-sm max-w-none">
-                                {node.content.split('\n\n').map((p, pi) => (
+                                {node.content.split('\n\n').map((p: string, pi: number) => (
                                   <p key={pi} className="text-foreground/80 leading-relaxed mb-4"><RichText text={p} /></p>
                                 ))}
                               </div>
                               {(node.branchLinks as { label: string; targetSlug: string }[]).length > 0 && (
                                 <div className="mt-6 flex flex-wrap gap-2">
-                                  {(node.branchLinks as { label: string; targetSlug: string }[]).map((link, li) => (
+                                  {(node.branchLinks as { label: string; targetSlug: string }[]).map((link: any, li: number) => (
                                     <Link key={li} href={`/rabbithole/${link.targetSlug}`} className="inline-flex items-center gap-1 text-xs font-mono text-primary bg-primary/10 px-3 py-1 border border-primary/20 hover:bg-primary/20 transition-colors">
                                       <ExternalLink className="w-3 h-3" /> {link.label}
                                     </Link>
@@ -419,47 +429,31 @@ export default function RabbitHolePage() {
                             </div>
                           </div>
                         )}
+                        {isExpanded && isLocked && (
+                          <div className="px-6 pb-6 border-t border-white/5" data-testid={`locked-node-${node.id}`}>
+                            <div className="pt-8 pb-4 text-center">
+                              <div className="w-14 h-14 mx-auto mb-4 flex items-center justify-center border-2 border-primary/20 bg-primary/5">
+                                <Lock className="w-6 h-6 text-primary/60" />
+                              </div>
+                              <h4 className="font-display text-base font-bold mb-2">Pro Content</h4>
+                              <p className="text-sm text-muted-foreground max-w-md mx-auto mb-6">
+                                This depth node is available to Pro subscribers. Upgrade to unlock all nodes and the full investigation.
+                              </p>
+                              <div className="flex flex-wrap justify-center gap-3">
+                                <Link
+                                  href="/pricing"
+                                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary/80 text-white font-mono text-xs uppercase tracking-wider transition-colors"
+                                  data-testid="link-upgrade-locked"
+                                >
+                                  <Crown className="w-3.5 h-3.5" /> UPGRADE TO PRO
+                                </Link>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
-
-                  {access && !access.hasFullAccess && access.totalNodes > depthNodesList.length && (
-                    <div className="border border-primary/20 bg-primary/[0.02] p-8" data-testid="paywall-cta">
-                      <div className="flex items-start gap-4">
-                        <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center border-2 border-primary/30 bg-primary/10">
-                          <Lock className="w-5 h-5 text-primary" />
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="font-display text-lg font-bold mb-2 flex items-center gap-2">
-                            <Crown className="w-5 h-5 text-primary" />
-                            {access.totalNodes - depthNodesList.length} MORE DEPTH NODES
-                          </h3>
-                          <p className="text-muted-foreground text-sm mb-4">
-                            You've reached the free preview limit. Upgrade to Pro to unlock the full investigation
-                            with all {access.totalNodes} depth nodes and complete research materials.
-                          </p>
-                          <div className="flex flex-wrap gap-3">
-                            <Link
-                              href="/pricing"
-                              className="inline-flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/80 text-white font-mono text-sm uppercase tracking-wider transition-colors"
-                              data-testid="link-upgrade-pricing"
-                            >
-                              <Crown className="w-4 h-4" /> UPGRADE TO PRO
-                            </Link>
-                            {!access.loggedIn && (
-                              <Link
-                                href="/login"
-                                className="inline-flex items-center gap-2 px-6 py-3 border border-white/10 font-mono text-sm uppercase text-muted-foreground hover:text-white hover:border-white/20 transition-colors"
-                                data-testid="link-login-paywall"
-                              >
-                                LOG IN
-                              </Link>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </>
               )}
             </div>

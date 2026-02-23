@@ -1,13 +1,22 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "wouter";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useEffect } from "react";
+import { ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { useEffect, useState } from "react";
+import type { LibraryBook, LibraryChapter as LibraryChapterType, LibraryVerse, LibraryWork } from "@shared/schema";
 
 export default function LibraryChapter() {
   const { workSlug, bookSlug, chapterNumber } = useParams<{ workSlug: string; bookSlug: string; chapterNumber: string }>();
   const chNum = parseInt(chapterNumber || "1");
+  const [verseSearch, setVerseSearch] = useState("");
 
-  const { data, isLoading } = useQuery({
+  const { data: works } = useQuery<LibraryWork[]>({
+    queryKey: ["/api/library/works"],
+    queryFn: () => fetch("/api/library/works").then(r => r.json()),
+  });
+
+  const work = works?.find((w) => w.slug === workSlug);
+
+  const { data, isLoading } = useQuery<{ book: LibraryBook; chapter: LibraryChapterType; verses: LibraryVerse[] }>({
     queryKey: [`/api/library/works/${workSlug}/books/${bookSlug}/chapters/${chNum}`],
     queryFn: () => fetch(`/api/library/works/${workSlug}/books/${bookSlug}/chapters/${chNum}`).then(r => r.json()),
   });
@@ -30,19 +39,49 @@ export default function LibraryChapter() {
   const hasPrev = chNum > 1;
   const hasNext = book ? chNum < book.chapterCount : false;
 
+  const searchLower = verseSearch.toLowerCase();
+  const filteredVerses = verseSearch.length > 0
+    ? verses.filter((v) => v.text.toLowerCase().includes(searchLower))
+    : verses;
+
+  const highlightText = (text: string, query: string) => {
+    if (!query) return <span className="text-foreground/90">{text}</span>;
+    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const parts = text.split(regex);
+    return (
+      <span className="text-foreground/90">
+        {parts.map((part, i) =>
+          regex.test(part)
+            ? <mark key={i} className="bg-primary/30 text-foreground rounded-sm px-0.5">{part}</mark>
+            : <span key={i}>{part}</span>
+        )}
+      </span>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-background" data-testid="page-library-chapter">
       <div className="container mx-auto px-6 py-12 max-w-3xl">
-        <Link href={`/library/${workSlug}/${bookSlug}`} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-white transition-colors mb-6" data-testid="link-back-book">
-          <ChevronLeft className="w-3.5 h-3.5" /> {book?.name?.toUpperCase() || "BOOK"}
-        </Link>
+        <nav className="flex items-center gap-2 text-xs font-mono text-muted-foreground mb-6 flex-wrap" data-testid="breadcrumb-chapter">
+          <Link href="/library" className="hover:text-white transition-colors" data-testid="link-breadcrumb-library">LIBRARY</Link>
+          <ChevronRight className="w-3 h-3" />
+          <Link href={`/library/${workSlug}`} className="hover:text-white transition-colors" data-testid="link-breadcrumb-work">
+            {work?.title?.toUpperCase() || workSlug?.toUpperCase().replace(/-/g, " ")}
+          </Link>
+          <ChevronRight className="w-3 h-3" />
+          <Link href={`/library/${workSlug}/${bookSlug}`} className="hover:text-white transition-colors" data-testid="link-breadcrumb-book">
+            {book?.name?.toUpperCase() || bookSlug?.replace(/-/g, " ").toUpperCase()}
+          </Link>
+          <ChevronRight className="w-3 h-3" />
+          <span className="text-foreground" data-testid="text-breadcrumb-current">CHAPTER {chNum}</span>
+        </nav>
 
         <div className="mb-8 flex items-baseline justify-between">
           <div>
             <h1 className="font-display text-2xl font-bold tracking-wide" data-testid="text-chapter-title">
               {book?.name || bookSlug} — Chapter {chNum}
             </h1>
-            <p className="text-muted-foreground text-xs mt-1">{chapter?.verseCount || verses.length} verses</p>
+            <p className="text-muted-foreground text-xs mt-1" data-testid="text-verse-count">{chapter?.verseCount || verses.length} verses</p>
           </div>
           <div className="flex items-center gap-2">
             {hasPrev && (
@@ -58,6 +97,25 @@ export default function LibraryChapter() {
           </div>
         </div>
 
+        <div className="mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
+            <input
+              type="text"
+              value={verseSearch}
+              onChange={e => setVerseSearch(e.target.value)}
+              placeholder="Search within this chapter..."
+              className="w-full pl-10 pr-4 py-2 bg-card/30 border border-white/5 rounded-sm text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-white/15 transition-colors"
+              data-testid="input-search-chapter"
+            />
+          </div>
+          {verseSearch && (
+            <p className="text-xs text-muted-foreground mt-2 font-mono" data-testid="text-search-count">
+              {filteredVerses.length} verse{filteredVerses.length !== 1 ? "s" : ""} matching "{verseSearch}"
+            </p>
+          )}
+        </div>
+
         {isLoading ? (
           <div className="space-y-3">
             {Array.from({ length: 10 }).map((_, i) => (
@@ -66,7 +124,7 @@ export default function LibraryChapter() {
           </div>
         ) : (
           <div className="space-y-0">
-            {verses.map((verse: any) => {
+            {filteredVerses.map((verse) => {
               const anchorId = `v${verse.verseNumber}`;
               const isHighlighted = typeof window !== "undefined" && window.location.hash === `#${anchorId}`;
               return (
@@ -83,7 +141,7 @@ export default function LibraryChapter() {
                   >
                     {verse.verseNumber}
                   </a>
-                  <span className="text-foreground/90">{verse.text}</span>
+                  {highlightText(verse.text, verseSearch)}
                 </p>
               );
             })}
