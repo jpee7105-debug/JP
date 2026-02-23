@@ -1,14 +1,15 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertCommentSchema, insertDepthNodeSchema, insertClaimSchema, insertSourceSchema, insertCategorySchema, insertRabbitHoleSchema, insertMediaSchema, insertPodcastSchema, insertPodcastEpisodeSchema, insertRabbitHolePodcastEpisodeSchema, insertSponsoredPodcastSlotSchema, insertCreatorSchema, insertStreamSchema, insertStreamReplaySchema, insertLiveChatMessageSchema, insertChatModerationActionSchema, insertPersonSchema, insertRelationshipSchema } from "@shared/schema";
+import { insertCommentSchema, insertDepthNodeSchema, insertClaimSchema, insertSourceSchema, insertCategorySchema, insertRabbitHoleSchema, insertMediaSchema, insertPodcastSchema, insertPodcastEpisodeSchema, insertRabbitHolePodcastEpisodeSchema, insertSponsoredPodcastSlotSchema, insertCreatorSchema, insertStreamSchema, insertStreamReplaySchema, insertLiveChatMessageSchema, insertChatModerationActionSchema, insertPersonSchema, insertRelationshipSchema, insertGlobalTimelineItemSchema, insertTimelineEntrySchema } from "@shared/schema";
 import { ZodError } from "zod";
 import bcrypt from "bcryptjs";
 import type { Employee, Person, Relationship } from "@shared/schema";
+import { timelineEntries } from "@shared/schema";
 import { autoSeedIfEmpty } from "./auto-seed";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
 import { db } from "./storage";
-import { sql } from "drizzle-orm";
+import { sql, eq } from "drizzle-orm";
 
 declare global {
   namespace Express {
@@ -1801,6 +1802,154 @@ export async function registerRoutes(
     } catch (err: any) {
       console.error("Sync error:", err);
       res.status(500).json({ message: "Sync failed" });
+    }
+  });
+
+  // ===== PUBLIC TIMELINE ENDPOINTS =====
+
+  app.get("/api/timeline", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 20;
+      const offset = parseInt(req.query.offset as string) || 0;
+      const tag = req.query.tag as string | undefined;
+      const investigationId = req.query.investigationId ? parseInt(req.query.investigationId as string) : undefined;
+      const items = await storage.getGlobalTimelineItems("Published", limit, offset, tag, investigationId);
+      res.json(items);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch timeline" });
+    }
+  });
+
+  app.get("/api/timeline/tags", async (_req, res) => {
+    try {
+      const items = await storage.getGlobalTimelineItems("Published");
+      const tagSet = new Set<string>();
+      for (const item of items) {
+        const tags = item.tags as string[];
+        if (tags) tags.forEach(t => tagSet.add(t));
+      }
+      res.json(Array.from(tagSet).sort());
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch tags" });
+    }
+  });
+
+  // ===== ADMIN TIMELINE ENDPOINTS =====
+
+  app.get("/api/admin/timeline", requireEmployee, async (req, res) => {
+    try {
+      const status = req.query.status as string | undefined;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+      const offset = req.query.offset ? parseInt(req.query.offset as string) : undefined;
+      const tag = req.query.tag as string | undefined;
+      const investigationId = req.query.investigationId ? parseInt(req.query.investigationId as string) : undefined;
+      const items = await storage.getGlobalTimelineItems(status, limit, offset, tag, investigationId);
+      res.json(items);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch timeline items" });
+    }
+  });
+
+  app.post("/api/admin/timeline", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
+    try {
+      const parsed = insertGlobalTimelineItemSchema.parse({ ...req.body, createdBy: getEditorName(req), updatedBy: getEditorName(req) });
+      const item = await storage.createGlobalTimelineItem(parsed);
+      res.status(201).json(item);
+    } catch (err) {
+      if (err instanceof ZodError) return res.status(400).json({ message: "Invalid data", errors: err.errors });
+      res.status(500).json({ message: "Failed to create timeline item" });
+    }
+  });
+
+  app.put("/api/admin/timeline/:id", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const item = await storage.updateGlobalTimelineItem(id, { ...req.body, updatedBy: getEditorName(req) });
+      if (!item) return res.status(404).json({ message: "Not found" });
+      res.json(item);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to update timeline item" });
+    }
+  });
+
+  app.delete("/api/admin/timeline/:id", requireEmployee, requireRole("Admin"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const ok = await storage.deleteGlobalTimelineItem(id);
+      if (!ok) return res.status(404).json({ message: "Not found" });
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ message: "Failed to delete timeline item" });
+    }
+  });
+
+  app.post("/api/admin/timeline/promote", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
+    try {
+      const { entryId } = req.body;
+      if (!entryId) return res.status(400).json({ message: "entryId is required" });
+      const allItems = await db.select().from(timelineEntries).where(eq(timelineEntries.id, parseInt(entryId)));
+      if (allItems.length === 0) return res.status(404).json({ message: "Timeline entry not found" });
+      const entry = allItems[0];
+
+      const globalItem = await storage.createGlobalTimelineItem({
+        date: entry.date,
+        title: entry.title,
+        summary: entry.description || "",
+        linkType: "timeline_entry",
+        linkId: String(entry.id),
+        relatedInvestigationId: entry.investigationId,
+        tags: [],
+        status: "Draft",
+        sortPriority: 0,
+        createdBy: getEditorName(req),
+        updatedBy: getEditorName(req),
+      });
+      res.status(201).json(globalItem);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to promote timeline entry" });
+    }
+  });
+
+  app.get("/api/admin/timeline-entries/:investigationId", requireEmployee, async (req, res) => {
+    try {
+      const investigationId = parseInt(req.params.investigationId);
+      const entries = await storage.getTimelineEntries(investigationId);
+      res.json(entries);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch timeline entries" });
+    }
+  });
+
+  app.post("/api/admin/timeline-entries", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
+    try {
+      const parsed = insertTimelineEntrySchema.parse({ ...req.body, createdBy: getEditorName(req), updatedBy: getEditorName(req) });
+      const entry = await storage.createTimelineEntry(parsed);
+      res.status(201).json(entry);
+    } catch (err) {
+      if (err instanceof ZodError) return res.status(400).json({ message: "Invalid data", errors: err.errors });
+      res.status(500).json({ message: "Failed to create timeline entry" });
+    }
+  });
+
+  app.put("/api/admin/timeline-entries/:id", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const entry = await storage.updateTimelineEntry(id, { ...req.body, updatedBy: getEditorName(req) });
+      if (!entry) return res.status(404).json({ message: "Not found" });
+      res.json(entry);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to update timeline entry" });
+    }
+  });
+
+  app.delete("/api/admin/timeline-entries/:id", requireEmployee, requireRole("Admin"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const ok = await storage.deleteTimelineEntry(id);
+      if (!ok) return res.status(404).json({ message: "Not found" });
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ message: "Failed to delete timeline entry" });
     }
   });
 

@@ -73,6 +73,12 @@ import {
   type LibraryBook,
   type LibraryChapter,
   type LibraryVerse,
+  timelineEntries,
+  globalTimelineItems,
+  type TimelineEntry,
+  type InsertTimelineEntry,
+  type GlobalTimelineItem,
+  type InsertGlobalTimelineItem,
 } from "@shared/schema";
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
@@ -228,6 +234,17 @@ export interface IStorage {
   getLibraryVersesByChapterId(chapterId: number): Promise<LibraryVerse[]>;
   searchLibrary(workSlug: string, query: string, limit: number): Promise<{ bookName: string; bookSlug: string; chapterNumber: number; verseNumber: number; text: string }[]>;
   getVersePreview(bookSlug: string, chapterNumber: number, verseNumber: number, workSlug: string): Promise<{ text: string; reference: string } | null>;
+
+  getGlobalTimelineItems(status?: string, limit?: number, offset?: number, tag?: string, investigationId?: number): Promise<GlobalTimelineItem[]>;
+  getGlobalTimelineItem(id: number): Promise<GlobalTimelineItem | undefined>;
+  createGlobalTimelineItem(item: InsertGlobalTimelineItem): Promise<GlobalTimelineItem>;
+  updateGlobalTimelineItem(id: number, data: Partial<InsertGlobalTimelineItem>): Promise<GlobalTimelineItem | undefined>;
+  deleteGlobalTimelineItem(id: number): Promise<boolean>;
+
+  getTimelineEntries(investigationId: number): Promise<TimelineEntry[]>;
+  createTimelineEntry(entry: InsertTimelineEntry): Promise<TimelineEntry>;
+  updateTimelineEntry(id: number, data: Partial<InsertTimelineEntry>): Promise<TimelineEntry | undefined>;
+  deleteTimelineEntry(id: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1102,6 +1119,69 @@ export class DatabaseStorage implements IStorage {
     const [verse] = await db.select().from(libraryVerses).where(and(eq(libraryVerses.chapterId, chapter.id), eq(libraryVerses.verseNumber, verseNumber)));
     if (!verse) return null;
     return { text: verse.text, reference: `${book.name} ${chapterNumber}:${verseNumber}` };
+  }
+  async getGlobalTimelineItems(status?: string, limit?: number, offset?: number, tag?: string, investigationId?: number): Promise<GlobalTimelineItem[]> {
+    const conditions = [];
+    if (status) conditions.push(eq(globalTimelineItems.status, status));
+    if (investigationId) conditions.push(eq(globalTimelineItems.relatedInvestigationId, investigationId));
+
+    let query = db.select().from(globalTimelineItems);
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+    query = query.orderBy(desc(globalTimelineItems.date), desc(globalTimelineItems.sortPriority)) as any;
+    if (limit) query = query.limit(limit) as any;
+    if (offset) query = query.offset(offset) as any;
+
+    const results = await query;
+
+    if (tag) {
+      return results.filter((item: GlobalTimelineItem) => {
+        const tags = item.tags as string[];
+        return tags && tags.includes(tag);
+      });
+    }
+
+    return results;
+  }
+
+  async getGlobalTimelineItem(id: number): Promise<GlobalTimelineItem | undefined> {
+    const [item] = await db.select().from(globalTimelineItems).where(eq(globalTimelineItems.id, id));
+    return item;
+  }
+
+  async createGlobalTimelineItem(item: InsertGlobalTimelineItem): Promise<GlobalTimelineItem> {
+    const [created] = await db.insert(globalTimelineItems).values(item).returning();
+    return created;
+  }
+
+  async updateGlobalTimelineItem(id: number, data: Partial<InsertGlobalTimelineItem>): Promise<GlobalTimelineItem | undefined> {
+    const [updated] = await db.update(globalTimelineItems).set({ ...data, updatedAt: new Date() }).where(eq(globalTimelineItems.id, id)).returning();
+    return updated;
+  }
+
+  async deleteGlobalTimelineItem(id: number): Promise<boolean> {
+    const result = await db.delete(globalTimelineItems).where(eq(globalTimelineItems.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getTimelineEntries(investigationId: number): Promise<TimelineEntry[]> {
+    return db.select().from(timelineEntries).where(eq(timelineEntries.investigationId, investigationId)).orderBy(desc(timelineEntries.date));
+  }
+
+  async createTimelineEntry(entry: InsertTimelineEntry): Promise<TimelineEntry> {
+    const [created] = await db.insert(timelineEntries).values(entry).returning();
+    return created;
+  }
+
+  async updateTimelineEntry(id: number, data: Partial<InsertTimelineEntry>): Promise<TimelineEntry | undefined> {
+    const [updated] = await db.update(timelineEntries).set({ ...data, updatedAt: new Date() }).where(eq(timelineEntries.id, id)).returning();
+    return updated;
+  }
+
+  async deleteTimelineEntry(id: number): Promise<boolean> {
+    const result = await db.delete(timelineEntries).where(eq(timelineEntries.id, id)).returning();
+    return result.length > 0;
   }
 }
 

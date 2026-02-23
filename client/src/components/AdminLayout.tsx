@@ -20,6 +20,7 @@ import {
   AlertTriangle,
   ChevronRight,
   Users2,
+  Clock,
 } from "lucide-react";
 
 type AdminEmployee = {
@@ -84,6 +85,7 @@ const NAV_SECTIONS: { group: string; items: NavItem[] }[] = [
     items: [
       { id: "streams", label: "Streams", icon: Radio, path: "/admin/live" },
       { id: "podcasts", label: "Podcasts", icon: Headphones, path: "/admin", tab: "podcasts" },
+      { id: "timeline", label: "Timeline", icon: Clock, path: "/admin/timeline" },
     ],
   },
   {
@@ -103,6 +105,7 @@ function isItemActive(item: NavItem, location: string): boolean {
 
   if (item.path === "/admin/people" && pathname === "/admin/people") return true;
   if (item.path === "/admin/live" && pathname === "/admin/live") return true;
+  if (item.path === "/admin/timeline" && pathname === "/admin/timeline") return true;
 
   if (item.id === "investigations" && pathname.startsWith("/admin/investigations/")) return true;
 
@@ -130,6 +133,8 @@ function getBreadcrumbs(location: string): { label: string; href: string }[] {
 
   if (pathname === "/admin/people") {
     crumbs.push({ label: "People", href: "/admin/people" });
+  } else if (pathname === "/admin/timeline") {
+    crumbs.push({ label: "Timeline", href: "/admin/timeline" });
   } else if (pathname.startsWith("/admin/investigations/")) {
     crumbs.push({ label: "Investigations", href: "/admin?tab=holes" });
     crumbs.push({ label: "Editor", href: pathname });

@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
-import { Search, Home, Compass, Menu, X, Network, LogIn, UserPlus, User, LogOut, Radio, BookOpen, HelpCircle } from "lucide-react";
+import { Search, Home, Compass, Menu, X, Network, LogIn, UserPlus, User, LogOut, Radio, BookOpen, HelpCircle, Clock } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 const navLinks = [
@@ -9,6 +9,7 @@ const navLinks = [
   { href: "/live", label: "LIVE", icon: Radio },
   { href: "/connections", label: "CONNECTIONS", icon: Network },
   { href: "/library", label: "LIBRARY", icon: BookOpen },
+  { href: "/timeline", label: "TIMELINE", icon: Clock },
   { href: "/search", label: "SEARCH", icon: Search },
 ];
 

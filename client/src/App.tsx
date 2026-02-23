@@ -35,6 +35,8 @@ import LibraryBook from "@/pages/LibraryBook";
 import LibraryChapter from "@/pages/LibraryChapter";
 import Guide from "@/pages/Guide";
 import Pricing from "@/pages/Pricing";
+import AdminTimeline from "@/pages/AdminTimeline";
+import Timeline from "@/pages/Timeline";
 
 interface OnboardingContextType {
   restartTour: () => void;
@@ -65,6 +67,7 @@ function PublicRouter() {
       <Route path="/library/:workSlug/:bookSlug" component={LibraryBook} />
       <Route path="/library/:workSlug" component={LibraryWork} />
       <Route path="/library" component={Library} />
+      <Route path="/timeline" component={Timeline} />
       <Route path="/guide" component={Guide} />
       <Route path="/pricing" component={Pricing} />
       <Route path="/qa" component={QA} />
@@ -78,6 +81,7 @@ function AdminRouter() {
     <AdminLayout>
       <Switch>
         <Route path="/admin/investigations/:id" component={AdminInvestigationEditor} />
+        <Route path="/admin/timeline" component={AdminTimeline} />
         <Route path="/admin" component={Admin} />
         <Route path="/admin/live" component={AdminLive} />
         <Route path="/admin/people" component={AdminPeople} />

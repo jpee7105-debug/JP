@@ -404,6 +404,53 @@ export type InsertLibraryChapter = z.infer<typeof insertLibraryChapterSchema>;
 export type LibraryVerse = typeof libraryVerses.$inferSelect;
 export type InsertLibraryVerse = z.infer<typeof insertLibraryVerseSchema>;
 
+export const timelineEntries = pgTable("timeline_entries", {
+  id: serial("id").primaryKey(),
+  investigationId: integer("investigation_id").references(() => rabbitHoles.id, { onDelete: "cascade" }).notNull(),
+  nodeId: integer("node_id").references(() => depthNodes.id, { onDelete: "set null" }),
+  date: text("date").notNull(),
+  title: text("title").notNull(),
+  description: text("description").default("").notNull(),
+  sources: jsonb("sources").$type<string[]>().default([]).notNull(),
+  status: text("status").default("Draft").notNull(),
+  createdBy: text("created_by"),
+  updatedBy: text("updated_by"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const globalTimelineItems = pgTable("global_timeline_items", {
+  id: serial("id").primaryKey(),
+  date: text("date").notNull(),
+  title: text("title").notNull(),
+  summary: text("summary").default("").notNull(),
+  featuredImageUrl: text("featured_image_url"),
+  country: text("country"),
+  region: text("region"),
+  city: text("city"),
+  lat: text("lat"),
+  lng: text("lng"),
+  linkType: text("link_type").notNull(),
+  linkId: text("link_id"),
+  linkUrl: text("link_url"),
+  relatedInvestigationId: integer("related_investigation_id").references(() => rabbitHoles.id, { onDelete: "set null" }),
+  tags: jsonb("tags").$type<string[]>().default([]).notNull(),
+  status: text("status").default("Draft").notNull(),
+  sortPriority: integer("sort_priority").default(0).notNull(),
+  createdBy: text("created_by"),
+  updatedBy: text("updated_by"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertTimelineEntrySchema = createInsertSchema(timelineEntries).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertGlobalTimelineItemSchema = createInsertSchema(globalTimelineItems).omit({ id: true, createdAt: true, updatedAt: true });
+
+export type TimelineEntry = typeof timelineEntries.$inferSelect;
+export type InsertTimelineEntry = z.infer<typeof insertTimelineEntrySchema>;
+export type GlobalTimelineItem = typeof globalTimelineItems.$inferSelect;
+export type InsertGlobalTimelineItem = z.infer<typeof insertGlobalTimelineItemSchema>;
+
 export const insertPodcastSchema = createInsertSchema(podcasts).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertPodcastEpisodeSchema = createInsertSchema(podcastEpisodes).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertRabbitHolePodcastEpisodeSchema = createInsertSchema(rabbitHolePodcastEpisodes).omit({ id: true });

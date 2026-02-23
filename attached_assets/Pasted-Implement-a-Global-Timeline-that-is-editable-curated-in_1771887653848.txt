@@ -1,0 +1,86 @@
+Implement a Global Timeline that is editable/curated in the Admin side.
+
+Do NOT auto-dump every timeline entry onto the global timeline. The global timeline must be curated for storytelling and credibility.
+
+========================
+1) Data Model
+========================
+Create/ensure these tables:
+
+A) timeline_entries (investigation-scoped)
+- id (uuid)
+- investigation_id (FK)
+- node_id (FK, optional)
+- date (date or datetime)
+- title
+- description (text)
+- sources/evidence (join or json)
+- status (Draft/Review/Published)
+- created_by, updated_by
+- created_at, updated_at
+
+B) global_timeline_items (curated feed)
+- id (uuid)
+- date (date or datetime)
+- title
+- summary (short text)
+- featured_image_url (optional)
+- location fields optional (country/region/city + lat/lng for future map mode)
+- link_type: ("investigation"|"node"|"person"|"external"|"timeline_entry")
+- link_id or url depending on link_type
+- related_investigation_id (optional FK)
+- tags (optional)
+- status (Draft/Review/Published)
+- sort_priority (int, default 0)
+- created_by, updated_by
+- created_at, updated_at
+
+Rule:
+- Public timeline shows ONLY Published global_timeline_items.
+
+========================
+2) Admin UI
+========================
+Add /admin/timeline with:
+- list view (filter by status, date range, tags)
+- create new global timeline item
+- edit item
+- publish workflow (Draft/Review/Published)
+- reorder/priority controls (sort_priority)
+- quick “promote to global timeline” action from:
+  - investigation timeline entries list
+  - investigation editor timeline block
+Promotion creates a global_timeline_item linked to the timeline_entry.
+
+Admin UX requirements:
+- fast creation flow
+- clear preview of what public users will see
+- validation: missing date/title blocks publish
+
+========================
+3) Public UI
+========================
+Add /timeline page:
+- chronological feed
+- filters: tag, related investigation, person (if linked), theater (if exists)
+- clicking an item navigates based on link_type:
+  - investigation -> /investigations/:id
+  - node -> /investigations/:id#node-...
+  - person -> /people/:handle
+  - timeline_entry -> linked investigation/node
+  - external -> open link safely
+
+========================
+4) Performance
+========================
+- paginate timeline results (infinite scroll or pages)
+- do not load everything at once
+
+========================
+5) Acceptance Tests
+========================
+- Admin can create, edit, and publish global timeline items.
+- Promoting an investigation timeline entry creates a global timeline item correctly linked.
+- Public /timeline shows only Published items.
+- Clicking an item navigates to the correct destination.
+- Draft/Review items are not visible publicly.
