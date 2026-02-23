@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, memo, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
-import { Network, Loader2, ExternalLink, ChevronDown, RotateCcw, Users, GitFork, Eye, EyeOff, Map } from "lucide-react";
+import { Network, Loader2, ExternalLink, ChevronDown, Users, GitFork, Eye, EyeOff, X, Focus } from "lucide-react";
 import type { RabbitHole, Person, Relationship } from "@shared/schema";
 import { FAMILY_RELATIONSHIP_TYPES } from "@shared/schema";
 import {
@@ -20,12 +20,15 @@ import {
   Handle,
   Position,
   getBezierPath,
-  useReactFlow,
   ReactFlowProvider,
+  useViewport,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
 type ViewMode = "graph" | "family" | "timeline";
+
+const ZOOM_LABEL_THRESHOLD = 0.5;
+const ZOOM_DETAIL_THRESHOLD = 0.9;
 
 function getInitialViewMode(): ViewMode {
   try {
@@ -46,14 +49,26 @@ function labelColor(label: string) {
 
 const CaseNode = memo(({ data, selected }: NodeProps) => {
   const isHovered = data.isHovered as boolean;
+  const focusState = data.focusState as string | undefined;
+  const hideLabel = data.hideLabel as boolean | undefined;
   const highlight = selected || isHovered;
+  const isFaded = focusState === "faded";
+  const isFocused = focusState === "focused";
   const size = highlight ? 52 : 44;
   const half = size / 2;
+
+  const opacity = isFaded ? 0.15 : 1;
+  const strokeColor = isFocused
+    ? "rgba(255,255,255,0.6)"
+    : highlight
+      ? "rgba(255,255,255,0.5)"
+      : "rgba(255,255,255,0.25)";
+  const strokeW = isFocused || highlight ? 2 : 1;
 
   return (
     <div
       data-testid={`node-case-${data.entityId}`}
-      style={{ width: size, height: size, position: "relative", cursor: "pointer" }}
+      style={{ width: size, height: size, position: "relative", cursor: "pointer", opacity, transition: "opacity 0.3s ease" }}
     >
       <Handle type="target" position={Position.Top} style={{ opacity: 0, pointerEvents: "none" }} />
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0, pointerEvents: "none" }} />
@@ -62,29 +77,33 @@ const CaseNode = memo(({ data, selected }: NodeProps) => {
         <polygon
           points={`${half},2 ${size - 2},${half} ${half},${size - 2} 2,${half}`}
           fill="#161a1e"
-          stroke={highlight ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.25)"}
-          strokeWidth={highlight ? 2 : 1}
+          stroke={strokeColor}
+          strokeWidth={strokeW}
         />
       </svg>
 
-      <div
-        style={{
-          position: "absolute",
-          bottom: -18,
-          left: "50%",
-          transform: "translateX(-50%)",
-          whiteSpace: "nowrap",
-          fontFamily: "'JetBrains Mono', monospace",
-          fontSize: "9px",
-          color: highlight ? "#e0e0e0" : "rgba(255,255,255,0.6)",
-          textTransform: "uppercase",
-          letterSpacing: "0.05em",
-          textAlign: "center",
-          pointerEvents: "none",
-        }}
-      >
-        {(data.label as string).length > 16 ? (data.label as string).slice(0, 14) + ".." : data.label as string}
-      </div>
+      {!hideLabel && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: -18,
+            left: "50%",
+            transform: "translateX(-50%)",
+            whiteSpace: "nowrap",
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: "9px",
+            color: isFocused ? "#f0f0f0" : highlight ? "#e0e0e0" : "rgba(255,255,255,0.6)",
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+            textAlign: "center",
+            pointerEvents: "none",
+            opacity: isFaded ? 0.3 : 1,
+            transition: "opacity 0.3s ease",
+          }}
+        >
+          {(data.label as string).length > 16 ? (data.label as string).slice(0, 14) + ".." : data.label as string}
+        </div>
+      )}
     </div>
   );
 });
@@ -92,23 +111,36 @@ CaseNode.displayName = "CaseNode";
 
 const PersonNode = memo(({ data, selected }: NodeProps) => {
   const isHovered = data.isHovered as boolean;
+  const focusState = data.focusState as string | undefined;
+  const hideLabel = data.hideLabel as boolean | undefined;
   const highlight = selected || isHovered;
+  const isFaded = focusState === "faded";
+  const isFocused = focusState === "focused";
   const size = highlight ? 32 : 28;
+
+  const opacity = isFaded ? 0.15 : 1;
+  const borderColor = isFocused
+    ? "#60a5fa"
+    : highlight
+      ? "#3b82f6"
+      : "rgba(59,130,246,0.4)";
 
   return (
     <div
       data-testid={`node-person-${data.entityId}`}
-      style={{ width: size, height: size, position: "relative", cursor: "pointer" }}
+      style={{ width: size, height: size, position: "relative", cursor: "pointer", opacity, transition: "opacity 0.3s ease" }}
     >
       <Handle type="target" position={Position.Top} style={{ opacity: 0, pointerEvents: "none" }} />
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0, pointerEvents: "none" }} />
 
-      {highlight && (
+      {(highlight || isFocused) && (
         <div
           style={{
             position: "absolute",
             inset: -8,
-            background: "radial-gradient(circle, rgba(59,130,246,0.35) 0%, transparent 70%)",
+            background: isFocused
+              ? "radial-gradient(circle, rgba(59,130,246,0.25) 0%, transparent 70%)"
+              : "radial-gradient(circle, rgba(59,130,246,0.35) 0%, transparent 70%)",
             borderRadius: "50%",
           }}
         />
@@ -120,30 +152,34 @@ const PersonNode = memo(({ data, selected }: NodeProps) => {
           height: size,
           borderRadius: "50%",
           background: "#161a1e",
-          border: `${highlight ? 2 : 1}px solid ${highlight ? "#3b82f6" : "rgba(59,130,246,0.4)"}`,
+          border: `${highlight || isFocused ? 2 : 1}px solid ${borderColor}`,
           boxSizing: "border-box",
         }}
       />
 
-      <div
-        className="node-label-person"
-        style={{
-          position: "absolute",
-          bottom: -16,
-          left: "50%",
-          transform: "translateX(-50%)",
-          whiteSpace: "nowrap",
-          fontFamily: "'JetBrains Mono', monospace",
-          fontSize: "8px",
-          color: highlight ? "#e0e0e0" : "rgba(255,255,255,0.5)",
-          textTransform: "uppercase",
-          letterSpacing: "0.03em",
-          textAlign: "center",
-          pointerEvents: "none",
-        }}
-      >
-        {(data.label as string).length > 12 ? (data.label as string).slice(0, 10) + ".." : data.label as string}
-      </div>
+      {!hideLabel && (
+        <div
+          className="node-label-person"
+          style={{
+            position: "absolute",
+            bottom: -16,
+            left: "50%",
+            transform: "translateX(-50%)",
+            whiteSpace: "nowrap",
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: "8px",
+            color: isFocused ? "#e0e0e0" : highlight ? "#e0e0e0" : "rgba(255,255,255,0.5)",
+            textTransform: "uppercase",
+            letterSpacing: "0.03em",
+            textAlign: "center",
+            pointerEvents: "none",
+            opacity: isFaded ? 0.3 : 1,
+            transition: "opacity 0.3s ease",
+          }}
+        >
+          {(data.label as string).length > 12 ? (data.label as string).slice(0, 10) + ".." : data.label as string}
+        </div>
+      )}
     </div>
   );
 });
@@ -155,11 +191,23 @@ const RelationshipEdge = memo(({
 }: EdgeProps) => {
   const isFamily = data?.isFamily as boolean;
   const isHovered = data?.isHovered as boolean;
+  const focusState = data?.focusState as string | undefined;
+  const showDetail = data?.showDetail as boolean | undefined;
+  const isFaded = focusState === "faded";
+  const isFocused = focusState === "focused";
 
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX, sourceY, targetX, targetY,
     sourcePosition, targetPosition,
   });
+
+  const baseOpacity = isFaded ? 0.05 : 1;
+  const strokeVal = isFocused
+    ? "rgba(255,255,255,0.35)"
+    : isHovered
+      ? "rgba(255,255,255,0.5)"
+      : "rgba(255,255,255,0.12)";
+  const sw = isHovered ? 2 : isFocused ? 1.5 : (isFamily ? 0.8 : 1);
 
   return (
     <>
@@ -167,12 +215,23 @@ const RelationshipEdge = memo(({
         id={id}
         d={edgePath}
         fill="none"
-        stroke={isHovered ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.12)"}
-        strokeWidth={isHovered ? 2 : (isFamily ? 0.8 : 1)}
+        stroke={strokeVal}
+        strokeWidth={sw}
         strokeDasharray={isFamily ? "5,5" : undefined}
-        style={style}
+        style={{ ...style, opacity: baseOpacity, transition: "opacity 0.3s ease" }}
       />
-      {isHovered && data?.relationshipType && (
+      {isFocused && (
+        <path
+          d={edgePath}
+          fill="none"
+          stroke="rgba(255,255,255,0.15)"
+          strokeWidth={sw + 2}
+          strokeDasharray={isFamily ? "5,5" : undefined}
+          style={{ opacity: baseOpacity }}
+          className="focus-edge-pulse"
+        />
+      )}
+      {(isHovered || (isFocused && showDetail)) && data?.relationshipType && (
         <foreignObject
           x={labelX - 60}
           y={labelY - 10}
@@ -232,7 +291,7 @@ function computeInitialLayout(
         x: hasPos ? c.graphX! : cx + radius * Math.cos(angle),
         y: hasPos ? c.graphY! : cy + radius * Math.sin(angle),
       },
-      data: { label: c.label, entityId: c.entityId, entityType: "case", isHovered: false },
+      data: { label: c.label, entityId: c.entityId, entityType: "case", isHovered: false, focusState: undefined, hideLabel: false },
     });
   });
 
@@ -247,7 +306,7 @@ function computeInitialLayout(
         x: hasPos ? p.graphX! : cx + radius * Math.cos(angle),
         y: hasPos ? p.graphY! : cy + radius * Math.sin(angle),
       },
-      data: { label: p.label, entityId: p.entityId, entityType: "person", isHovered: false },
+      data: { label: p.label, entityId: p.entityId, entityType: "person", isHovered: false, focusState: undefined, hideLabel: false },
     });
   });
 
@@ -294,60 +353,74 @@ function computeFamilyLayout(
   const spacing = 140;
   const nodes: Node[] = [];
 
+  const mkData = (label: string, entityId: number) => ({
+    label, entityId, entityType: "person", isHovered: false, focusState: undefined, hideLabel: false,
+  });
+
   nodes.push({
-    id: `person-${center.id}`,
-    type: "personNode",
+    id: `person-${center.id}`, type: "personNode",
     position: { x: cx, y: cy },
-    data: { label: center.fullName, entityId: center.id, entityType: "person", isHovered: false },
+    data: mkData(center.fullName, center.id),
   });
 
   parents.forEach((p, i) => {
     nodes.push({
-      id: `person-${p.id}`,
-      type: "personNode",
+      id: `person-${p.id}`, type: "personNode",
       position: { x: cx + (i - (parents.length - 1) / 2) * spacing, y: cy - spacing * 1.5 },
-      data: { label: p.fullName, entityId: p.id, entityType: "person", isHovered: false },
+      data: mkData(p.fullName, p.id),
     });
   });
 
   children.forEach((p, i) => {
     nodes.push({
-      id: `person-${p.id}`,
-      type: "personNode",
+      id: `person-${p.id}`, type: "personNode",
       position: { x: cx + (i - (children.length - 1) / 2) * spacing, y: cy + spacing * 1.5 },
-      data: { label: p.fullName, entityId: p.id, entityType: "person", isHovered: false },
+      data: mkData(p.fullName, p.id),
     });
   });
 
   spouses.forEach((p, i) => {
     nodes.push({
-      id: `person-${p.id}`,
-      type: "personNode",
+      id: `person-${p.id}`, type: "personNode",
       position: { x: cx + spacing * (i + 1), y: cy },
-      data: { label: p.fullName, entityId: p.id, entityType: "person", isHovered: false },
+      data: mkData(p.fullName, p.id),
     });
   });
 
   siblings.forEach((p, i) => {
     nodes.push({
-      id: `person-${p.id}`,
-      type: "personNode",
+      id: `person-${p.id}`, type: "personNode",
       position: { x: cx - spacing * (i + 1), y: cy },
-      data: { label: p.fullName, entityId: p.id, entityType: "person", isHovered: false },
+      data: mkData(p.fullName, p.id),
     });
   });
 
   others.forEach((p, i) => {
     const angle = (2 * Math.PI * i) / Math.max(others.length, 1);
     nodes.push({
-      id: `person-${p.id}`,
-      type: "personNode",
+      id: `person-${p.id}`, type: "personNode",
       position: { x: cx + Math.cos(angle) * spacing * 2.5, y: cy + Math.sin(angle) * spacing * 2.5 },
-      data: { label: p.fullName, entityId: p.id, entityType: "person", isHovered: false },
+      data: mkData(p.fullName, p.id),
     });
   });
 
   return nodes;
+}
+
+function ZoomWatcher({ onZoomChange }: { onZoomChange: (zoom: number) => void }) {
+  const { zoom } = useViewport();
+  const prevRef = useRef(zoom);
+  useEffect(() => {
+    const prevHideLabel = prevRef.current < ZOOM_LABEL_THRESHOLD;
+    const curHideLabel = zoom < ZOOM_LABEL_THRESHOLD;
+    const prevShowDetail = prevRef.current >= ZOOM_DETAIL_THRESHOLD;
+    const curShowDetail = zoom >= ZOOM_DETAIL_THRESHOLD;
+    if (prevHideLabel !== curHideLabel || prevShowDetail !== curShowDetail) {
+      onZoomChange(zoom);
+    }
+    prevRef.current = zoom;
+  }, [zoom, onZoomChange]);
+  return null;
 }
 
 function GraphView({
@@ -359,6 +432,8 @@ function GraphView({
   viewMode,
   familyCenterId,
   onNodeClick,
+  focusedNodeId,
+  onFocusNode,
 }: {
   holes: RabbitHole[];
   people: Person[];
@@ -368,9 +443,11 @@ function GraphView({
   viewMode: ViewMode;
   familyCenterId?: number;
   onNodeClick: (entityType: string, entityId: number, slug?: string) => void;
+  focusedNodeId: string | null;
+  onFocusNode: (nodeId: string | null) => void;
 }) {
-  const [hoveredEdge, setHoveredEdge] = useState<string | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const zoomRef = useRef(0.8);
 
   const saveMutation = useMutation({
     mutationFn: async (positions: { type: string; id: number; x: number; y: number }[]) => {
@@ -402,7 +479,7 @@ function GraphView({
           source: fromId,
           target: toId,
           type: "relationship",
-          data: { relationshipType: r.relationshipType, isFamily: true, isHovered: false },
+          data: { relationshipType: r.relationshipType, isFamily: true, isHovered: false, focusState: undefined, showDetail: false },
         });
       });
 
@@ -469,7 +546,7 @@ function GraphView({
         source: e.source,
         target: e.target,
         type: "relationship",
-        data: { relationshipType: e.relationshipType, isFamily: e.isFamily, isHovered: false },
+        data: { relationshipType: e.relationshipType, isFamily: e.isFamily, isHovered: false, focusState: undefined, showDetail: false },
       }));
 
     return { nodes: initialNodes, edges: initialEdges };
@@ -487,6 +564,81 @@ function GraphView({
       setEdges(initialData.edges);
     }
   }, [initialData, setNodes, setEdges]);
+
+  const neighborMapRef = useRef<Map<string, Set<string>>>(new Map());
+  useEffect(() => {
+    const map = new Map<string, Set<string>>();
+    edges.forEach(e => {
+      if (!map.has(e.source)) map.set(e.source, new Set());
+      if (!map.has(e.target)) map.set(e.target, new Set());
+      map.get(e.source)!.add(e.target);
+      map.get(e.target)!.add(e.source);
+    });
+    neighborMapRef.current = map;
+  }, [edges]);
+
+  useEffect(() => {
+    const hideLabel = zoomRef.current < ZOOM_LABEL_THRESHOLD;
+    const showDetail = zoomRef.current >= ZOOM_DETAIL_THRESHOLD;
+
+    if (focusedNodeId) {
+      const neighbors = neighborMapRef.current.get(focusedNodeId) || new Set();
+      setNodes(ns => ns.map(n => ({
+        ...n,
+        data: {
+          ...n.data,
+          focusState: n.id === focusedNodeId ? "focused" : neighbors.has(n.id) ? "focused" : "faded",
+          hideLabel: hideLabel && n.id !== focusedNodeId && !neighbors.has(n.id),
+        },
+      })));
+      setEdges(es => es.map(e => ({
+        ...e,
+        data: {
+          ...e.data,
+          focusState: (e.source === focusedNodeId || e.target === focusedNodeId) ? "focused" : "faded",
+          showDetail: showDetail && (e.source === focusedNodeId || e.target === focusedNodeId),
+        },
+      })));
+    } else {
+      setNodes(ns => ns.map(n => ({
+        ...n,
+        data: { ...n.data, focusState: undefined, hideLabel },
+      })));
+      setEdges(es => es.map(e => ({
+        ...e,
+        data: { ...e.data, focusState: undefined, showDetail: false },
+      })));
+    }
+  }, [focusedNodeId, setNodes, setEdges]);
+
+  const handleZoomChange = useCallback((zoom: number) => {
+    zoomRef.current = zoom;
+    const hideLabel = zoom < ZOOM_LABEL_THRESHOLD;
+    const showDetail = zoom >= ZOOM_DETAIL_THRESHOLD;
+
+    if (focusedNodeId) {
+      const neighbors = neighborMapRef.current.get(focusedNodeId) || new Set();
+      setNodes(ns => ns.map(n => ({
+        ...n,
+        data: {
+          ...n.data,
+          hideLabel: hideLabel && n.id !== focusedNodeId && !neighbors.has(n.id),
+        },
+      })));
+      setEdges(es => es.map(e => ({
+        ...e,
+        data: {
+          ...e.data,
+          showDetail: showDetail && (e.source === focusedNodeId || e.target === focusedNodeId),
+        },
+      })));
+    } else {
+      setNodes(ns => ns.map(n => ({
+        ...n,
+        data: { ...n.data, hideLabel },
+      })));
+    }
+  }, [focusedNodeId, setNodes, setEdges]);
 
   const draggedNodeIds = useRef<Set<string>>(new Set());
 
@@ -526,22 +678,51 @@ function GraphView({
   }, [onNodesChange, viewMode, saveMutation, setNodes]);
 
   const onEdgeMouseEnter = useCallback((_: React.MouseEvent, edge: Edge) => {
-    setHoveredEdge(edge.id);
     setEdges(eds => eds.map(e =>
       e.id === edge.id ? { ...e, data: { ...e.data, isHovered: true } } : e
     ));
   }, [setEdges]);
 
   const onEdgeMouseLeave = useCallback(() => {
-    setHoveredEdge(null);
     setEdges(eds => eds.map(e => ({ ...e, data: { ...e.data, isHovered: false } })));
   }, [setEdges]);
 
+  const isDraggingRef = useRef(false);
+
+  const handleNodeDragStart = useCallback(() => {
+    isDraggingRef.current = true;
+  }, []);
+
+  const handleNodeDragStop = useCallback(() => {
+    setTimeout(() => { isDraggingRef.current = false; }, 50);
+  }, []);
+
   const handleNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
+    if (isDraggingRef.current) return;
+
+    if (viewMode === "family" && (node.data.entityType as string) === "person") {
+      onNodeClick("person", node.data.entityId as number);
+      return;
+    }
+
+    if (focusedNodeId === node.id) {
+      onFocusNode(null);
+    } else {
+      onFocusNode(node.id);
+    }
+  }, [focusedNodeId, onFocusNode, onNodeClick, viewMode]);
+
+  const handleNodeDoubleClick = useCallback((_: React.MouseEvent, node: Node) => {
     const entityType = node.data.entityType as string;
     const entityId = node.data.entityId as number;
     onNodeClick(entityType, entityId);
   }, [onNodeClick]);
+
+  const handlePaneClick = useCallback(() => {
+    if (focusedNodeId) {
+      onFocusNode(null);
+    }
+  }, [focusedNodeId, onFocusNode]);
 
   return (
     <div style={{ width: "100%", height: "100%" }} data-testid="reactflow-graph">
@@ -553,6 +734,10 @@ function GraphView({
         onEdgeMouseEnter={onEdgeMouseEnter}
         onEdgeMouseLeave={onEdgeMouseLeave}
         onNodeClick={handleNodeClick}
+        onNodeDoubleClick={handleNodeDoubleClick}
+        onNodeDragStart={handleNodeDragStart}
+        onNodeDragStop={handleNodeDragStop}
+        onPaneClick={handlePaneClick}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         minZoom={0.2}
@@ -571,7 +756,10 @@ function GraphView({
       >
         <Background color="rgba(255,255,255,0.03)" gap={60} />
         <MiniMap
-          nodeColor={(node) => node.type === "caseNode" ? "rgba(255,255,255,0.4)" : "#3b82f6"}
+          nodeColor={(node) => {
+            if (node.data.focusState === "faded") return "rgba(255,255,255,0.08)";
+            return node.type === "caseNode" ? "rgba(255,255,255,0.4)" : "#3b82f6";
+          }}
           maskColor="rgba(17,20,24,0.85)"
           style={{ background: "#161a1e", border: "1px solid rgba(255,255,255,0.1)" }}
           pannable
@@ -585,6 +773,7 @@ function GraphView({
             borderRadius: 0,
           }}
         />
+        <ZoomWatcher onZoomChange={handleZoomChange} />
       </ReactFlow>
     </div>
   );
@@ -596,6 +785,7 @@ export default function Connections() {
   const [showFamilyEdges, setShowFamilyEdges] = useState(true);
   const [familyCenterId, setFamilyCenterId] = useState<number | undefined>();
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
+  const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
   const [, navigate] = useLocation();
 
   const { data: holes = [], isLoading: holesLoading } = useQuery<RabbitHole[]>({
@@ -614,6 +804,7 @@ export default function Connections() {
 
   const handleViewChange = useCallback((mode: ViewMode) => {
     setViewMode(mode);
+    setFocusedNodeId(null);
     try { localStorage.setItem("connections-view-mode", mode); } catch {}
   }, []);
 
@@ -630,6 +821,31 @@ export default function Connections() {
       navigate(`/people/${person?.handle || entityId}`);
     }
   }, [viewMode, holes, people, navigate]);
+
+  const focusedLabel = useMemo(() => {
+    if (!focusedNodeId) return null;
+    if (focusedNodeId.startsWith("case-")) {
+      const id = parseInt(focusedNodeId.replace("case-", ""));
+      const hole = holes.find(h => h.id === id);
+      return hole?.title || focusedNodeId;
+    }
+    if (focusedNodeId.startsWith("person-")) {
+      const id = parseInt(focusedNodeId.replace("person-", ""));
+      const person = people.find(p => p.id === id);
+      return person?.fullName || focusedNodeId;
+    }
+    return focusedNodeId;
+  }, [focusedNodeId, holes, people]);
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && focusedNodeId) {
+        setFocusedNodeId(null);
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [focusedNodeId]);
 
   if (isLoading) {
     return (
@@ -653,6 +869,23 @@ export default function Connections() {
           <h1 className="font-mono text-sm font-bold uppercase tracking-[0.2em] text-white/90" data-testid="heading-situation-room">
             Research Network
           </h1>
+
+          {focusedNodeId && (
+            <div className="flex items-center gap-2 ml-2" data-testid="focus-indicator">
+              <div className="w-px h-4 bg-white/10" />
+              <Focus className="w-3.5 h-3.5 text-blue-400" />
+              <span className="font-mono text-[10px] uppercase tracking-wider text-blue-400" data-testid="text-focused-label">
+                Focused: {focusedLabel && focusedLabel.length > 24 ? focusedLabel.slice(0, 22) + ".." : focusedLabel}
+              </span>
+              <button
+                onClick={() => setFocusedNodeId(null)}
+                className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider border border-white/10 text-white/40 hover:text-white/80 hover:border-white/20 transition-colors"
+                data-testid="button-clear-focus"
+              >
+                <X className="w-3 h-3" /> Clear
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
@@ -747,6 +980,8 @@ export default function Connections() {
                 viewMode={viewMode}
                 familyCenterId={familyCenterId}
                 onNodeClick={handleNodeClick}
+                focusedNodeId={focusedNodeId}
+                onFocusNode={setFocusedNodeId}
               />
             </ReactFlowProvider>
           </div>
@@ -755,6 +990,14 @@ export default function Connections() {
             <div className="absolute top-4 left-4 px-3 py-2 border border-white/10 bg-card/80 backdrop-blur-sm z-10">
               <p className="font-mono text-[10px] uppercase tracking-wider text-white/50">
                 Click a person node to re-center the tree
+              </p>
+            </div>
+          )}
+
+          {viewMode === "graph" && !focusedNodeId && (
+            <div className="absolute bottom-4 left-4 px-3 py-2 border border-white/10 bg-card/80 backdrop-blur-sm z-10">
+              <p className="font-mono text-[10px] uppercase tracking-wider text-white/30" data-testid="text-focus-hint">
+                Click node to focus · Double-click to open · ESC to clear
               </p>
             </div>
           )}
@@ -893,6 +1136,13 @@ export default function Connections() {
         }
         .react-flow__minimap {
           border-radius: 0 !important;
+        }
+        @keyframes focus-pulse {
+          0%, 100% { opacity: 0.15; }
+          50% { opacity: 0.35; }
+        }
+        .focus-edge-pulse {
+          animation: focus-pulse 3s ease-in-out infinite;
         }
       `}</style>
     </div>
