@@ -701,6 +701,38 @@ export async function registerRoutes(
     }
   });
 
+  // ===== NODE-SCOPED QUERIES =====
+
+  app.get("/api/admin/nodes/:nodeId/claims", requireEmployee, async (req, res) => {
+    try {
+      const nodeId = parseInt(req.params.nodeId);
+      const nodeClaims = await storage.getClaimsByNodeId(nodeId);
+      res.json(nodeClaims);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch claims for node" });
+    }
+  });
+
+  app.get("/api/admin/nodes/:nodeId/sources", requireEmployee, async (req, res) => {
+    try {
+      const nodeId = parseInt(req.params.nodeId);
+      const nodeSources = await storage.getSourcesByNodeId(nodeId);
+      res.json(nodeSources);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch sources for node" });
+    }
+  });
+
+  app.get("/api/admin/nodes/:nodeId/media", requireEmployee, async (req, res) => {
+    try {
+      const nodeId = parseInt(req.params.nodeId);
+      const nodeMedia = await storage.getMediaByNodeId(nodeId);
+      res.json(nodeMedia);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch media for node" });
+    }
+  });
+
   // ===== ADMIN TOOLS =====
 
   app.get("/api/admin/audit-logs", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {

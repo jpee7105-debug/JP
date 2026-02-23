@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
-import { Loader2, Eye, EyeOff, ShieldAlert } from "lucide-react";
+import { Loader2, Eye, EyeOff, Shield } from "lucide-react";
 
 export default function Login() {
   const [, navigate] = useLocation();
@@ -116,7 +116,7 @@ export default function Login() {
               className="inline-flex items-center gap-2 text-xs font-mono text-muted-foreground/50 hover:text-muted-foreground transition-colors"
               data-testid="link-admin-login"
             >
-              <ShieldAlert className="w-3 h-3" />
+              <Shield className="w-3 h-3" />
               ADMIN LOGIN
             </Link>
           </div>

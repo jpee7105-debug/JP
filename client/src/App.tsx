@@ -25,6 +25,7 @@ import Watch from "@/pages/Watch";
 import Replay from "@/pages/Replay";
 import PersonDetail from "@/pages/PersonDetail";
 import AdminPeople from "@/pages/AdminPeople";
+import AdminInvestigationEditor from "@/pages/AdminInvestigationEditor";
 
 function PublicRouter() {
   return (
@@ -54,6 +55,7 @@ function AdminRouter() {
   return (
     <AdminLayout>
       <Switch>
+        <Route path="/admin/investigations/:id" component={AdminInvestigationEditor} />
         <Route path="/admin" component={Admin} />
         <Route path="/admin/live" component={AdminLive} />
         <Route path="/admin/people" component={AdminPeople} />

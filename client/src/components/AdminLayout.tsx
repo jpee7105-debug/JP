@@ -104,6 +104,8 @@ function isItemActive(item: NavItem, location: string): boolean {
   if (item.path === "/admin/people" && pathname === "/admin/people") return true;
   if (item.path === "/admin/live" && pathname === "/admin/live") return true;
 
+  if (item.id === "investigations" && pathname.startsWith("/admin/investigations/")) return true;
+
   if (item.path === "/admin" && pathname === "/admin") {
     if (item.tab) return currentTab === item.tab;
     return !currentTab;
@@ -128,6 +130,9 @@ function getBreadcrumbs(location: string): { label: string; href: string }[] {
 
   if (pathname === "/admin/people") {
     crumbs.push({ label: "People", href: "/admin/people" });
+  } else if (pathname.startsWith("/admin/investigations/")) {
+    crumbs.push({ label: "Investigations", href: "/admin?tab=holes" });
+    crumbs.push({ label: "Editor", href: pathname });
   } else if (pathname === "/admin/live") {
     crumbs.push({ label: "Streams", href: "/admin/live" });
   } else if (pathname === "/admin" && currentTab) {

@@ -97,12 +97,14 @@ export interface IStorage {
   deleteDepthNode(id: number): Promise<boolean>;
 
   getClaimsByHoleId(holeId: number): Promise<Claim[]>;
+  getClaimsByNodeId(nodeId: number): Promise<Claim[]>;
   getClaim(id: number): Promise<Claim | undefined>;
   createClaim(claim: InsertClaim): Promise<Claim>;
   updateClaim(id: number, data: Partial<InsertClaim>): Promise<Claim | undefined>;
   deleteClaim(id: number): Promise<boolean>;
 
   getSourcesByHoleId(holeId: number): Promise<Source[]>;
+  getSourcesByNodeId(nodeId: number): Promise<Source[]>;
   getAllSources(): Promise<Source[]>;
   getSource(id: number): Promise<Source | undefined>;
   createSource(source: InsertSource): Promise<Source>;
@@ -111,6 +113,7 @@ export interface IStorage {
   searchSources(query: string): Promise<Source[]>;
 
   getMediaByHoleId(holeId: number): Promise<Media[]>;
+  getMediaByNodeId(nodeId: number): Promise<Media[]>;
   getMedia(id: number): Promise<Media | undefined>;
   createMedia(m: InsertMedia): Promise<Media>;
   updateMedia(id: number, data: Partial<InsertMedia>): Promise<Media | undefined>;
@@ -326,12 +329,17 @@ export class DatabaseStorage implements IStorage {
   async deleteDepthNode(id: number): Promise<boolean> {
     await db.delete(claims).where(eq(claims.nodeId, id));
     await db.delete(media).where(eq(media.nodeId, id));
+    await db.delete(sources).where(eq(sources.nodeId, id));
     const result = await db.delete(depthNodes).where(eq(depthNodes.id, id)).returning();
     return result.length > 0;
   }
 
   async getClaimsByHoleId(holeId: number): Promise<Claim[]> {
     return db.select().from(claims).where(eq(claims.holeId, holeId)).orderBy(desc(claims.confidence));
+  }
+
+  async getClaimsByNodeId(nodeId: number): Promise<Claim[]> {
+    return db.select().from(claims).where(eq(claims.nodeId, nodeId)).orderBy(desc(claims.confidence));
   }
 
   async getClaim(id: number): Promise<Claim | undefined> {
@@ -356,6 +364,10 @@ export class DatabaseStorage implements IStorage {
 
   async getSourcesByHoleId(holeId: number): Promise<Source[]> {
     return db.select().from(sources).where(eq(sources.holeId, holeId)).orderBy(desc(sources.credibility));
+  }
+
+  async getSourcesByNodeId(nodeId: number): Promise<Source[]> {
+    return db.select().from(sources).where(eq(sources.nodeId, nodeId)).orderBy(desc(sources.credibility));
   }
 
   async getSource(id: number): Promise<Source | undefined> {
@@ -391,6 +403,10 @@ export class DatabaseStorage implements IStorage {
 
   async getMediaByHoleId(holeId: number): Promise<Media[]> {
     return db.select().from(media).where(eq(media.holeId, holeId));
+  }
+
+  async getMediaByNodeId(nodeId: number): Promise<Media[]> {
+    return db.select().from(media).where(eq(media.nodeId, nodeId));
   }
 
   async getMedia(id: number): Promise<Media | undefined> {

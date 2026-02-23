@@ -58,6 +58,7 @@ export const claims = pgTable("claims", {
 export const sources = pgTable("sources", {
   id: serial("id").primaryKey(),
   holeId: integer("hole_id").references(() => rabbitHoles.id).notNull(),
+  nodeId: integer("node_id").references(() => depthNodes.id),
   title: text("title").notNull(),
   author: text("author").default("").notNull(),
   origin: text("origin").default("").notNull(),

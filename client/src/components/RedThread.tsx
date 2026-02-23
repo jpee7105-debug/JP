@@ -20,7 +20,7 @@ interface ThreadCommentProps {
 export default function ThreadComment({ id, user, rep, time, content, upvotes, links = [], onUpvote, onDownvote }: ThreadCommentProps) {
   return (
     <div className="relative pl-10 group" data-testid={`comment-${id}`}>
-      <div className="absolute left-[-5px] top-4 w-3 h-3 bg-black border-2 border-primary rounded-full z-10 group-hover:bg-primary/60 transition-all" />
+      <div className="absolute left-[-5px] top-4 w-3 h-3 bg-background border-2 border-primary rounded-full z-10 group-hover:bg-primary/60 transition-all" />
       <div className="absolute left-2 top-5 w-8 h-px bg-white/10 group-hover:bg-white/30 transition-colors" />
 
       <div className="bg-white/[0.03] border border-white/5 p-4 hover:border-primary/20 transition-colors shadow-lg relative">
@@ -46,7 +46,7 @@ export default function ThreadComment({ id, user, rep, time, content, upvotes, l
         </div>
 
         <div className="flex items-center gap-4 text-xs font-mono">
-          <div className="flex items-center gap-1 bg-black/50 rounded-full px-2 py-1 border border-white/5">
+          <div className="flex items-center gap-1 bg-card/50 rounded-full px-2 py-1 border border-white/5">
             <button className="text-muted-foreground hover:text-primary transition-colors" onClick={onUpvote} data-testid={`button-upvote-${id}`}>
               <ArrowUp className="w-3 h-3" />
             </button>
