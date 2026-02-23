@@ -40,7 +40,7 @@ function StreamCard({ stream, variant }: { stream: Stream; variant: "live" | "up
   return (
     <Link
       href={href}
-      className="group block relative bg-black/40 border border-white/10 hover:bg-black/60 transition-all duration-300 overflow-hidden cursor-pointer"
+      className="group block relative bg-card/40 border border-white/10 hover:bg-card/60 transition-all duration-300 overflow-hidden cursor-pointer"
       data-testid={`card-stream-${stream.id}`}
     >
       <div className="relative aspect-video w-full overflow-hidden bg-white/[0.02]">
@@ -54,7 +54,7 @@ function StreamCard({ stream, variant }: { stream: Stream; variant: "live" | "up
         ) : (
           <div
             className="w-full h-full flex items-center justify-center"
-            style={{ background: `linear-gradient(135deg, #1a0000 0%, #0E0E0E 50%, #1a0505 100%)` }}
+            style={{ background: `linear-gradient(135deg, #161a1e 0%, #111418 50%, #161a1e 100%)` }}
             data-testid={`placeholder-thumbnail-${stream.id}`}
           >
             <Radio className="w-10 h-10 text-primary/30" />
@@ -153,11 +153,11 @@ export default function Channel() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen" style={{ backgroundColor: "#0E0E0E" }}>
+      <div className="min-h-screen bg-background">
         <div className="h-48 md:h-64 bg-white/[0.02] animate-pulse" />
         <div className="container mx-auto px-6 -mt-16">
           <div className="flex items-end gap-5 mb-8">
-            <div className="w-28 h-28 rounded-full bg-white/5 border-4 border-[#0E0E0E] animate-pulse" />
+            <div className="w-28 h-28 rounded-full bg-white/5 border-4 border-background animate-pulse" />
             <div className="pb-2 space-y-2">
               <div className="h-7 w-48 bg-white/5 animate-pulse" />
               <div className="h-4 w-24 bg-white/5 animate-pulse" />
@@ -180,7 +180,7 @@ export default function Channel() {
 
   if (error || !creator) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#0E0E0E" }}>
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center font-mono text-sm text-muted-foreground" data-testid="text-channel-error">
           <User className="w-12 h-12 mx-auto mb-4 opacity-20" />
           CHANNEL NOT FOUND
@@ -190,7 +190,7 @@ export default function Channel() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#0E0E0E", color: "#EDEDED" }}>
+    <div className="min-h-screen flex flex-col bg-background text-foreground">
       <div className="relative h-48 md:h-64 w-full overflow-hidden">
         {creator.bannerUrl ? (
           <img
@@ -202,11 +202,11 @@ export default function Channel() {
         ) : (
           <div
             className="w-full h-full"
-            style={{ background: "linear-gradient(135deg, #8B0000 0%, #1a0000 40%, #0E0E0E 100%)" }}
+            style={{ background: "linear-gradient(135deg, hsl(0 72% 30%) 0%, #1a1215 40%, #111418 100%)" }}
             data-testid="placeholder-channel-banner"
           />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0E0E0E] via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
       </div>
 
       <div className="container mx-auto px-6 -mt-16 relative z-10">
@@ -216,16 +216,16 @@ export default function Channel() {
               <img
                 src={creator.avatarUrl}
                 alt={creator.displayName}
-                className="w-28 h-28 rounded-full object-cover border-4 border-[#0E0E0E]"
+                className="w-28 h-28 rounded-full object-cover border-4 border-background"
                 data-testid="img-channel-avatar"
               />
             ) : (
-              <div className="w-28 h-28 rounded-full bg-white/5 border-4 border-[#0E0E0E] flex items-center justify-center" data-testid="placeholder-channel-avatar">
+              <div className="w-28 h-28 rounded-full bg-white/5 border-4 border-background flex items-center justify-center" data-testid="placeholder-channel-avatar">
                 <User className="w-10 h-10 text-muted-foreground" />
               </div>
             )}
             {creator.isActive && (
-              <span className="absolute bottom-1 right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-[#0E0E0E]" data-testid="badge-active" />
+              <span className="absolute bottom-1 right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-background" data-testid="badge-active" />
             )}
           </div>
 
@@ -252,8 +252,8 @@ export default function Channel() {
               onClick={() => setActiveTab(tab.key)}
               className={`flex items-center gap-2 px-4 py-3 font-mono text-xs uppercase tracking-wider transition-colors relative ${
                 activeTab === tab.key
-                  ? "text-[#EDEDED]"
-                  : "text-muted-foreground hover:text-[#EDEDED]"
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
               data-testid={`tab-${tab.key}`}
             >
@@ -261,13 +261,13 @@ export default function Channel() {
               {tab.label}
               {tab.count !== undefined && tab.count > 0 && (
                 <span className={`font-mono text-[10px] px-1.5 py-0.5 ${
-                  activeTab === tab.key ? "bg-[#8B0000]/30 text-[#EDEDED]" : "bg-white/5 text-muted-foreground"
+                  activeTab === tab.key ? "bg-primary/30 text-foreground" : "bg-white/5 text-muted-foreground"
                 }`}>
                   {tab.count}
                 </span>
               )}
               {activeTab === tab.key && (
-                <span className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ backgroundColor: "#8B0000" }} />
+                <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-primary" />
               )}
             </button>
           ))}
@@ -305,7 +305,7 @@ export default function Channel() {
               {upcoming.length > 0 ? (
                 <>
                   <div className="flex items-center justify-between mb-8">
-                    <h3 className="font-display text-xl font-bold uppercase tracking-widest border-l-2 pl-4" style={{ borderColor: "#8B0000" }} data-testid="text-section-upcoming">
+                    <h3 className="font-display text-xl font-bold uppercase tracking-widest border-l-2 border-primary pl-4" data-testid="text-section-upcoming">
                       Upcoming
                     </h3>
                     <span className="font-mono text-[10px] text-muted-foreground">{upcoming.length} SCHEDULED</span>
@@ -353,7 +353,7 @@ export default function Channel() {
           {activeTab === "about" && (
             <section data-testid="section-channel-about">
               <div className="max-w-2xl">
-                <h3 className="font-display text-xl font-bold uppercase tracking-widest border-l-2 pl-4 mb-8" style={{ borderColor: "#8B0000" }} data-testid="text-section-about">
+                <h3 className="font-display text-xl font-bold uppercase tracking-widest border-l-2 border-primary pl-4 mb-8" data-testid="text-section-about">
                   About
                 </h3>
 
@@ -361,7 +361,7 @@ export default function Channel() {
                   {creator.bio && (
                     <div className="bg-white/[0.02] border border-white/10 p-6" data-testid="card-about-bio">
                       <h4 className="font-mono text-xs uppercase tracking-wider text-muted-foreground mb-3">Bio</h4>
-                      <p className="text-sm leading-relaxed" style={{ color: "#EDEDED" }}>
+                      <p className="text-sm leading-relaxed text-foreground">
                         {creator.bio}
                       </p>
                     </div>
@@ -372,7 +372,7 @@ export default function Channel() {
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="font-mono text-xs text-muted-foreground">Handle</span>
-                        <span className="font-mono text-xs" style={{ color: "#EDEDED" }}>@{creator.handle}</span>
+                        <span className="font-mono text-xs text-foreground">@{creator.handle}</span>
                       </div>
                       <div className="border-t border-white/5" />
                       <div className="flex items-center justify-between">
@@ -384,14 +384,14 @@ export default function Channel() {
                       <div className="border-t border-white/5" />
                       <div className="flex items-center justify-between">
                         <span className="font-mono text-xs text-muted-foreground">Total Streams</span>
-                        <span className="font-mono text-xs" style={{ color: "#EDEDED" }}>{live.length + upcoming.length + replays.length}</span>
+                        <span className="font-mono text-xs text-foreground">{live.length + upcoming.length + replays.length}</span>
                       </div>
                     </div>
                   </div>
 
                   <Link
                     href="/live"
-                    className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-wider text-muted-foreground hover:text-[#EDEDED] transition-colors"
+                    className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
                     data-testid="link-back-live"
                   >
                     <ArrowRight className="w-3 h-3 rotate-180" />

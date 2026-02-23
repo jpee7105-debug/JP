@@ -54,10 +54,10 @@ function ChatMessage({ msg }: { msg: LiveChatMessage }) {
   return (
     <div className="px-4 py-2 hover:bg-white/[0.03] transition-colors" data-testid={`chat-message-${msg.id}`}>
       <div className="flex items-baseline gap-2">
-        <span className="font-mono text-xs font-bold text-[#8B0000] shrink-0" data-testid={`chat-username-${msg.id}`}>
+        <span className="font-mono text-xs font-bold text-primary shrink-0" data-testid={`chat-username-${msg.id}`}>
           {msg.usernameDisplay}
         </span>
-        <span className="text-sm text-[#EDEDED] break-words" data-testid={`chat-text-${msg.id}`}>
+        <span className="text-sm text-foreground break-words" data-testid={`chat-text-${msg.id}`}>
           {msg.message}
         </span>
       </div>
@@ -110,18 +110,18 @@ export default function Watch() {
 
   if (streamLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#0E0E0E" }} data-testid="loading-watch">
-        <div className="w-8 h-8 border-2 border-[#8B0000] border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-background" data-testid="loading-watch">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   if (!streamData) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{ backgroundColor: "#0E0E0E", color: "#EDEDED" }} data-testid="error-watch">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-background text-foreground" data-testid="error-watch">
         <Radio className="w-12 h-12 opacity-20" />
         <p className="font-mono text-sm text-white/40">Stream not found</p>
-        <Link href="/live" className="font-mono text-xs text-[#8B0000] hover:underline" data-testid="link-back-live">
+        <Link href="/live" className="font-mono text-xs text-primary hover:underline" data-testid="link-back-live">
           ← Back to Live
         </Link>
       </div>
@@ -131,7 +131,7 @@ export default function Watch() {
   const { stream, creator, premium, hasAccess } = streamData;
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#0E0E0E", color: "#EDEDED" }} data-testid="page-watch">
+    <div className="min-h-screen flex flex-col bg-background text-foreground" data-testid="page-watch">
       <div className="flex-1 flex flex-col lg:flex-row">
         {/* Player + Info (left ~70%) */}
         <div className="flex-1 lg:w-[70%] flex flex-col">
@@ -146,9 +146,9 @@ export default function Watch() {
                 data-testid="player-iframe"
               />
             ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center gap-6" style={{ background: "linear-gradient(135deg, #1a0000 0%, #0E0E0E 50%, #1a0505 100%)" }} data-testid="premium-wall">
-                <div className="p-4 rounded-full bg-[#8B0000]/20 border border-[#8B0000]/30">
-                  <Lock className="w-10 h-10 text-[#8B0000]" />
+              <div className="w-full h-full flex flex-col items-center justify-center gap-6" style={{ background: "linear-gradient(135deg, #161a1e 0%, #111418 50%, #161a1e 100%)" }} data-testid="premium-wall">
+                <div className="p-4 rounded-full bg-primary/20 border border-primary/30">
+                  <Lock className="w-10 h-10 text-primary" />
                 </div>
                 <div className="text-center">
                   <h3 className="font-display text-2xl font-bold mb-2" data-testid="text-premium-title">Premium Content</h3>
@@ -157,7 +157,7 @@ export default function Watch() {
                   </p>
                   <Link
                     href="/signup"
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-[#8B0000] hover:bg-[#6B0000] text-white font-mono text-sm font-bold uppercase tracking-wider transition-colors"
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/80 text-white font-mono text-sm font-bold uppercase tracking-wider transition-colors"
                     data-testid="link-upgrade"
                   >
                     <Crown className="w-4 h-4" />
@@ -186,7 +186,7 @@ export default function Watch() {
 
             <Link
               href={`/channel/${creator.handle}`}
-              className="inline-flex items-center gap-2 mb-4 hover:text-[#8B0000] transition-colors"
+              className="inline-flex items-center gap-2 mb-4 hover:text-primary transition-colors"
               data-testid="link-creator"
             >
               {creator.avatarUrl ? (
@@ -194,7 +194,7 @@ export default function Watch() {
               ) : (
                 <User className="w-6 h-6 text-white/40" />
               )}
-              <span className="font-mono text-sm text-white/60 hover:text-[#8B0000]" data-testid="text-creator-name">
+              <span className="font-mono text-sm text-white/60 hover:text-primary" data-testid="text-creator-name">
                 {creator.displayName}
               </span>
             </Link>
@@ -237,11 +237,11 @@ export default function Watch() {
         </div>
 
         {/* Chat Panel (right ~30%) */}
-        <div className="lg:w-[30%] lg:min-w-[320px] lg:max-w-[420px] flex flex-col border-t lg:border-t-0 lg:border-l border-white/10 bg-black/30" data-testid="chat-panel">
+        <div className="lg:w-[30%] lg:min-w-[320px] lg:max-w-[420px] flex flex-col border-t lg:border-t-0 lg:border-l border-white/10 bg-card/30" data-testid="chat-panel">
           {/* Chat Header */}
           <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
-              <MessageSquare className="w-4 h-4 text-[#8B0000]" />
+              <MessageSquare className="w-4 h-4 text-primary" />
               <span className="font-display text-sm font-bold uppercase tracking-wider" data-testid="text-chat-header">Live Chat</span>
             </div>
             <span className="font-mono text-[10px] text-white/30" data-testid="text-chat-count">
@@ -253,7 +253,7 @@ export default function Watch() {
           <div className="flex-1 overflow-y-auto min-h-[300px] lg:min-h-0" data-testid="chat-messages">
             {chatLoading ? (
               <div className="flex items-center justify-center py-8">
-                <div className="w-5 h-5 border-2 border-[#8B0000] border-t-transparent rounded-full animate-spin" />
+                <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
               </div>
             ) : chatMessages.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-white/20" data-testid="chat-empty">
@@ -276,7 +276,7 @@ export default function Watch() {
               <div className="px-4 py-4 text-center">
                 <Link
                   href="/login"
-                  className="inline-flex items-center gap-2 font-mono text-xs text-[#8B0000] hover:text-[#A00000] transition-colors"
+                  className="inline-flex items-center gap-2 font-mono text-xs text-primary hover:text-primary/80 transition-colors"
                   data-testid="link-login-chat"
                 >
                   <LogIn className="w-3.5 h-3.5" />
@@ -298,13 +298,13 @@ export default function Watch() {
                   onChange={(e) => setChatInput(e.target.value)}
                   placeholder="Send a message..."
                   maxLength={500}
-                  className="flex-1 bg-white/5 border border-white/10 px-3 py-2 text-sm text-[#EDEDED] placeholder:text-white/20 font-mono focus:outline-none focus:border-[#8B0000]/50 transition-colors"
+                  className="flex-1 bg-white/5 border border-white/10 px-3 py-2 text-sm text-foreground placeholder:text-white/20 font-mono focus:outline-none focus:border-primary/50 transition-colors"
                   data-testid="input-chat"
                 />
                 <button
                   type="submit"
                   disabled={!chatInput.trim() || sendMessage.isPending}
-                  className="p-2 bg-[#8B0000] hover:bg-[#6B0000] disabled:opacity-30 disabled:cursor-not-allowed text-white transition-colors"
+                  className="p-2 bg-primary hover:bg-primary/80 disabled:opacity-30 disabled:cursor-not-allowed text-white transition-colors"
                   data-testid="button-send-chat"
                 >
                   <Send className="w-4 h-4" />

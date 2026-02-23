@@ -9,7 +9,7 @@ function statusColor(status: string) {
     case "Verified": return "text-green-500 bg-green-500/10";
     case "Unsolved": return "text-yellow-500 bg-yellow-500/10";
     case "Active": return "text-primary bg-primary/10";
-    case "Specialist": return "text-red-500 bg-red-500/10";
+    case "Specialist": return "text-primary bg-primary/10";
     default: return "text-muted-foreground bg-white/5";
   }
 }
@@ -70,7 +70,7 @@ export default function SearchPage() {
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="w-full h-14 pl-12 pr-4 bg-black/50 border border-white/10 text-lg font-mono focus:outline-none focus:border-primary/50 transition-colors"
+                className="w-full h-14 pl-12 pr-4 bg-card/80 border border-white/10 text-lg font-mono focus:outline-none focus:border-primary/50 transition-colors"
                 placeholder="SEARCH INVESTIGATIONS, SOURCES, CLAIMS..."
                 data-testid="input-search-page"
                 autoFocus

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { GitBranch, Database, Clock, Tag, ArrowRight, Filter, ShieldAlert, Compass, Layers } from "lucide-react";
+import { GitBranch, Database, Clock, Tag, ArrowRight, Filter, Compass, Layers } from "lucide-react";
 import type { RabbitHole, Category } from "@shared/schema";
 
 function timeAgo(date: string | Date) {
@@ -19,7 +19,7 @@ function statusColor(status: string) {
     case "Verified": return { color: "text-green-500", border: "border-green-500/20", bg: "bg-green-500/10" };
     case "Unsolved": return { color: "text-yellow-500", border: "border-yellow-500/20", bg: "bg-yellow-500/10" };
     case "Active": return { color: "text-primary", border: "border-primary/20", bg: "bg-primary/10" };
-    case "Specialist": return { color: "text-red-500", border: "border-red-500/40", bg: "bg-red-500/10" };
+    case "Specialist": return { color: "text-primary", border: "border-primary/20", bg: "bg-primary/10" };
     default: return { color: "text-muted-foreground", border: "border-white/10", bg: "bg-white/5" };
   }
 }
@@ -144,20 +144,9 @@ export default function Discover() {
                 <Link
                   key={hole.id}
                   href={`/rabbithole/${hole.slug}`}
-                  className={`group block relative bg-black/40 border ${hole.isSpecialist ? 'border-red-500/40 bg-red-500/[0.02]' : sc.border} p-6 hover:bg-black/60 transition-all duration-300 overflow-hidden cursor-pointer`}
+                  className={`group block relative bg-card/40 border ${hole.isSpecialist ? 'border-primary/20 bg-primary/[0.02]' : sc.border} p-6 hover:bg-card/60 transition-all duration-300 overflow-hidden cursor-pointer`}
                   data-testid={`card-discover-${hole.slug}`}
                 >
-                  <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-white/20 group-hover:border-primary/50 transition-colors" />
-                  <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-white/20 group-hover:border-primary/50 transition-colors" />
-                  <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-white/20 group-hover:border-primary/50 transition-colors" />
-                  <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-white/20 group-hover:border-primary/50 transition-colors" />
-
-                  {hole.isSpecialist && (
-                    <div className="absolute top-0 right-0 p-2 opacity-20">
-                      <ShieldAlert className="w-8 h-8 text-red-500" />
-                    </div>
-                  )}
-
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex items-center gap-2">
                       <span className={`font-mono text-xs font-bold px-2 py-1 ${sc.bg} ${sc.color}`}>

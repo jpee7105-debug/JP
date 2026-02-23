@@ -20,8 +20,8 @@ interface ThreadCommentProps {
 export default function ThreadComment({ id, user, rep, time, content, upvotes, links = [], onUpvote, onDownvote }: ThreadCommentProps) {
   return (
     <div className="relative pl-10 group" data-testid={`comment-${id}`}>
-      <div className="absolute left-[-5px] top-4 w-3 h-3 bg-black border-2 border-primary rounded-full z-10 group-hover:bg-primary group-hover:shadow-[0_0_10px_rgba(255,0,0,0.8)] transition-all" />
-      <div className="absolute left-2 top-5 w-8 h-px bg-primary/30 group-hover:bg-primary/80 transition-colors" />
+      <div className="absolute left-[-5px] top-4 w-3 h-3 bg-black border-2 border-primary rounded-full z-10 group-hover:bg-primary/60 transition-all" />
+      <div className="absolute left-2 top-5 w-8 h-px bg-white/10 group-hover:bg-white/30 transition-colors" />
 
       <div className="bg-white/[0.03] border border-white/5 p-4 hover:border-primary/20 transition-colors shadow-lg relative">
         <div className="flex justify-between items-start mb-3">

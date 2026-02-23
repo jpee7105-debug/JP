@@ -45,7 +45,7 @@ const FamilyNode = memo(({ data, selected }: NodeProps) => {
           alt=""
           style={{
             width: size, height: size, borderRadius: "50%",
-            border: `${highlight ? 2 : 1}px solid ${isCurrent ? "#8B0000" : highlight ? "#3b82f6" : "rgba(255,255,255,0.2)"}`,
+            border: `${highlight ? 2 : 1}px solid ${isCurrent ? "hsl(0 72% 30%)" : highlight ? "#3b82f6" : "rgba(255,255,255,0.2)"}`,
             objectFit: "cover",
           }}
         />
@@ -53,12 +53,12 @@ const FamilyNode = memo(({ data, selected }: NodeProps) => {
         <div
           style={{
             width: size, height: size, borderRadius: "50%",
-            background: isCurrent ? "rgba(139,0,0,0.2)" : "#1a1c1e",
-            border: `${highlight ? 2 : 1}px solid ${isCurrent ? "#8B0000" : highlight ? "#3b82f6" : "rgba(255,255,255,0.2)"}`,
+            background: isCurrent ? "rgba(139,0,0,0.15)" : "#161a1e",
+            border: `${highlight ? 2 : 1}px solid ${isCurrent ? "hsl(0 72% 30%)" : highlight ? "#3b82f6" : "rgba(255,255,255,0.2)"}`,
             display: "flex", alignItems: "center", justifyContent: "center",
           }}
         >
-          <User style={{ width: size * 0.45, height: size * 0.45, color: isCurrent ? "#8B0000" : "rgba(255,255,255,0.3)" }} />
+          <User style={{ width: size * 0.45, height: size * 0.45, color: isCurrent ? "hsl(0 72% 30%)" : "rgba(255,255,255,0.3)" }} />
         </div>
       )}
 
@@ -80,7 +80,7 @@ const FamilyNode = memo(({ data, selected }: NodeProps) => {
           style={{
             position: "absolute", top: -14, left: "50%", transform: "translateX(-50%)",
             whiteSpace: "nowrap", fontFamily: "'JetBrains Mono', monospace",
-            fontSize: "7px", color: "rgba(139,0,0,0.7)", textTransform: "uppercase",
+            fontSize: "7px", color: "rgba(255,255,255,0.4)", textTransform: "uppercase",
             pointerEvents: "none",
           }}
         >
@@ -313,14 +313,14 @@ function FamilyTreeGraph({
         <Background color="rgba(255,255,255,0.02)" gap={40} />
         <Controls
           showInteractive={false}
-          style={{ background: "#111", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 0 }}
+          style={{ background: "#161a1e", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 0 }}
         />
       </ReactFlow>
 
       <div className="absolute top-3 right-3 flex flex-col gap-1.5 z-10">
         <button
           onClick={handleFitView}
-          className="flex items-center gap-1 px-2 py-1 text-[9px] font-mono uppercase tracking-wider border border-white/10 bg-black/80 text-white/50 hover:text-white/80 hover:border-white/20 transition-colors"
+          className="flex items-center gap-1 px-2 py-1 text-[9px] font-mono uppercase tracking-wider border border-white/10 bg-card/80 text-white/50 hover:text-white/80 hover:border-white/20 transition-colors"
           data-testid="button-fit-view"
           title="Fit to screen"
         >
@@ -328,7 +328,7 @@ function FamilyTreeGraph({
         </button>
         <button
           onClick={handleRecenter}
-          className="flex items-center gap-1 px-2 py-1 text-[9px] font-mono uppercase tracking-wider border border-white/10 bg-black/80 text-white/50 hover:text-white/80 hover:border-white/20 transition-colors"
+          className="flex items-center gap-1 px-2 py-1 text-[9px] font-mono uppercase tracking-wider border border-white/10 bg-card/80 text-white/50 hover:text-white/80 hover:border-white/20 transition-colors"
           data-testid="button-recenter"
           title="Recenter on person"
         >
@@ -337,7 +337,7 @@ function FamilyTreeGraph({
         {depth < 5 && (
           <button
             onClick={() => onDepthChange(depth + 1)}
-            className="flex items-center gap-1 px-2 py-1 text-[9px] font-mono uppercase tracking-wider border border-white/10 bg-black/80 text-white/50 hover:text-white/80 hover:border-white/20 transition-colors"
+            className="flex items-center gap-1 px-2 py-1 text-[9px] font-mono uppercase tracking-wider border border-white/10 bg-card/80 text-white/50 hover:text-white/80 hover:border-white/20 transition-colors"
             data-testid="button-expand-depth"
             title="Load deeper relatives"
           >
@@ -396,7 +396,7 @@ export default function PersonDetail() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0E0E0E]">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 text-primary animate-spin" data-testid="loader-person" />
       </div>
     );
@@ -404,7 +404,7 @@ export default function PersonDetail() {
 
   if (!person) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#0E0E0E] text-center">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background text-center">
         <User className="w-16 h-16 text-white/10 mb-4" />
         <h2 className="font-display text-2xl font-bold mb-2">Person Not Found</h2>
         <p className="text-muted-foreground font-mono text-sm mb-6">This profile does not exist or has been removed.</p>
@@ -430,11 +430,11 @@ export default function PersonDetail() {
   const isDraftOrReview = person.status === "Draft" || person.status === "Review";
 
   return (
-    <div className="min-h-screen bg-[#0E0E0E]" data-testid="page-person-detail">
+    <div className="min-h-screen bg-background" data-testid="page-person-detail">
       {person.bannerUrl && (
         <div className="h-48 w-full overflow-hidden relative">
           <img src={person.bannerUrl} alt="" className="w-full h-full object-cover opacity-40" />
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#0E0E0E]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent to-background" />
         </div>
       )}
 
@@ -536,7 +536,7 @@ export default function PersonDetail() {
           )}
         </div>
 
-        <div className="w-[400px] min-w-[320px] border-l border-white/10 bg-black/30 flex flex-col" style={{ height: person.bannerUrl ? "calc(100vh - 12rem)" : "calc(100vh - 4rem)", position: "sticky", top: person.bannerUrl ? "12rem" : "4rem" }}>
+        <div className="w-[400px] min-w-[320px] border-l border-white/10 bg-card/30 flex flex-col" style={{ height: person.bannerUrl ? "calc(100vh - 12rem)" : "calc(100vh - 4rem)", position: "sticky", top: person.bannerUrl ? "12rem" : "4rem" }}>
           <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
             <h3 className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-2">
               <Users className="w-3.5 h-3.5 text-primary" /> Family Tree

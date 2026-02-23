@@ -47,11 +47,11 @@ export default function Account() {
     <div className="min-h-[calc(100vh-3.5rem)] container mx-auto px-6 py-12 max-w-2xl">
       <div className="mb-8">
         <h1 className="font-display text-3xl font-bold uppercase tracking-wider" data-testid="text-account-title">
-          OPERATIVE <span className="text-primary">PROFILE</span>
+          MY <span className="text-primary">PROFILE</span>
         </h1>
       </div>
 
-      <div className="border border-white/10 bg-black/40 p-8 mb-6">
+      <div className="border border-white/10 bg-card/40 p-8 mb-6">
         <div className="flex items-start justify-between mb-6">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 border border-white/10 bg-white/5 flex items-center justify-center">
@@ -59,7 +59,7 @@ export default function Account() {
             </div>
             <div>
               <h2 className="font-display text-xl font-bold" data-testid="text-account-name">
-                {user.name || "Anonymous Operative"}
+                {user.name || "Anonymous User"}
               </h2>
               <p className="text-sm text-muted-foreground font-mono flex items-center gap-1" data-testid="text-account-email">
                 <Mail className="w-3 h-3" /> {user.email}

@@ -339,8 +339,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <AdminContext.Provider value={contextValue}>
-      <div className="min-h-screen flex flex-col bg-[#0E0E0E]" data-testid="admin-layout">
-        <header className="h-12 bg-[#0a0a0a] border-b border-white/5 sticky top-0 z-40 flex items-center justify-between px-4" data-testid="admin-topnav">
+      <div className="min-h-screen flex flex-col bg-background" data-testid="admin-layout">
+        <header className="h-12 bg-[#111418] border-b border-white/5 sticky top-0 z-40 flex items-center justify-between px-4" data-testid="admin-topnav">
           <div className="flex items-center gap-3">
             <button
               className="lg:hidden text-muted-foreground hover:text-white mr-2"
@@ -378,7 +378,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <Plus className="w-4 h-4" />
               </button>
               {createDropdown && (
-                <div className="absolute right-0 top-full mt-1 w-48 bg-[#0a0a0a] border border-white/10 z-50" data-testid="dropdown-quick-create">
+                <div className="absolute right-0 top-full mt-1 w-48 bg-[#111418] border border-white/10 z-50" data-testid="dropdown-quick-create">
                   <a
                     href="/admin/people"
                     onClick={(e) => {
@@ -417,7 +417,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <span className="text-[10px] text-primary bg-primary/10 px-1 py-0.5">{role}</span>
               </button>
               {userDropdown && (
-                <div className="absolute right-0 top-full mt-1 w-56 bg-[#0a0a0a] border border-white/10 z-50" data-testid="dropdown-user">
+                <div className="absolute right-0 top-full mt-1 w-56 bg-[#111418] border border-white/10 z-50" data-testid="dropdown-user">
                   <div className="px-3 py-2 border-b border-white/5">
                     <p className="font-mono text-xs text-white">{employee.name}</p>
                     <p className="font-mono text-[10px] text-muted-foreground">{employee.email}</p>
@@ -441,7 +441,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         <div className="flex flex-1 overflow-hidden">
           <aside
-            className="hidden lg:flex w-56 bg-[#0a0a0a] border-r border-white/5 flex-col fixed left-0 top-12 bottom-0 z-30"
+            className="hidden lg:flex w-56 bg-[#111418] border-r border-white/5 flex-col fixed left-0 top-12 bottom-0 z-30"
             data-testid="admin-sidebar"
           >
             {sidebarContent}
@@ -468,7 +468,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 data-testid="mobile-sidebar-backdrop"
               />
               <aside
-                className="fixed left-0 top-12 bottom-0 w-56 bg-[#0a0a0a] border-r border-white/5 flex flex-col z-50 lg:hidden"
+                className="fixed left-0 top-12 bottom-0 w-56 bg-[#111418] border-r border-white/5 flex flex-col z-50 lg:hidden"
                 data-testid="admin-sidebar-mobile"
               >
                 {sidebarContent}
@@ -521,7 +521,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               })}
             </div>
 
-            <main className="flex-1 overflow-y-auto mil-grid" data-testid="admin-main-content">
+            <main className="flex-1 overflow-y-auto" data-testid="admin-main-content">
               {children}
             </main>
           </div>

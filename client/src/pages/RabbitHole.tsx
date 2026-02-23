@@ -15,7 +15,7 @@ function statusBadge(status: string) {
     case "Verified":
       return <span className="text-green-500 border border-green-500/30 px-2 py-1 flex items-center gap-1 text-xs font-mono"><CheckCircle2 className="w-3 h-3" /> VERIFIED</span>;
     case "Specialist":
-      return <span className="text-red-500 border border-red-500/30 px-2 py-1 flex items-center gap-1 text-xs font-mono"><Shield className="w-3 h-3" /> SPECIALIST</span>;
+      return <span className="text-primary border border-primary/30 px-2 py-1 flex items-center gap-1 text-xs font-mono"><Shield className="w-3 h-3" /> SPECIALIST</span>;
     case "Unsolved":
       return <span className="text-yellow-500 border border-yellow-500/30 px-2 py-1 flex items-center gap-1 text-xs font-mono"><AlertTriangle className="w-3 h-3" /> UNSOLVED</span>;
     default:
@@ -312,7 +312,7 @@ export default function RabbitHolePage() {
               </div>
               <div className="h-1 bg-black w-full overflow-hidden">
                 <div 
-                  className="h-full bg-primary transition-all duration-1000 ease-out glow-effect"
+                  className="h-full bg-primary transition-all duration-1000 ease-out"
                   style={{ width: `${hole.completion}%` }}
                 />
               </div>

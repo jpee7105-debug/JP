@@ -32,11 +32,10 @@ export default function Login() {
   return (
     <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center px-6">
       <div className="w-full max-w-md">
-        <div className="border border-white/10 bg-black/40 p-8">
+        <div className="border border-white/10 bg-card/40 p-8">
           <div className="text-center mb-8">
-            <div className="inline-flex items-center gap-2 font-mono text-xs text-primary/80 mb-4 px-3 py-1 border border-primary/20 bg-primary/5">
-              <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-              SECURE ACCESS
+            <div className="inline-flex items-center gap-2 font-mono text-xs text-muted-foreground mb-4 px-3 py-1 border border-white/10 bg-white/5">
+              Welcome back
             </div>
             <h1 className="font-display text-3xl font-bold uppercase tracking-wider" data-testid="text-login-title">
               LOG <span className="text-primary">IN</span>
@@ -57,8 +56,8 @@ export default function Login() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full h-12 px-4 bg-black/50 border border-white/10 rounded-none focus:outline-none focus:border-primary/50 font-mono text-sm transition-colors"
-                placeholder="operative@rabbithole.io"
+                className="w-full h-12 px-4 bg-card/80 border border-white/10 rounded-none focus:outline-none focus:border-primary/50 font-mono text-sm transition-colors"
+                placeholder="you@example.com"
                 required
                 data-testid="input-login-email"
               />
@@ -70,7 +69,7 @@ export default function Login() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full h-12 px-4 pr-12 bg-black/50 border border-white/10 rounded-none focus:outline-none focus:border-primary/50 font-mono text-sm transition-colors"
+                  className="w-full h-12 px-4 pr-12 bg-card/80 border border-white/10 rounded-none focus:outline-none focus:border-primary/50 font-mono text-sm transition-colors"
                   placeholder="••••••••"
                   required
                   data-testid="input-login-password"
@@ -97,7 +96,7 @@ export default function Login() {
                   AUTHENTICATING...
                 </>
               ) : (
-                "ACCESS GRANTED"
+                "LOG IN"
               )}
             </button>
           </form>

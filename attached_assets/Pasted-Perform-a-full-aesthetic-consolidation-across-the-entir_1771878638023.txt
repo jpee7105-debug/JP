@@ -1,0 +1,58 @@
+Perform a full aesthetic consolidation across the entire app to align with:
+- depth
+- calm intelligence
+- professional credibility
+Remove “military” styling and reduce decorative red glow.
+
+Do NOT add new product features. Do NOT change DB schema. This is UI/UX system refinement only.
+
+1) Create a design token system (single source of truth)
+- Define tokens for:
+  - colors (graphite/charcoal background gradients; off-white primary text; muted gray secondary; restrained deep red accent)
+  - borders (subtle steel gray)
+  - elevation (very subtle panel layering)
+  - spacing scale (4/8/12/16/24/32)
+  - typography scale (title/subtitle/body/meta)
+  - motion (fade/slide durations, easing)
+- Implement tokens in a central file and refactor existing styles to consume them.
+
+2) Color rules (enforced)
+- Backgrounds must not be pure black; use deep charcoal gradient or near-black graphite.
+- Red is ONLY used for:
+  - disputed/warning/alert states
+  - selected/highlight focus
+  - key “thread” moments (very sparingly)
+- Remove constant glow. Replace with subtle highlight only on interaction (hover/focus/selected).
+
+3) Typography system
+- Titles: strong, clean, readable
+- Narrative body: comfortable line height and max-width
+- Metadata: smaller, muted, optional monospace
+- Ensure consistent headings across investigations, people pages, admin.
+
+4) Component cohesion
+Refactor these UI primitives to match the new system:
+- buttons
+- inputs/selects (fix contrast in all states: default/hover/focus/open/selected)
+- cards/panels
+- tabs
+- modals/drawers
+- toasts/alerts
+
+5) Connections page visual direction
+- Must match the rest of the site (no “military command board” vibe).
+- Graph looks like a calm research network diagram:
+  - matte nodes
+  - thin edges
+  - subtle hover highlight
+  - no aggressive overlays
+
+6) Acceptance tests
+- On any admin form, selects are readable when opened (no white on white).
+- Red accents appear only where meaningful.
+- The app looks like one cohesive product (homepage, investigations, people pages, connections, admin).
+
+Deliverables:
+- List token file(s) and key token values.
+- List components refactored to use tokens.
+- List pages verified for readability and cohesion.

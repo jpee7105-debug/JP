@@ -42,11 +42,10 @@ export default function Signup() {
   return (
     <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center px-6">
       <div className="w-full max-w-md">
-        <div className="border border-white/10 bg-black/40 p-8">
+        <div className="border border-white/10 bg-card/40 p-8">
           <div className="text-center mb-8">
-            <div className="inline-flex items-center gap-2 font-mono text-xs text-primary/80 mb-4 px-3 py-1 border border-primary/20 bg-primary/5">
-              <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-              NEW OPERATIVE
+            <div className="inline-flex items-center gap-2 font-mono text-xs text-muted-foreground mb-4 px-3 py-1 border border-white/10 bg-white/5">
+              Create your account
             </div>
             <h1 className="font-display text-3xl font-bold uppercase tracking-wider" data-testid="text-signup-title">
               SIGN <span className="text-primary">UP</span>
@@ -67,8 +66,8 @@ export default function Signup() {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full h-12 px-4 bg-black/50 border border-white/10 rounded-none focus:outline-none focus:border-primary/50 font-mono text-sm transition-colors"
-                placeholder="Agent codename"
+                className="w-full h-12 px-4 bg-card/80 border border-white/10 rounded-none focus:outline-none focus:border-primary/50 font-mono text-sm transition-colors"
+                placeholder="Your name"
                 data-testid="input-signup-name"
               />
             </div>
@@ -78,8 +77,8 @@ export default function Signup() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full h-12 px-4 bg-black/50 border border-white/10 rounded-none focus:outline-none focus:border-primary/50 font-mono text-sm transition-colors"
-                placeholder="operative@rabbithole.io"
+                className="w-full h-12 px-4 bg-card/80 border border-white/10 rounded-none focus:outline-none focus:border-primary/50 font-mono text-sm transition-colors"
+                placeholder="you@example.com"
                 required
                 data-testid="input-signup-email"
               />
@@ -91,7 +90,7 @@ export default function Signup() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full h-12 px-4 pr-12 bg-black/50 border border-white/10 rounded-none focus:outline-none focus:border-primary/50 font-mono text-sm transition-colors"
+                  className="w-full h-12 px-4 pr-12 bg-card/80 border border-white/10 rounded-none focus:outline-none focus:border-primary/50 font-mono text-sm transition-colors"
                   placeholder="Min 6 characters"
                   required
                   data-testid="input-signup-password"
@@ -111,7 +110,7 @@ export default function Signup() {
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full h-12 px-4 bg-black/50 border border-white/10 rounded-none focus:outline-none focus:border-primary/50 font-mono text-sm transition-colors"
+                className="w-full h-12 px-4 bg-card/80 border border-white/10 rounded-none focus:outline-none focus:border-primary/50 font-mono text-sm transition-colors"
                 placeholder="Re-enter password"
                 required
                 data-testid="input-signup-confirm"
@@ -130,7 +129,7 @@ export default function Signup() {
                   CREATING PROFILE...
                 </>
               ) : (
-                "INITIATE ACCESS"
+                "SIGN UP"
               )}
             </button>
           </form>

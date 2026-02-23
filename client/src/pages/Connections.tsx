@@ -58,22 +58,11 @@ const CaseNode = memo(({ data, selected }: NodeProps) => {
       <Handle type="target" position={Position.Top} style={{ opacity: 0, pointerEvents: "none" }} />
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0, pointerEvents: "none" }} />
 
-      {highlight && (
-        <div
-          style={{
-            position: "absolute",
-            inset: -8,
-            background: "radial-gradient(circle, rgba(139,0,0,0.35) 0%, transparent 70%)",
-            borderRadius: "50%",
-          }}
-        />
-      )}
-
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ position: "absolute", top: 0, left: 0 }}>
         <polygon
           points={`${half},2 ${size - 2},${half} ${half},${size - 2} 2,${half}`}
-          fill="#1a1c1e"
-          stroke={highlight ? "#8B0000" : "rgba(139,0,0,0.4)"}
+          fill="#161a1e"
+          stroke={highlight ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.25)"}
           strokeWidth={highlight ? 2 : 1}
         />
       </svg>
@@ -130,7 +119,7 @@ const PersonNode = memo(({ data, selected }: NodeProps) => {
           width: size,
           height: size,
           borderRadius: "50%",
-          background: "#1a1c1e",
+          background: "#161a1e",
           border: `${highlight ? 2 : 1}px solid ${highlight ? "#3b82f6" : "rgba(59,130,246,0.4)"}`,
           boxSizing: "border-box",
         }}
@@ -582,16 +571,16 @@ function GraphView({
       >
         <Background color="rgba(255,255,255,0.03)" gap={60} />
         <MiniMap
-          nodeColor={(node) => node.type === "caseNode" ? "#8B0000" : "#3b82f6"}
-          maskColor="rgba(14,14,14,0.85)"
-          style={{ background: "#111", border: "1px solid rgba(255,255,255,0.1)" }}
+          nodeColor={(node) => node.type === "caseNode" ? "rgba(255,255,255,0.4)" : "#3b82f6"}
+          maskColor="rgba(17,20,24,0.85)"
+          style={{ background: "#161a1e", border: "1px solid rgba(255,255,255,0.1)" }}
           pannable
           zoomable
         />
         <Controls
           showInteractive={false}
           style={{
-            background: "#111",
+            background: "#161a1e",
             border: "1px solid rgba(255,255,255,0.1)",
             borderRadius: 0,
           }}
@@ -644,7 +633,7 @@ export default function Connections() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "#0E0E0E" }}>
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 text-primary animate-spin" />
       </div>
     );
@@ -652,22 +641,17 @@ export default function Connections() {
 
   return (
     <div
-      className="min-h-screen flex flex-col mil-grid"
+      className="min-h-screen flex flex-col"
       data-testid="page-connections"
       style={{
-        background: "#0E0E0E",
-        backgroundImage: `
-          linear-gradient(145deg, #0E0E0E 0%, #0a0a0a 100%),
-          repeating-linear-gradient(0deg, transparent, transparent 59px, rgba(255,255,255,0.015) 59px, rgba(255,255,255,0.015) 60px),
-          repeating-linear-gradient(90deg, transparent, transparent 59px, rgba(255,255,255,0.015) 59px, rgba(255,255,255,0.015) 60px)
-        `,
+        background: "linear-gradient(145deg, #131619 0%, #0f1114 100%)",
       }}
     >
       <div className="border-b border-white/10 px-5 py-3 flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <Network className="w-5 h-5" style={{ color: "#8B0000" }} />
+          <Network className="w-5 h-5 text-muted-foreground" />
           <h1 className="font-mono text-sm font-bold uppercase tracking-[0.2em] text-white/90" data-testid="heading-situation-room">
-            Situation Room
+            Research Network
           </h1>
         </div>
 
@@ -768,7 +752,7 @@ export default function Connections() {
           </div>
 
           {viewMode === "family" && (
-            <div className="absolute top-4 left-4 px-3 py-2 border border-white/10 bg-black/70 backdrop-blur-sm z-10">
+            <div className="absolute top-4 left-4 px-3 py-2 border border-white/10 bg-card/80 backdrop-blur-sm z-10">
               <p className="font-mono text-[10px] uppercase tracking-wider text-white/50">
                 Click a person node to re-center the tree
               </p>
@@ -811,7 +795,7 @@ export default function Connections() {
                     />
 
                     <div
-                      className="corner-notch border border-white/10 transition-all duration-300"
+                      className="rounded-sm border border-white/10 transition-all duration-300"
                       style={{ backgroundColor: "rgba(20,22,24,0.8)" }}
                     >
                       <button
@@ -891,36 +875,17 @@ export default function Connections() {
       </div>
 
       <style>{`
-        .mil-grid {
-          position: relative;
-        }
-        .mil-grid::before {
-          content: "";
-          position: absolute;
-          inset: 0;
-          pointer-events: none;
-          opacity: 0.03;
-          background-image: url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-          z-index: 0;
-        }
-        .mil-grid > * {
-          position: relative;
-          z-index: 1;
-        }
-        .corner-notch {
-          clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
-        }
         .react-flow__node {
           cursor: pointer !important;
         }
         .react-flow__controls button {
-          background: #111 !important;
+          background: #161a1e !important;
           border: 1px solid rgba(255,255,255,0.1) !important;
           color: rgba(255,255,255,0.5) !important;
           border-radius: 0 !important;
         }
         .react-flow__controls button:hover {
-          background: #222 !important;
+          background: #1e2228 !important;
           color: rgba(255,255,255,0.8) !important;
         }
         .react-flow__controls button svg {

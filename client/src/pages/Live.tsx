@@ -39,7 +39,7 @@ function StreamCard({ stream, variant }: { stream: StreamWithCreator; variant: "
   return (
     <Link
       href={href}
-      className="group block relative bg-black/40 border border-white/10 hover:bg-black/60 transition-all duration-300 overflow-hidden cursor-pointer"
+      className="group block relative bg-card/40 border border-white/10 hover:bg-card/60 transition-all duration-300 overflow-hidden cursor-pointer"
       data-testid={`card-stream-${stream.id}`}
     >
       <div className="relative aspect-video w-full overflow-hidden bg-white/[0.02]">
@@ -53,7 +53,7 @@ function StreamCard({ stream, variant }: { stream: StreamWithCreator; variant: "
         ) : (
           <div
             className="w-full h-full flex items-center justify-center"
-            style={{ background: `linear-gradient(135deg, #1a0000 0%, #0E0E0E 50%, #1a0505 100%)` }}
+            style={{ background: `linear-gradient(135deg, #161a1e 0%, #111418 50%, #161a1e 100%)` }}
             data-testid={`placeholder-thumbnail-${stream.id}`}
           >
             <Radio className="w-10 h-10 text-primary/30" />
@@ -177,7 +177,7 @@ export default function Live() {
                 ) : (
                   <div
                     className="w-full h-full"
-                    style={{ background: `linear-gradient(135deg, #2a0000 0%, #0E0E0E 60%, #1a0505 100%)` }}
+                    style={{ background: `linear-gradient(135deg, #1a1215 0%, #111418 60%, #161a1e 100%)` }}
                   />
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />

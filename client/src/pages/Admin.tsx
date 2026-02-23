@@ -549,7 +549,7 @@ function HolesManager({ role, onEditInvestigation }: { role: string; onEditInves
                     <span className="font-mono text-xs text-primary">#{hole.id}</span>
                     <h3 className="font-display font-bold truncate">{hole.title}</h3>
                     <StatusBadge status={hole.status} />
-                    {hole.isSpecialist && <span className="font-mono text-[10px] px-1.5 py-0.5 text-red-500 bg-red-500/10 border border-red-500/20">SPECIALIST</span>}
+                    {hole.isSpecialist && <span className="font-mono text-[10px] px-1.5 py-0.5 text-primary bg-primary/10 border border-primary/20">SPECIALIST</span>}
                     {(hole.labels as string[])?.map(l => <span key={l} className="font-mono text-[10px] px-1.5 py-0.5 text-muted-foreground bg-white/5">{l}</span>)}
                   </div>
                   <p className="text-xs text-muted-foreground truncate">{hole.summary}</p>

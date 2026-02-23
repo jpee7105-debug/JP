@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ShieldAlert, Eye, MessageSquare, Bookmark, Clock, TrendingUp, Award, BookOpen, CheckCircle2, Target } from "lucide-react";
+import { Eye, MessageSquare, Bookmark, Clock, TrendingUp, Award, BookOpen, CheckCircle2, Target, User } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import type { RabbitHole } from "@shared/schema";
@@ -87,14 +87,14 @@ export default function Profile() {
       <div className="border-b border-white/5 bg-white/[0.01]">
         <div className="container mx-auto px-6 py-10">
           <div className="flex items-center gap-6">
-            <div className="w-20 h-20 border-2 border-primary/50 bg-primary/5 flex items-center justify-center relative">
-              <ShieldAlert className="w-10 h-10 text-primary/60" />
+            <div className="w-20 h-20 border-2 border-white/20 bg-white/5 flex items-center justify-center relative">
+              <User className="w-10 h-10 text-muted-foreground" />
               <div className="absolute -bottom-1 -right-1 bg-background border border-white/10 px-1.5 py-0.5">
                 <span className={`font-mono text-[9px] ${tier.color}`}>{tier.name.toUpperCase()}</span>
               </div>
             </div>
             <div>
-              <h1 className="font-display text-3xl font-bold uppercase tracking-wider mb-1" data-testid="text-profile-title">Anonymous Operative</h1>
+              <h1 className="font-display text-3xl font-bold uppercase tracking-wider mb-1" data-testid="text-profile-title">Anonymous User</h1>
               <p className="font-mono text-xs text-muted-foreground" data-testid="text-profile-id">SESSION ID: {anonId}</p>
               <div className="flex items-center gap-3 mt-1">
                 <span className={`font-mono text-xs ${tier.color}`}>{tier.name.toUpperCase()}</span>
@@ -211,7 +211,7 @@ export default function Profile() {
           <h3 className="font-mono text-xs text-primary mb-3">// SYSTEM NOTICE</h3>
           <p className="text-sm text-muted-foreground leading-relaxed">
             You are operating in anonymous mode. All progress and reputation data is stored locally in your browser. 
-            Reading depth nodes earns points and tier progression. Complete investigations to unlock higher clearance levels.
+            Reading depth nodes earns points and tier progression. Complete investigations to unlock higher tiers.
           </p>
         </div>
       </main>

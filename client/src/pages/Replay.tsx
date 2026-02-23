@@ -39,18 +39,18 @@ export default function Replay() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#0E0E0E" }} data-testid="loading-replay">
-        <div className="w-8 h-8 border-2 border-[#8B0000] border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-background" data-testid="loading-replay">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   if (!replayData) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{ backgroundColor: "#0E0E0E", color: "#EDEDED" }} data-testid="error-replay">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-background text-foreground" data-testid="error-replay">
         <Radio className="w-12 h-12 opacity-20" />
         <p className="font-mono text-sm text-white/40">Replay not found</p>
-        <Link href="/live" className="font-mono text-xs text-[#8B0000] hover:underline" data-testid="link-back-live">
+        <Link href="/live" className="font-mono text-xs text-primary hover:underline" data-testid="link-back-live">
           ← Back to Live
         </Link>
       </div>
@@ -64,7 +64,7 @@ export default function Replay() {
     : stream.embedUrl;
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#0E0E0E", color: "#EDEDED" }} data-testid="page-replay">
+    <div className="min-h-screen flex flex-col bg-background text-foreground" data-testid="page-replay">
       <div className="flex-1 flex flex-col max-w-6xl mx-auto w-full">
         <div className="relative w-full aspect-video bg-black" data-testid="player-area">
           {hasAccess ? (
@@ -76,9 +76,9 @@ export default function Replay() {
               data-testid="player-iframe"
             />
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center gap-6" style={{ background: "linear-gradient(135deg, #1a0000 0%, #0E0E0E 50%, #1a0505 100%)" }} data-testid="premium-wall">
-              <div className="p-4 rounded-full bg-[#8B0000]/20 border border-[#8B0000]/30">
-                <Lock className="w-10 h-10 text-[#8B0000]" />
+            <div className="w-full h-full flex flex-col items-center justify-center gap-6" style={{ background: "linear-gradient(135deg, #161a1e 0%, #111418 50%, #161a1e 100%)" }} data-testid="premium-wall">
+              <div className="p-4 rounded-full bg-primary/20 border border-primary/30">
+                <Lock className="w-10 h-10 text-primary" />
               </div>
               <div className="text-center">
                 <h3 className="font-display text-2xl font-bold mb-2" data-testid="text-premium-title">Premium Content</h3>
@@ -87,7 +87,7 @@ export default function Replay() {
                 </p>
                 <Link
                   href="/signup"
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-[#8B0000] hover:bg-[#6B0000] text-white font-mono text-sm font-bold uppercase tracking-wider transition-colors"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/80 text-white font-mono text-sm font-bold uppercase tracking-wider transition-colors"
                   data-testid="link-upgrade"
                 >
                   <Crown className="w-4 h-4" />
@@ -118,7 +118,7 @@ export default function Replay() {
 
           <Link
             href={`/channel/${creator.handle}`}
-            className="inline-flex items-center gap-2 mb-4 hover:text-[#8B0000] transition-colors"
+            className="inline-flex items-center gap-2 mb-4 hover:text-primary transition-colors"
             data-testid="link-creator"
           >
             {creator.avatarUrl ? (
@@ -126,7 +126,7 @@ export default function Replay() {
             ) : (
               <User className="w-6 h-6 text-white/40" />
             )}
-            <span className="font-mono text-sm text-white/60 hover:text-[#8B0000]" data-testid="text-creator-name">
+            <span className="font-mono text-sm text-white/60 hover:text-primary" data-testid="text-creator-name">
               {creator.displayName}
             </span>
           </Link>
@@ -172,12 +172,12 @@ export default function Replay() {
                   onClick={() => setActiveReplayIndex(index)}
                   className={`flex items-center gap-3 px-4 py-3 text-left transition-colors border ${
                     index === activeReplayIndex
-                      ? "bg-[#8B0000]/20 border-[#8B0000]/40 text-white"
+                      ? "bg-primary/20 border-primary/40 text-white"
                       : "bg-white/[0.03] border-white/5 text-white/60 hover:bg-white/[0.06] hover:text-white/80"
                   }`}
                   data-testid={`button-replay-part-${replay.id}`}
                 >
-                  <Play className={`w-4 h-4 shrink-0 ${index === activeReplayIndex ? "text-[#8B0000]" : "text-white/30"}`} />
+                  <Play className={`w-4 h-4 shrink-0 ${index === activeReplayIndex ? "text-primary" : "text-white/30"}`} />
                   <span className="font-mono text-sm flex-1">Part {index + 1}</span>
                   {replay.durationSeconds > 0 && (
                     <span className="font-mono text-[10px] text-white/30" data-testid={`text-replay-duration-${replay.id}`}>

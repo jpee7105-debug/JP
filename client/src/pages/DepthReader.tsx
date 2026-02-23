@@ -229,7 +229,7 @@ export default function DepthReader() {
       </div>
 
       <div className="flex-1 flex">
-        <div className="hidden lg:block w-64 border-r border-white/5 bg-black/20 overflow-y-auto">
+        <div className="hidden lg:block w-64 border-r border-white/5 bg-card/20 overflow-y-auto">
           <div className="p-4">
             <h3 className="font-mono text-xs text-muted-foreground uppercase mb-4">Sections</h3>
             {nodes.map((node, i) => {

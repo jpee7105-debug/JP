@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Search, GitBranch, Database, Clock, Tag, ArrowRight, Filter, ShieldAlert } from "lucide-react";
+import { Search, GitBranch, Database, Clock, Tag, ArrowRight, Filter } from "lucide-react";
 import heroBg from "@/assets/images/hero-bg.png";
 import networkBg from "@/assets/images/network.png";
 import type { RabbitHole, Category } from "@shared/schema";
@@ -21,7 +21,7 @@ function statusColor(status: string) {
     case "Verified": return { color: "text-green-500", border: "border-green-500/20", bg: "bg-green-500/10" };
     case "Unsolved": return { color: "text-yellow-500", border: "border-yellow-500/20", bg: "bg-yellow-500/10" };
     case "Active": return { color: "text-primary", border: "border-primary/20", bg: "bg-primary/10" };
-    case "Specialist": return { color: "text-red-500", border: "border-red-500/40", bg: "bg-red-500/10" };
+    case "Specialist": return { color: "text-primary", border: "border-primary/20", bg: "bg-primary/10" };
     default: return { color: "text-muted-foreground", border: "border-white/10", bg: "bg-white/5" };
   }
 }
@@ -74,12 +74,11 @@ export default function Home() {
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent z-10 pointer-events-none" />
         
         <div className="relative z-20 text-center max-w-3xl px-6">
-          <div className="inline-flex items-center gap-2 font-mono text-xs text-primary/80 mb-6 px-3 py-1 border border-primary/20 bg-primary/5">
-            <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-            INVESTIGATIVE RESEARCH PLATFORM
+          <div className="inline-flex items-center gap-2 font-mono text-xs text-muted-foreground mb-6 px-3 py-1 border border-white/10 bg-white/5">
+            Research · Analysis · Discovery
           </div>
           <h2 className="font-display text-5xl md:text-7xl font-bold mb-6 tracking-tighter uppercase">
-            RABBIT <span className="text-primary">HOLE</span>
+            RABBIT <span className="text-foreground">HOLE</span>
           </h2>
           <p className="text-lg text-muted-foreground font-light mb-10">
             Go deeper. Structured rabbit holes into the world's most complex narratives. AI-verified sources. Community-driven analysis.
@@ -92,7 +91,7 @@ export default function Home() {
               type="text" 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-14 pl-12 pr-4 bg-black/50 border border-white/10 rounded-none focus:outline-none focus:border-primary/50 text-lg font-mono transition-colors"
+              className="w-full h-14 pl-12 pr-4 bg-card/80 border border-white/10 rounded-none focus:outline-none focus:border-primary/50 text-lg font-mono transition-colors"
               placeholder="SEARCH INVESTIGATIONS..."
               data-testid="input-search"
             />
@@ -126,13 +125,13 @@ export default function Home() {
         
         <div className="mb-20">
           <div className="flex items-center justify-between mb-8">
-            <h3 className="font-display text-2xl font-bold uppercase tracking-widest border-l-2 border-red-500 pl-4">Specialist Intel</h3>
-            <span className="font-mono text-[10px] text-red-500 animate-pulse">CLEARANCE_REQUIRED</span>
+            <h3 className="font-display text-2xl font-bold uppercase tracking-widest border-l-2 border-primary pl-4">Specialist Intel</h3>
+            <span className="font-mono text-[10px] text-muted-foreground">Curated</span>
           </div>
           {loadingSpecialist ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {[1, 2].map(i => (
-                <div key={i} className="h-64 border border-red-500/20 bg-red-500/[0.02] animate-pulse" />
+                <div key={i} className="h-64 border border-primary/20 bg-primary/[0.02] animate-pulse" />
               ))}
             </div>
           ) : (
@@ -141,15 +140,12 @@ export default function Home() {
                 .filter(h => !activeCategory || h.categorySlug === activeCategory)
                 .map((hole) => (
                 <Link key={hole.id} href={`/rabbithole/${hole.slug}`}
-                  className="group block relative bg-red-500/[0.02] border border-red-500/40 p-8 hover:bg-red-500/[0.05] transition-all duration-300 overflow-hidden cursor-pointer"
+                  className="group block relative bg-primary/[0.02] border border-primary/20 p-8 hover:bg-white/[0.03] transition-all duration-300 overflow-hidden cursor-pointer"
                   data-testid={`card-specialist-${hole.slug}`}
                 >
-                    <div className="absolute top-0 right-0 p-2 opacity-20">
-                      <ShieldAlert className="w-12 h-12 text-red-500" />
-                    </div>
                     <div className="flex justify-between items-start mb-4">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-bold px-2 py-1 bg-red-500/10 text-red-500 border border-red-500/20">
+                        <span className="font-mono text-xs font-bold px-2 py-1 bg-primary/10 text-primary border border-primary/20">
                           {hole.status}
                         </span>
                         {hole.categorySlug && (
@@ -162,14 +158,14 @@ export default function Home() {
                         <Clock className="w-3 h-3" /> {timeAgo(hole.updatedAt)}
                       </span>
                     </div>
-                    <h4 className="font-display text-3xl font-bold mb-4 group-hover:text-red-500 transition-colors">
+                    <h4 className="font-display text-3xl font-bold mb-4 group-hover:text-primary transition-colors">
                       {hole.title}
                     </h4>
                     <p className="text-muted-foreground text-sm mb-6 leading-relaxed line-clamp-3">
                       {hole.summary}
                     </p>
-                    <div className="flex items-center justify-between pt-4 border-t border-red-500/10">
-                      <div className="flex items-center gap-4 text-xs font-mono text-red-500/60">
+                    <div className="flex items-center justify-between pt-4 border-t border-primary/10">
+                      <div className="flex items-center gap-4 text-xs font-mono text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <GitBranch className="w-4 h-4" /> {hole.connections} Nodes
                         </span>
@@ -177,7 +173,7 @@ export default function Home() {
                           <Database className="w-4 h-4" /> {hole.sourceCount} Sources
                         </span>
                       </div>
-                      <span className="text-xs font-mono text-red-500 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span className="text-xs font-mono text-primary flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         GO DEEPER <ArrowRight className="w-3 h-3" />
                       </span>
                     </div>
@@ -224,14 +220,9 @@ export default function Home() {
               const sc = statusColor(hole.status);
               return (
                 <Link key={hole.id} href={`/rabbithole/${hole.slug}`}
-                  className={`group block relative bg-black/40 border ${sc.border} p-6 hover:bg-black/60 transition-all duration-300 overflow-hidden cursor-pointer`}
+                  className={`group block relative bg-card/40 border ${sc.border} p-6 hover:bg-card/60 transition-all duration-300 overflow-hidden cursor-pointer`}
                   data-testid={`card-rabbithole-${hole.slug}`}
                 >
-                    <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-white/20 group-hover:border-primary/50 transition-colors" />
-                    <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-white/20 group-hover:border-primary/50 transition-colors" />
-                    <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-white/20 group-hover:border-primary/50 transition-colors" />
-                    <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-white/20 group-hover:border-primary/50 transition-colors" />
-
                     <div className="flex justify-between items-start mb-4">
                       <div className="flex items-center gap-2">
                         <span className={`font-mono text-xs font-bold px-2 py-1 ${sc.bg} ${sc.color}`}>
@@ -279,7 +270,7 @@ export default function Home() {
           style={{ backgroundImage: `url(${networkBg})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
         />
         <div className="relative z-10 font-mono text-xs text-muted-foreground/50 tracking-widest uppercase">
-          SECURE CONNECTION ESTABLISHED // RABBIT_HOLE V2.0.0
+          RABBIT HOLE — RESEARCH PLATFORM
         </div>
       </footer>
     </div>
