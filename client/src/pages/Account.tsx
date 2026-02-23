@@ -1,6 +1,7 @@
 import { useAuth } from "@/hooks/useAuth";
-import { useLocation } from "wouter";
-import { User, Crown, Calendar, Mail, Shield, ArrowUpRight } from "lucide-react";
+import { useLocation, Link } from "wouter";
+import { User, Crown, Calendar, Mail, Shield, ArrowUpRight, RotateCcw, HelpCircle } from "lucide-react";
+import { useOnboardingContext } from "@/App";
 
 const planBadge: Record<string, { color: string; bg: string; border: string; label: string }> = {
   Free: { color: "text-muted-foreground", bg: "bg-white/5", border: "border-white/10", label: "FREE TIER" },
@@ -17,6 +18,7 @@ const statusLabels: Record<string, string> = {
 export default function Account() {
   const { user, isAuthenticated, isLoading, logout } = useAuth();
   const [, navigate] = useLocation();
+  const { restartTour } = useOnboardingContext();
 
   if (isLoading) {
     return (
@@ -135,6 +137,28 @@ export default function Account() {
           </div>
         </div>
       )}
+
+      <div className="border border-white/10 bg-card/40 p-8 mb-6">
+        <h3 className="font-display text-sm font-bold uppercase tracking-wider mb-4 text-muted-foreground">Help & Onboarding</h3>
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={restartTour}
+            className="inline-flex items-center gap-2 px-4 py-2.5 border border-white/10 text-sm font-mono uppercase text-muted-foreground hover:text-white hover:border-white/20 transition-colors"
+            data-testid="button-restart-tour"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            Restart Tour
+          </button>
+          <Link
+            href="/guide"
+            className="inline-flex items-center gap-2 px-4 py-2.5 border border-white/10 text-sm font-mono uppercase text-muted-foreground hover:text-white hover:border-white/20 transition-colors"
+            data-testid="link-guide"
+          >
+            <HelpCircle className="w-3.5 h-3.5" />
+            View Guide
+          </Link>
+        </div>
+      </div>
 
       <div className="flex justify-end">
         <button

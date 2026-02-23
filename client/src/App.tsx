@@ -1,10 +1,13 @@
 import { Switch, Route, useLocation } from "wouter";
+import { createContext, useContext } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Navbar from "@/components/Navbar";
 import AdminLayout from "@/components/AdminLayout";
+import OnboardingTour from "@/components/OnboardingTour";
+import { useOnboarding } from "@/hooks/useOnboarding";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import Discover from "@/pages/Discover";
@@ -30,6 +33,14 @@ import Library from "@/pages/Library";
 import LibraryWork from "@/pages/LibraryWork";
 import LibraryBook from "@/pages/LibraryBook";
 import LibraryChapter from "@/pages/LibraryChapter";
+import Guide from "@/pages/Guide";
+
+interface OnboardingContextType {
+  restartTour: () => void;
+}
+
+const OnboardingContext = createContext<OnboardingContextType>({ restartTour: () => {} });
+export const useOnboardingContext = () => useContext(OnboardingContext);
 
 function PublicRouter() {
   return (
@@ -53,6 +64,7 @@ function PublicRouter() {
       <Route path="/library/:workSlug/:bookSlug" component={LibraryBook} />
       <Route path="/library/:workSlug" component={LibraryWork} />
       <Route path="/library" component={Library} />
+      <Route path="/guide" component={Guide} />
       <Route path="/qa" component={QA} />
       <Route component={NotFound} />
     </Switch>
@@ -90,13 +102,25 @@ function AppRouter() {
 }
 
 function App() {
+  const onboarding = useOnboarding();
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <div className="min-h-screen bg-background text-foreground">
-          <Toaster />
-          <AppRouter />
-        </div>
+        <OnboardingContext.Provider value={{ restartTour: onboarding.restartTour }}>
+          <div className="min-h-screen bg-background text-foreground">
+            <Toaster />
+            <AppRouter />
+            <OnboardingTour
+              active={onboarding.tourActive}
+              step={onboarding.tourStep}
+              onNext={onboarding.nextStep}
+              onPrev={onboarding.prevStep}
+              onComplete={onboarding.completeTour}
+              onSkip={onboarding.completeTour}
+            />
+          </div>
+        </OnboardingContext.Provider>
       </TooltipProvider>
     </QueryClientProvider>
   );
