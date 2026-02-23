@@ -83,12 +83,18 @@ export default function DepthReader() {
     }
   }, [nodes, completedNodes]);
 
+  const isNodePaywalled = useCallback((index: number): boolean => {
+    const node = nodes[index] as any;
+    return !!node?.locked;
+  }, [nodes]);
+
   const isNodeUnlocked = useCallback((index: number): boolean => {
+    if (isNodePaywalled(index)) return false;
     if (index === 0) return true;
     const prevNode = nodes[index - 1];
     if (!prevNode) return false;
     return !!completedNodes[prevNode.id];
-  }, [nodes, completedNodes]);
+  }, [nodes, completedNodes, isNodePaywalled]);
 
   const markComplete = useCallback(() => {
     if (!slug || !nodes[currentIndex]) return;
@@ -184,6 +190,7 @@ export default function DepthReader() {
   const progress = Math.round((totalCompleted / nodes.length) * 100);
   const branchLinks = (currentNode.branchLinks || []) as { label: string; targetSlug: string }[];
   const currentLocked = !isNodeUnlocked(currentIndex);
+  const currentPaywalled = isNodePaywalled(currentIndex);
 
   return (
     <div className="min-h-screen flex flex-col" data-testid="page-depth-reader">
@@ -256,7 +263,31 @@ export default function DepthReader() {
 
         <main className="flex-1 max-w-3xl mx-auto px-6 py-12">
           <div ref={contentRef} style={{ opacity: 1, transform: "translateX(0)" }}>
-            {currentLocked ? (
+            {currentPaywalled ? (
+              <div className="text-center py-20" data-testid="locked-node-paywall">
+                <Lock className="w-16 h-16 text-primary/30 mx-auto mb-6" />
+                <h2 className="font-display text-2xl font-bold mb-3">PRO CONTENT</h2>
+                <p className="text-muted-foreground font-mono text-sm mb-6 max-w-md mx-auto">
+                  This depth node is available to Pro subscribers. Upgrade to unlock all nodes and the full investigation.
+                </p>
+                <div className="flex flex-wrap justify-center gap-3">
+                  <Link
+                    href="/pricing"
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/80 text-white font-mono text-xs uppercase tracking-wider transition-colors"
+                    data-testid="link-upgrade-reader"
+                  >
+                    <Crown className="w-4 h-4" /> UPGRADE TO PRO
+                  </Link>
+                  <Link
+                    href={`/rabbithole/${slug}`}
+                    className="inline-flex items-center gap-2 px-6 py-3 border border-white/10 font-mono text-xs uppercase text-muted-foreground hover:text-white hover:border-white/20 transition-colors"
+                    data-testid="link-back-investigation"
+                  >
+                    <ChevronLeft className="w-4 h-4" /> BACK TO INVESTIGATION
+                  </Link>
+                </div>
+              </div>
+            ) : currentLocked ? (
               <div className="text-center py-20" data-testid="locked-node">
                 <Lock className="w-16 h-16 text-muted-foreground/20 mx-auto mb-6" />
                 <h2 className="font-display text-2xl font-bold mb-3">NODE LOCKED</h2>
