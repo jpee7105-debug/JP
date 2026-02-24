@@ -37,8 +37,8 @@ const emptyForm = {
   country: "",
   region: "",
   city: "",
-  lat: "",
-  lng: "",
+  lat: "" as string | number | null,
+  lng: "" as string | number | null,
   linkType: "investigation" as string,
   linkId: "",
   linkUrl: "",
@@ -247,8 +247,8 @@ export default function AdminTimeline() {
       if (!payload.country) payload.country = null;
       if (!payload.region) payload.region = null;
       if (!payload.city) payload.city = null;
-      if (!payload.lat) payload.lat = null;
-      if (!payload.lng) payload.lng = null;
+      payload.lat = payload.lat ? parseFloat(payload.lat) : null;
+      payload.lng = payload.lng ? parseFloat(payload.lng) : null;
       if (!payload.linkId) payload.linkId = null;
       if (!payload.linkUrl) payload.linkUrl = null;
       const res = await adminFetch("/api/admin/timeline", { method: "POST", body: JSON.stringify(payload) });
@@ -267,8 +267,8 @@ export default function AdminTimeline() {
       if (!payload.country) payload.country = null;
       if (!payload.region) payload.region = null;
       if (!payload.city) payload.city = null;
-      if (!payload.lat) payload.lat = null;
-      if (!payload.lng) payload.lng = null;
+      payload.lat = payload.lat ? parseFloat(payload.lat) : null;
+      payload.lng = payload.lng ? parseFloat(payload.lng) : null;
       if (!payload.linkId) payload.linkId = null;
       if (!payload.linkUrl) payload.linkUrl = null;
       const res = await adminFetch(`/api/admin/timeline/${id}`, { method: "PUT", body: JSON.stringify(payload) });

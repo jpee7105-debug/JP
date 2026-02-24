@@ -1,4 +1,4 @@
-import { eq, desc, ilike, or, asc, sql, and, ne } from "drizzle-orm";
+import { eq, desc, ilike, or, asc, sql, and, ne, gte, lte, isNotNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import {
@@ -245,6 +245,23 @@ export interface IStorage {
   createTimelineEntry(entry: InsertTimelineEntry): Promise<TimelineEntry>;
   updateTimelineEntry(id: number, data: Partial<InsertTimelineEntry>): Promise<TimelineEntry | undefined>;
   deleteTimelineEntry(id: number): Promise<boolean>;
+
+  getMapItems(minLat: number, maxLat: number, minLng: number, maxLng: number, filters?: { type?: string; tag?: string }): Promise<MapItem[]>;
+}
+
+export interface MapItem {
+  id: number;
+  type: 'investigation' | 'person' | 'timeline';
+  title: string;
+  summary: string;
+  slug?: string;
+  handle?: string;
+  lat: number;
+  lng: number;
+  country?: string | null;
+  city?: string | null;
+  tags?: string[];
+  imageUrl?: string | null;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1182,6 +1199,100 @@ export class DatabaseStorage implements IStorage {
   async deleteTimelineEntry(id: number): Promise<boolean> {
     const result = await db.delete(timelineEntries).where(eq(timelineEntries.id, id)).returning();
     return result.length > 0;
+  }
+
+  async getMapItems(minLat: number, maxLat: number, minLng: number, maxLng: number, filters?: { type?: string; tag?: string }): Promise<MapItem[]> {
+    const items: MapItem[] = [];
+    const filterType = filters?.type;
+    const filterTag = filters?.tag;
+
+    if (!filterType || filterType === 'investigation') {
+      const holes = await db.select().from(rabbitHoles).where(
+        and(
+          eq(rabbitHoles.status, "Published"),
+          isNotNull(rabbitHoles.latitude),
+          isNotNull(rabbitHoles.longitude),
+          gte(rabbitHoles.latitude, minLat),
+          lte(rabbitHoles.latitude, maxLat),
+          gte(rabbitHoles.longitude, minLng),
+          lte(rabbitHoles.longitude, maxLng)
+        )
+      );
+      for (const h of holes) {
+        if (filterTag && !(h.labels as string[])?.includes(filterTag)) continue;
+        items.push({
+          id: h.id,
+          type: 'investigation',
+          title: h.title,
+          summary: h.summary,
+          slug: h.slug,
+          lat: h.latitude!,
+          lng: h.longitude!,
+          country: h.country,
+          city: h.city,
+          tags: h.labels as string[],
+        });
+      }
+    }
+
+    if (!filterType || filterType === 'person') {
+      const ppl = await db.select().from(people).where(
+        and(
+          eq(people.status, "Published"),
+          isNotNull(people.latitude),
+          isNotNull(people.longitude),
+          gte(people.latitude, minLat),
+          lte(people.latitude, maxLat),
+          gte(people.longitude, minLng),
+          lte(people.longitude, maxLng)
+        )
+      );
+      for (const p of ppl) {
+        if (filterTag && !(p.tags as string[])?.includes(filterTag)) continue;
+        items.push({
+          id: p.id,
+          type: 'person',
+          title: p.fullName,
+          summary: p.description,
+          handle: p.handle ?? undefined,
+          lat: p.latitude!,
+          lng: p.longitude!,
+          tags: p.tags as string[],
+          imageUrl: p.avatarUrl || null,
+        });
+      }
+    }
+
+    if (!filterType || filterType === 'timeline') {
+      const tItems = await db.select().from(globalTimelineItems).where(
+        and(
+          eq(globalTimelineItems.status, "Published"),
+          isNotNull(globalTimelineItems.lat),
+          isNotNull(globalTimelineItems.lng),
+          gte(globalTimelineItems.lat, minLat),
+          lte(globalTimelineItems.lat, maxLat),
+          gte(globalTimelineItems.lng, minLng),
+          lte(globalTimelineItems.lng, maxLng)
+        )
+      );
+      for (const t of tItems) {
+        if (filterTag && !(t.tags as string[])?.includes(filterTag)) continue;
+        items.push({
+          id: t.id,
+          type: 'timeline',
+          title: t.title,
+          summary: t.summary,
+          lat: t.lat!,
+          lng: t.lng!,
+          country: t.country,
+          city: t.city,
+          tags: t.tags as string[],
+          imageUrl: t.featuredImageUrl || null,
+        });
+      }
+    }
+
+    return items;
   }
 }
 

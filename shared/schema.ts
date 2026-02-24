@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, uuid } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, uuid, doublePrecision } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { sql } from "drizzle-orm";
@@ -29,6 +29,11 @@ export const rabbitHoles = pgTable("rabbit_holes", {
   connectedSlugs: jsonb("connected_slugs").$type<string[]>().default([]).notNull(),
   graphX: integer("graph_x"),
   graphY: integer("graph_y"),
+  latitude: doublePrecision("latitude"),
+  longitude: doublePrecision("longitude"),
+  country: text("country"),
+  region: text("region"),
+  city: text("city"),
 });
 
 export const depthNodes = pgTable("depth_nodes", {
@@ -311,6 +316,8 @@ export const people = pgTable("people", {
   status: text("status").default("Draft").notNull(),
   graphX: integer("graph_x"),
   graphY: integer("graph_y"),
+  latitude: doublePrecision("latitude"),
+  longitude: doublePrecision("longitude"),
   createdByEmployeeId: uuid("created_by_employee_id"),
   updatedByEmployeeId: uuid("updated_by_employee_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -428,8 +435,8 @@ export const globalTimelineItems = pgTable("global_timeline_items", {
   country: text("country"),
   region: text("region"),
   city: text("city"),
-  lat: text("lat"),
-  lng: text("lng"),
+  lat: doublePrecision("lat"),
+  lng: doublePrecision("lng"),
   linkType: text("link_type").notNull(),
   linkId: text("link_id"),
   linkUrl: text("link_url"),

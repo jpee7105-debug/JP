@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertCommentSchema, insertDepthNodeSchema, insertClaimSchema, insertSourceSchema, insertCategorySchema, insertRabbitHoleSchema, insertMediaSchema, insertPodcastSchema, insertPodcastEpisodeSchema, insertRabbitHolePodcastEpisodeSchema, insertSponsoredPodcastSlotSchema, insertCreatorSchema, insertStreamSchema, insertStreamReplaySchema, insertLiveChatMessageSchema, insertChatModerationActionSchema, insertPersonSchema, insertRelationshipSchema, insertGlobalTimelineItemSchema, insertTimelineEntrySchema } from "@shared/schema";
-import { ZodError } from "zod";
+import { ZodError, z } from "zod";
 import bcrypt from "bcryptjs";
 import type { Employee, Person, Relationship } from "@shared/schema";
 import { timelineEntries } from "@shared/schema";
@@ -1950,6 +1950,31 @@ export async function registerRoutes(
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: "Failed to delete timeline entry" });
+    }
+  });
+
+  // ===== MAP ITEMS (PUBLIC) =====
+
+  const mapQuerySchema = z.object({
+    minLat: z.coerce.number().min(-90).max(90),
+    maxLat: z.coerce.number().min(-90).max(90),
+    minLng: z.coerce.number().min(-180).max(180),
+    maxLng: z.coerce.number().min(-180).max(180),
+    type: z.enum(["investigation", "person", "timeline"]).optional(),
+    tag: z.string().optional(),
+  });
+
+  app.get("/api/map/items", async (req, res) => {
+    try {
+      const parsed = mapQuerySchema.parse(req.query);
+      const items = await storage.getMapItems(parsed.minLat, parsed.maxLat, parsed.minLng, parsed.maxLng, {
+        type: parsed.type,
+        tag: parsed.tag,
+      });
+      res.json(items);
+    } catch (err) {
+      if (err instanceof ZodError) return res.status(400).json({ message: "Invalid query parameters", errors: err.errors });
+      res.status(500).json({ message: "Failed to fetch map items" });
     }
   });
 

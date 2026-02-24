@@ -1,7 +1,7 @@
-import { useState, useCallback, useMemo, memo, useEffect, useRef } from "react";
+import { useState, useCallback, useMemo, memo, useEffect, useRef, lazy, Suspense } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
-import { Network, Loader2, ExternalLink, ChevronDown, Users, GitFork, Eye, EyeOff, X, Focus } from "lucide-react";
+import { Network, Loader2, ExternalLink, ChevronDown, Users, GitFork, Eye, EyeOff, X, Focus, MapPin } from "lucide-react";
 import type { RabbitHole, Person, Relationship } from "@shared/schema";
 import { FAMILY_RELATIONSHIP_TYPES } from "@shared/schema";
 import {
@@ -24,8 +24,11 @@ import {
   useViewport,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import type { MapItem, MapBounds } from "@/components/IntelMap";
 
-type ViewMode = "graph" | "family" | "timeline";
+const IntelMap = lazy(() => import("@/components/IntelMap"));
+
+type ViewMode = "graph" | "family" | "timeline" | "map";
 
 const ZOOM_LABEL_THRESHOLD = 0.5;
 const ZOOM_DETAIL_THRESHOLD = 0.9;
@@ -786,6 +789,10 @@ export default function Connections() {
   const [familyCenterId, setFamilyCenterId] = useState<number | undefined>();
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
+  const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
+  const [mapFilters, setMapFilters] = useState<{ types: ("investigation" | "person" | "timeline")[]; tag?: string }>({
+    types: ["investigation", "person", "timeline"],
+  });
   const [, navigate] = useLocation();
 
   const { data: holes = [], isLoading: holesLoading } = useQuery<RabbitHole[]>({
@@ -798,6 +805,21 @@ export default function Connections() {
 
   const { data: relationships = [], isLoading: relsLoading } = useQuery<Relationship[]>({
     queryKey: ["/api/relationships"],
+  });
+
+  const mapQueryParams = mapBounds
+    ? `?minLat=${mapBounds.minLat}&maxLat=${mapBounds.maxLat}&minLng=${mapBounds.minLng}&maxLng=${mapBounds.maxLng}${mapFilters.types.length < 3 ? `&type=${mapFilters.types[0] || ""}` : ""}${mapFilters.tag ? `&tag=${mapFilters.tag}` : ""}`
+    : "";
+  const { data: mapItems = [] } = useQuery<MapItem[]>({
+    queryKey: ["/api/map/items", mapQueryParams],
+    queryFn: async () => {
+      if (!mapBounds) return [];
+      const res = await fetch(`/api/map/items${mapQueryParams}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: viewMode === "map" && !!mapBounds,
+    refetchOnWindowFocus: false,
   });
 
   const isLoading = holesLoading || peopleLoading || relsLoading;
@@ -846,6 +868,16 @@ export default function Connections() {
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, [focusedNodeId]);
+
+  const handleMapItemClick = useCallback((item: MapItem) => {
+    if (item.type === "investigation" && item.slug) {
+      navigate(`/rabbithole/${item.slug}`);
+    } else if (item.type === "person") {
+      navigate(`/people/${item.handle || item.id}`);
+    } else if (item.type === "timeline" && item.slug) {
+      navigate(`/rabbithole/${item.slug}`);
+    }
+  }, [navigate]);
 
   if (isLoading) {
     return (
@@ -955,6 +987,17 @@ export default function Connections() {
             }}
           >
             Timeline
+          </button>
+          <button
+            data-testid="toggle-map"
+            onClick={() => handleViewChange("map")}
+            className="px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider transition-colors border-l border-white/10"
+            style={{
+              backgroundColor: viewMode === "map" ? "rgba(255,255,255,0.08)" : "transparent",
+              color: viewMode === "map" ? "#e0e0e0" : "rgba(255,255,255,0.35)",
+            }}
+          >
+            <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> Map</span>
           </button>
         </div>
       </div>
@@ -1114,6 +1157,33 @@ export default function Connections() {
               })}
             </div>
           </div>
+        </div>
+
+        <div
+          style={{
+            opacity: viewMode === "map" ? 1 : 0,
+            pointerEvents: viewMode === "map" ? "auto" : "none",
+            position: "absolute",
+            inset: 0,
+            transition: "opacity 0.4s ease",
+          }}
+          data-testid="map-view-container"
+        >
+          {viewMode === "map" && (
+            <Suspense fallback={
+              <div className="w-full h-full flex items-center justify-center bg-background">
+                <Loader2 className="w-8 h-8 text-primary animate-spin" />
+              </div>
+            }>
+              <IntelMap
+                items={mapItems}
+                onItemClick={handleMapItemClick}
+                onBoundsChange={setMapBounds}
+                filters={mapFilters}
+                onFiltersChange={setMapFilters}
+              />
+            </Suspense>
+          )}
         </div>
       </div>
 
