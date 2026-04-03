@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { GitBranch, Database, Clock, Tag, ArrowRight, Filter, Compass, Layers } from "lucide-react";
+import { GitBranch, Database, Clock, ArrowRight, Compass, Layers } from "lucide-react";
 import type { RabbitHole, Category } from "@shared/schema";
 
 function timeAgo(date: string | Date) {
@@ -16,11 +16,11 @@ function timeAgo(date: string | Date) {
 
 function statusColor(status: string) {
   switch (status) {
-    case "Verified": return { color: "text-green-500", border: "border-green-500/20", bg: "bg-green-500/10" };
-    case "Unsolved": return { color: "text-yellow-500", border: "border-yellow-500/20", bg: "bg-yellow-500/10" };
-    case "Active": return { color: "text-primary", border: "border-primary/20", bg: "bg-primary/10" };
-    case "Specialist": return { color: "text-primary", border: "border-primary/20", bg: "bg-primary/10" };
-    default: return { color: "text-muted-foreground", border: "border-white/10", bg: "bg-white/5" };
+    case "Verified": return { color: "text-green-400", bg: "bg-green-500/8" };
+    case "Unsolved": return { color: "text-yellow-400", bg: "bg-yellow-500/8" };
+    case "Active": return { color: "text-primary", bg: "bg-primary/8" };
+    case "Specialist": return { color: "text-primary", bg: "bg-primary/8" };
+    default: return { color: "text-muted-foreground", bg: "bg-white/4" };
   }
 }
 
@@ -56,136 +56,142 @@ export default function Discover() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <div className="border-b border-white/5 bg-white/[0.01]">
+      <div className="border-b border-white/5">
         <div className="container mx-auto px-6 py-10">
           <div className="flex items-center gap-3 mb-2">
-            <Compass className="w-6 h-6 text-primary" />
-            <h1 className="font-display text-3xl font-bold uppercase tracking-wider" data-testid="text-discover-title">Discover</h1>
+            <Compass className="w-5 h-5 text-muted-foreground/60" />
+            <h1 className="font-display text-2xl font-bold tracking-tight" data-testid="text-discover-title">Discover</h1>
           </div>
-          <p className="text-muted-foreground font-light max-w-2xl">
+          <p className="text-muted-foreground/70 font-light max-w-2xl text-sm leading-relaxed">
             Browse all investigations across every category. Filter by topic, sort by relevance, and dive into the threads that matter.
           </p>
         </div>
       </div>
 
-      <div className="container mx-auto px-6 py-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-          <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide">
+      <div className="container mx-auto px-6 pt-5 pb-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-5">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
             <button
               onClick={() => setActiveCategory(null)}
-              className={`flex items-center gap-2 px-4 py-2 text-xs font-mono uppercase whitespace-nowrap border transition-colors ${!activeCategory ? 'border-primary text-primary bg-primary/10' : 'border-white/10 text-muted-foreground hover:text-white hover:border-white/20'}`}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-mono uppercase whitespace-nowrap rounded-full transition-all ${!activeCategory ? 'bg-primary/15 text-primary' : 'bg-white/5 text-muted-foreground hover:text-foreground hover:bg-white/8'}`}
               data-testid="button-discover-category-all"
             >
-              <Filter className="w-3 h-3" /> ALL
+              All
             </button>
             {cats.map(cat => (
               <button
                 key={cat.slug}
                 onClick={() => setActiveCategory(activeCategory === cat.slug ? null : cat.slug)}
-                className={`flex items-center gap-2 px-4 py-2 text-xs font-mono uppercase whitespace-nowrap border transition-colors ${activeCategory === cat.slug ? 'border-primary text-primary bg-primary/10' : 'border-white/10 text-muted-foreground hover:text-white hover:border-white/20'}`}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-mono uppercase whitespace-nowrap rounded-full transition-all ${activeCategory === cat.slug ? 'bg-primary/15 text-primary' : 'bg-white/5 text-muted-foreground hover:text-foreground hover:bg-white/8'}`}
                 data-testid={`button-discover-category-${cat.slug}`}
               >
-                <span>{categoryIcons[cat.icon] || "📁"}</span> {cat.name}
+                <span className="text-[11px]">{categoryIcons[cat.icon] || "📁"}</span> {cat.name}
               </button>
             ))}
           </div>
 
-          <div className="flex items-center gap-2">
-            <div className="flex gap-1 font-mono text-xs">
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex gap-0.5 bg-white/4 rounded-lg p-0.5">
               {(["all", "specialist", "community"] as const).map(mode => (
                 <button
                   key={mode}
                   onClick={() => setViewMode(mode)}
-                  className={`px-3 py-1.5 border transition-colors ${viewMode === mode ? 'border-primary text-primary bg-primary/10' : 'border-white/10 text-muted-foreground hover:text-white'}`}
+                  className={`px-3 py-1.5 text-[10px] font-mono uppercase rounded-md transition-all ${viewMode === mode ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground/60 hover:text-foreground'}`}
                   data-testid={`button-view-${mode}`}
                 >
-                  {mode.toUpperCase()}
+                  {mode}
                 </button>
               ))}
             </div>
-            <div className="w-px h-6 bg-white/10 mx-1" />
-            <div className="flex gap-1 font-mono text-xs">
+            <div className="w-px h-4 bg-white/10" />
+            <div className="flex gap-0.5 bg-white/4 rounded-lg p-0.5">
               {(["trending", "new", "verified"] as const).map(mode => (
                 <button
                   key={mode}
                   onClick={() => setSortMode(mode)}
-                  className={`px-3 py-1.5 transition-colors ${sortMode === mode ? 'text-primary' : 'text-muted-foreground hover:text-white'}`}
+                  className={`px-3 py-1.5 text-[10px] font-mono uppercase rounded-md transition-all ${sortMode === mode ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground/60 hover:text-foreground'}`}
                   data-testid={`button-sort-${mode}`}
                 >
-                  [{mode.toUpperCase()}]
+                  {mode}
                 </button>
               ))}
             </div>
           </div>
         </div>
 
-        <div className="font-mono text-xs text-muted-foreground mb-6">
-          {filtered.length} INVESTIGATION{filtered.length !== 1 ? "S" : ""} FOUND
+        <div className="text-[11px] font-mono text-muted-foreground/50 mb-5">
+          {filtered.length} investigation{filtered.length !== 1 ? "s" : ""} found
         </div>
       </div>
 
       <main className="flex-1 container mx-auto px-6 pb-16">
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {[1, 2, 3, 4, 5, 6].map(i => (
-              <div key={i} className="h-56 border border-white/10 bg-white/[0.01] animate-pulse" />
+              <div key={i} className="h-56 bg-card/40 rounded-xl animate-pulse" />
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-24 font-mono text-sm text-muted-foreground">
+          <div className="text-center py-24 text-sm text-muted-foreground/60">
             <Layers className="w-12 h-12 mx-auto mb-4 opacity-20" />
-            NO INVESTIGATIONS MATCH YOUR FILTERS
+            No investigations match your filters
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {filtered.map((hole) => {
               const sc = statusColor(hole.status);
               return (
                 <Link
                   key={hole.id}
                   href={`/rabbithole/${hole.slug}`}
-                  className={`group block relative bg-card/40 border ${hole.isSpecialist ? 'border-primary/20 bg-primary/[0.02]' : sc.border} p-6 hover:bg-card/60 transition-all duration-300 overflow-hidden cursor-pointer`}
+                  className="group block relative bg-card/50 rounded-xl p-6 hover:bg-card/80 transition-all duration-300 overflow-hidden cursor-pointer"
+                  style={{ boxShadow: "var(--token-elevation-1)" }}
                   data-testid={`card-discover-${hole.slug}`}
                 >
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex items-center gap-2">
-                      <span className={`font-mono text-xs font-bold px-2 py-1 ${sc.bg} ${sc.color}`}>
+                      <span className={`font-mono text-[10px] font-semibold px-2 py-0.5 rounded-md ${sc.bg} ${sc.color}`}>
                         {hole.status}
                       </span>
                       {hole.categorySlug && (
-                        <span className="font-mono text-[10px] px-1.5 py-0.5 text-muted-foreground bg-white/5">
-                          {hole.categorySlug.toUpperCase()}
+                        <span className="font-mono text-[10px] px-1.5 py-0.5 text-muted-foreground/50 bg-white/4 rounded-md">
+                          {hole.categorySlug}
+                        </span>
+                      )}
+                      {hole.isSpecialist && (
+                        <span className="font-mono text-[10px] px-1.5 py-0.5 text-primary/60 bg-primary/8 rounded-md">
+                          Specialist
                         </span>
                       )}
                     </div>
-                    <span className="font-mono text-xs text-muted-foreground flex items-center gap-1">
-                      <Clock className="w-3 h-3" /> {timeAgo(hole.updatedAt)}
+                    <span className="font-mono text-[10px] text-muted-foreground/45 flex items-center gap-1">
+                      <Clock className="w-2.5 h-2.5" /> {timeAgo(hole.updatedAt)}
                     </span>
                   </div>
 
-                  <h4 className="font-display text-xl font-bold mb-3 group-hover:text-primary transition-colors">
+                  <h4 className="font-display text-lg font-bold mb-2.5 group-hover:text-primary/90 transition-colors leading-snug">
                     {hole.title}
                   </h4>
 
-                  <p className="text-muted-foreground text-sm mb-6 line-clamp-3">
+                  <p className="text-muted-foreground/65 text-sm mb-5 line-clamp-3 leading-relaxed">
                     {hole.summary}
                   </p>
 
-                  <div className="flex items-center justify-between pt-4 border-t border-white/5">
-                    <div className="flex items-center gap-4 text-xs font-mono text-muted-foreground">
+                  <div className="flex items-center justify-between pt-3.5 border-t border-white/5">
+                    <div className="flex items-center gap-4 text-[10px] font-mono text-muted-foreground/50">
                       <span className="flex items-center gap-1">
-                        <GitBranch className="w-4 h-4" /> {hole.connections}
+                        <GitBranch className="w-3 h-3" /> {hole.connections}
                       </span>
                       <span className="flex items-center gap-1">
-                        <Database className="w-4 h-4" /> {hole.sourceCount}
+                        <Database className="w-3 h-3" /> {hole.sourceCount}
                       </span>
                     </div>
-                    <span className="text-xs font-mono text-primary flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      ENTER <ArrowRight className="w-3 h-3" />
+                    <span className="text-[10px] font-mono text-primary/70 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      Enter <ArrowRight className="w-3 h-3" />
                     </span>
                   </div>
 
-                  <div className="absolute bottom-0 left-0 h-[1px] w-0 bg-primary group-hover:w-full transition-all duration-500 ease-out" />
+                  <div className="absolute bottom-0 left-0 h-[1px] w-0 bg-primary/60 group-hover:w-full transition-all duration-500 ease-out" />
                 </Link>
               );
             })}

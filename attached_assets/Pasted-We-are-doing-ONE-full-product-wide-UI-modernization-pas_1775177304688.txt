@@ -1,0 +1,239 @@
+We are doing ONE full product-wide UI modernization pass across the existing Rabbit Hole mobile web app.
+
+IMPORTANT:
+- Do NOT add features
+- Do NOT change routes
+- Do NOT change database/schema
+- Do NOT rewrite page structure
+- Do NOT touch paywall/business logic
+- Do NOT change graph/family tree/timeline functionality
+- Only improve the visual system, spacing, hierarchy, and consistency across the existing app
+
+GOAL:
+Make the app feel modern, calm, premium, and product-like instead of old, boxy, gamer/dev-tool-like.
+
+CURRENT PROBLEMS TO FIX:
+1) Too many borders and outlined boxes
+2) Cards feel trapped in rectangles
+3) Spacing is too tight
+4) Text hierarchy is too flat
+5) Red is overused as decoration
+6) The graph feels visually disconnected from the rest of the site
+7) Some sections feel like widgets instead of part of one polished product
+
+TARGET VISUAL DIRECTION:
+- Calm intelligence
+- Deep charcoal, not pure black
+- Clean editorial hierarchy
+- Minimal glow
+- Red only for meaningful emphasis
+- More breathing room
+- Softer surfaces, less outlined UI
+
+GLOBAL DESIGN RULES
+
+1) BACKGROUNDS
+- Replace pure black backgrounds with very dark charcoal tones:
+  - main app background: #0f1115 or #101318
+  - secondary surface: #131720 or #151922
+- Use subtle tonal contrast between page background and card surfaces
+- Do not use pure #000000 for general page backgrounds
+
+2) BORDERS
+- Remove most full rectangular outlines from cards and sections
+- Use subtle low-contrast separators only where necessary
+- Replace border-heavy separation with spacing and background layering
+- Do not use red borders for default cards
+
+3) RED ACCENTS
+- Red should only be used for:
+  - active tab/selection
+  - warning/disputed
+  - important CTA
+  - progress highlight
+- Red should NOT be used as the default outline system for cards
+
+4) SPACING
+- Increase vertical spacing between sections by 12–20px
+- Increase card padding noticeably
+- Add more breathing room above and below major headers
+- Improve line-height and readability for paragraphs and long text
+
+5) TYPOGRAPHY
+- Strengthen page titles and major section titles
+- Make metadata smaller and more muted
+- Body text should be softer and more readable
+- Keep a clean editorial feel, not gamer UI
+- Important content should clearly stand out from supporting information
+
+6) COMPONENT CONSISTENCY
+Apply the same visual logic to:
+- cards
+- tabs
+- buttons
+- filters
+- search bars
+- list items
+- graph controls
+- timeline entries
+- source cards
+- claim cards
+- podcast cards
+
+PAGE-BY-PAGE REQUIRED CHANGES
+
+A) HOME PAGE
+Current problems:
+- search bar feels boxed in
+- topic filters feel too rectangular and outdated
+- investigation preview cards feel old because of strong outlines
+
+Fix:
+1. Search bar:
+- make it a softer embedded surface
+- reduce harsh outline feel
+- improve left/right padding
+- keep it clean and modern
+
+2. Topic filter buttons:
+- convert from harsh outlined rectangles to softer pill or soft-surface buttons
+- active filter may use muted red emphasis
+- inactive filters should use subtle dark surfaces with muted borders or no strong border
+
+3. Investigation preview cards:
+- remove strong outer outlines
+- use dark layered card surfaces with subtle tonal separation
+- title should be the most prominent element
+- metadata row (Published / tag / time) should be smaller and lower contrast
+- excerpt text should be softer gray
+
+B) INVESTIGATION PAGE
+Current problems:
+- title area is okay but needs better spacing
+- depth/progress section feels like a widget
+- overview and tabs are cramped
+- node cards are too boxy
+
+Fix:
+1. Add more margin below main investigation title
+2. Re-style depth/progress section:
+- keep the progress bar and stats
+- make it feel integrated into the page, not like a separate admin box
+- use softer surface styling, less border emphasis
+3. Add more spacing around the Overview section
+4. Improve tabs row (Go Deeper / Timeline / Claims / Sources / Podcasts):
+- larger tap area
+- more spacing
+- stronger active state
+- muted inactive state
+- remove cramped feel
+5. Node cards:
+- reduce heavy border feel
+- use subtle surface separation and more spacing
+- keep number square, but make surrounding card cleaner
+- locked Pro nodes should feel premium and intentional, not just disabled
+
+C) TIMELINE SECTIONS
+Current problems:
+- pretty good already, but still too boxed/tight
+
+Fix:
+1. Keep vertical timeline structure
+2. Increase spacing between events
+3. Make year/date labels stronger and cleaner
+4. Make descriptions easier to scan
+5. Make badges (like Disputed) feel integrated
+
+D) CLAIMS SECTION
+Current problems:
+- cards too dense and boxed
+- confidence bars okay, but layout feels old
+
+Fix:
+1. Reduce outer border intensity
+2. Increase spacing between claims
+3. Make claim text the main focal point
+4. Clean up confidence bar alignment and spacing
+5. Status labels should remain but feel lighter and cleaner
+
+E) SOURCES SECTION
+Current problems:
+- source cards feel dense and rectangular
+- too much contrast everywhere
+
+Fix:
+1. Reduce border heaviness
+2. Increase internal padding
+3. Make source title strongest
+4. Metadata (author/publication/date) smaller and muted
+5. Credibility percentage can stay strong, but surrounding text should calm down
+6. “View Source” should feel cleaner and more modern
+
+F) PODCAST SECTION
+Current problems:
+- acceptable, but still too boxed
+
+Fix:
+1. Reduce border intensity
+2. Increase spacing and padding
+3. Make embedded media section feel intentional and clean
+4. Improve title/meta spacing
+
+G) CONNECTIONS / RESEARCH NETWORK PAGE
+Current problems:
+- graph is too faint
+- labels are hard to read
+- controls feel detached
+- page feels like a separate tool instead of same product
+
+Fix:
+1. Increase graph readability slightly:
+- nodes a little brighter
+- labels more readable
+- edges slightly more visible
+2. Focus mode:
+- keep non-selected nodes faded
+- selected path should be clearly visible
+3. Top controls (People / Family / Graph / Family Tree / Timeline):
+- cleaner, softer, more modern styling
+- less heavy border treatment
+- stronger active state
+4. Timeline view in Research Network:
+- keep vertical rail
+- make entries/cards cleaner and less boxed
+- add more spacing
+
+H) MOBILE HEADER / NAV
+Current problems:
+- top bar works, but still slightly generic
+
+Fix:
+1. Keep Rabbit Hole branding
+2. Refine spacing in top header
+3. Make menu icon/header feel more premium and less generic
+4. Keep mobile-first clarity
+
+DO NOT CHANGE:
+- data model
+- routes
+- graph mechanics
+- paywall behavior
+- admin logic
+- node ordering
+- search behavior
+
+ACCEPTANCE TESTS
+After the redesign pass, verify all of the following:
+1. Home page cards no longer rely on strong rectangular outlines
+2. Search bar and topic filters feel softer and more modern
+3. Investigation page feels more open and less widget-like
+4. Tabs are easier to read and tap on mobile
+5. Claims, Sources, and Podcast cards feel cleaner and less dense
+6. Research Network graph labels are easier to read
+7. The app feels like one calm premium product, not a dark dev tool or game UI
+
+OUTPUT REQUIRED
+At the end, provide:
+1. Exact pages/components updated
+2. The most important styling/system changes made
+3. A short summary of how the redesign improves modern feel without changing functionality

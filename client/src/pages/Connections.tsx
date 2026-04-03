@@ -79,7 +79,7 @@ const CaseNode = memo(({ data, selected }: NodeProps) => {
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ position: "absolute", top: 0, left: 0 }}>
         <polygon
           points={`${half},2 ${size - 2},${half} ${half},${size - 2} 2,${half}`}
-          fill="#161a1e"
+          fill="#1c2028"
           stroke={strokeColor}
           strokeWidth={strokeW}
         />
@@ -154,7 +154,7 @@ const PersonNode = memo(({ data, selected }: NodeProps) => {
           width: size,
           height: size,
           borderRadius: "50%",
-          background: "#161a1e",
+          background: "#1c2028",
           border: `${highlight || isFocused ? 2 : 1}px solid ${borderColor}`,
           boxSizing: "border-box",
         }}
@@ -206,10 +206,10 @@ const RelationshipEdge = memo(({
 
   const baseOpacity = isFaded ? 0.05 : 1;
   const strokeVal = isFocused
-    ? "rgba(255,255,255,0.35)"
+    ? "rgba(255,255,255,0.4)"
     : isHovered
-      ? "rgba(255,255,255,0.5)"
-      : "rgba(255,255,255,0.12)";
+      ? "rgba(255,255,255,0.55)"
+      : "rgba(255,255,255,0.18)";
   const sw = isHovered ? 2 : isFocused ? 1.5 : (isFamily ? 0.8 : 1);
 
   return (
@@ -892,13 +892,13 @@ export default function Connections() {
       className="min-h-screen flex flex-col"
       data-testid="page-connections"
       style={{
-        background: "linear-gradient(145deg, #131619 0%, #0f1114 100%)",
+        background: "#0f1115",
       }}
     >
-      <div className="border-b border-white/10 px-5 py-3 flex items-center justify-between flex-wrap gap-3">
+      <div className="border-b border-white/5 px-5 py-2.5 flex items-center justify-between flex-wrap gap-2.5">
         <div className="flex items-center gap-3">
-          <Network className="w-5 h-5 text-muted-foreground" />
-          <h1 className="font-mono text-sm font-bold uppercase tracking-[0.2em] text-white/90" data-testid="heading-situation-room">
+          <Network className="w-4 h-4 text-muted-foreground/60" />
+          <h1 className="font-mono text-sm font-semibold text-white/80" data-testid="heading-situation-room">
             Research Network
           </h1>
 
@@ -911,7 +911,7 @@ export default function Connections() {
               </span>
               <button
                 onClick={() => setFocusedNodeId(null)}
-                className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider border border-white/10 text-white/40 hover:text-white/80 hover:border-white/20 transition-colors"
+                className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-mono uppercase rounded-md bg-white/5 text-white/40 hover:text-white/80 hover:bg-white/8 transition-all"
                 data-testid="button-clear-focus"
               >
                 <X className="w-3 h-3" /> Clear
@@ -920,17 +920,16 @@ export default function Connections() {
           )}
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 flex-wrap">
           {viewMode === "graph" && (
             <>
               <button
                 data-testid="toggle-show-people"
                 onClick={() => setShowPeople(p => !p)}
-                className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider border transition-colors"
+                className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-mono uppercase rounded-lg transition-all"
                 style={{
-                  borderColor: showPeople ? "#3b82f640" : "rgba(255,255,255,0.1)",
-                  backgroundColor: showPeople ? "#3b82f610" : "transparent",
-                  color: showPeople ? "#3b82f6" : "rgba(255,255,255,0.4)",
+                  backgroundColor: showPeople ? "#3b82f614" : "rgba(255,255,255,0.04)",
+                  color: showPeople ? "#60a5fa" : "rgba(255,255,255,0.35)",
                 }}
               >
                 {showPeople ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
@@ -940,11 +939,10 @@ export default function Connections() {
               <button
                 data-testid="toggle-family-edges"
                 onClick={() => setShowFamilyEdges(f => !f)}
-                className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider border transition-colors"
+                className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-mono uppercase rounded-lg transition-all"
                 style={{
-                  borderColor: showFamilyEdges ? "#4ade8040" : "rgba(255,255,255,0.1)",
-                  backgroundColor: showFamilyEdges ? "#4ade8010" : "transparent",
-                  color: showFamilyEdges ? "#4ade80" : "rgba(255,255,255,0.4)",
+                  backgroundColor: showFamilyEdges ? "#4ade8010" : "rgba(255,255,255,0.04)",
+                  color: showFamilyEdges ? "#4ade80" : "rgba(255,255,255,0.35)",
                 }}
               >
                 <GitFork className="w-3 h-3" />
@@ -954,14 +952,14 @@ export default function Connections() {
           )}
         </div>
 
-        <div className="flex border border-white/10 rounded-sm overflow-hidden">
+        <div className="flex gap-0.5 bg-white/4 rounded-lg p-0.5">
           <button
             data-testid="toggle-graph"
             onClick={() => handleViewChange("graph")}
-            className="px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider transition-colors"
+            className="px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider rounded-md transition-all"
             style={{
-              backgroundColor: viewMode === "graph" ? "rgba(255,255,255,0.08)" : "transparent",
-              color: viewMode === "graph" ? "#e0e0e0" : "rgba(255,255,255,0.35)",
+              backgroundColor: viewMode === "graph" ? "rgba(255,255,255,0.1)" : "transparent",
+              color: viewMode === "graph" ? "#e8e8e8" : "rgba(255,255,255,0.35)",
             }}
           >
             Graph
@@ -969,21 +967,21 @@ export default function Connections() {
           <button
             data-testid="toggle-family"
             onClick={() => handleViewChange("family")}
-            className="px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider transition-colors border-l border-white/10"
+            className="flex items-center gap-1 px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider rounded-md transition-all"
             style={{
-              backgroundColor: viewMode === "family" ? "rgba(255,255,255,0.08)" : "transparent",
-              color: viewMode === "family" ? "#e0e0e0" : "rgba(255,255,255,0.35)",
+              backgroundColor: viewMode === "family" ? "rgba(255,255,255,0.1)" : "transparent",
+              color: viewMode === "family" ? "#e8e8e8" : "rgba(255,255,255,0.35)",
             }}
           >
-            <span className="flex items-center gap-1"><Users className="w-3 h-3" /> Family Tree</span>
+            <Users className="w-3 h-3" /> Family
           </button>
           <button
             data-testid="toggle-timeline"
             onClick={() => handleViewChange("timeline")}
-            className="px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider transition-colors border-l border-white/10"
+            className="px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider rounded-md transition-all"
             style={{
-              backgroundColor: viewMode === "timeline" ? "rgba(255,255,255,0.08)" : "transparent",
-              color: viewMode === "timeline" ? "#e0e0e0" : "rgba(255,255,255,0.35)",
+              backgroundColor: viewMode === "timeline" ? "rgba(255,255,255,0.1)" : "transparent",
+              color: viewMode === "timeline" ? "#e8e8e8" : "rgba(255,255,255,0.35)",
             }}
           >
             Timeline
@@ -991,13 +989,13 @@ export default function Connections() {
           <button
             data-testid="toggle-map"
             onClick={() => handleViewChange("map")}
-            className="px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider transition-colors border-l border-white/10"
+            className="flex items-center gap-1 px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider rounded-md transition-all"
             style={{
-              backgroundColor: viewMode === "map" ? "rgba(255,255,255,0.08)" : "transparent",
-              color: viewMode === "map" ? "#e0e0e0" : "rgba(255,255,255,0.35)",
+              backgroundColor: viewMode === "map" ? "rgba(255,255,255,0.1)" : "transparent",
+              color: viewMode === "map" ? "#e8e8e8" : "rgba(255,255,255,0.35)",
             }}
           >
-            <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> Map</span>
+            <MapPin className="w-3 h-3" /> Map
           </button>
         </div>
       </div>
@@ -1071,18 +1069,18 @@ export default function Connections() {
                   : "—";
 
                 return (
-                  <div key={hole.id} className="relative pl-10 mb-4" data-testid={`timeline-entry-${hole.id}`}>
+                  <div key={hole.id} className="relative pl-10 mb-5" data-testid={`timeline-entry-${hole.id}`}>
                     <div
-                      className="absolute left-3 top-4 w-3 h-3 rotate-45 border"
+                      className="absolute left-[13px] top-5 w-2.5 h-2.5 rotate-45"
                       style={{
-                        borderColor: glow + "60",
-                        backgroundColor: "#1a1c1e",
+                        backgroundColor: glow + "35",
+                        border: `1px solid ${glow}55`,
                       }}
                     />
 
                     <div
-                      className="rounded-sm border border-white/10 transition-all duration-300"
-                      style={{ backgroundColor: "rgba(20,22,24,0.8)" }}
+                      className="rounded-xl transition-all duration-300"
+                      style={{ backgroundColor: "rgba(22,25,30,0.85)" }}
                     >
                       <button
                         className="w-full text-left p-4 flex items-center justify-between"
@@ -1090,14 +1088,14 @@ export default function Connections() {
                         data-testid={`timeline-toggle-${hole.id}`}
                       >
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-mono text-xs font-bold text-white/85 uppercase tracking-wide truncate">
+                          <h3 className="font-display text-sm font-semibold text-white/85 truncate">
                             {hole.title}
                           </h3>
-                          <div className="flex items-center gap-3 mt-1.5 font-mono text-[9px] uppercase tracking-widest text-white/30">
+                          <div className="flex items-center gap-3 mt-1 font-mono text-[10px] text-white/30">
                             <span>{dateStr}</span>
-                            <span className="text-white/10">|</span>
-                            <span>{hole.sourceCount || 0} SOURCES</span>
-                            <span className="text-white/10">|</span>
+                            <span className="text-white/10">·</span>
+                            <span>{hole.sourceCount || 0} sources</span>
+                            <span className="text-white/10">·</span>
                             <span style={{ color: glow + "90" }}>{hole.status}</span>
                           </div>
                         </div>
@@ -1115,15 +1113,14 @@ export default function Connections() {
                         }}
                       >
                         <div className="px-4 pb-4 border-t border-white/5">
-                          <div className="flex flex-wrap gap-1 mt-3 mb-3">
+                          <div className="flex flex-wrap gap-1.5 mt-3 mb-3">
                             {((hole.labels as string[]) || []).map(l => (
                               <span
                                 key={l}
-                                className="text-[9px] font-mono px-2 py-0.5 uppercase tracking-wider"
+                                className="text-[9px] font-mono px-2 py-0.5 uppercase tracking-wider rounded-md"
                                 style={{
                                   color: labelColor(l),
-                                  backgroundColor: labelColor(l) + "15",
-                                  border: `1px solid ${labelColor(l)}20`,
+                                  backgroundColor: labelColor(l) + "12",
                                 }}
                               >
                                 {l}
@@ -1131,20 +1128,20 @@ export default function Connections() {
                             ))}
                           </div>
 
-                          <div className="flex gap-4 mb-3 font-mono text-[9px] text-white/30">
+                          <div className="flex gap-5 mb-4 font-mono text-[9px] text-white/30">
                             <div>
                               <span className="uppercase tracking-widest">Connections</span>
-                              <p className="text-white/60 text-xs mt-0.5">{hole.connections || 0}</p>
+                              <p className="text-white/55 text-xs mt-0.5">{hole.connections || 0}</p>
                             </div>
                             <div>
                               <span className="uppercase tracking-widest">Completion</span>
-                              <p className="text-white/60 text-xs mt-0.5">{hole.completion}%</p>
+                              <p className="text-white/55 text-xs mt-0.5">{hole.completion}%</p>
                             </div>
                           </div>
 
                           <Link
                             href={`/rabbithole/${hole.slug}`}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider border border-white/10 text-white/50 hover:text-white/80 hover:border-white/20 transition-colors"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider rounded-lg bg-white/6 text-white/50 hover:text-white/80 hover:bg-white/10 transition-all"
                             data-testid={`timeline-link-${hole.id}`}
                           >
                             <ExternalLink className="w-3 h-3" /> Open Investigation
@@ -1191,21 +1188,31 @@ export default function Connections() {
         .react-flow__node {
           cursor: pointer !important;
         }
+        .react-flow__controls {
+          border-radius: 10px !important;
+          overflow: hidden;
+          box-shadow: 0 4px 16px rgba(0,0,0,0.4) !important;
+        }
         .react-flow__controls button {
-          background: #161a1e !important;
-          border: 1px solid rgba(255,255,255,0.1) !important;
-          color: rgba(255,255,255,0.5) !important;
-          border-radius: 0 !important;
+          background: #1a1e24 !important;
+          border: none !important;
+          border-bottom: 1px solid rgba(255,255,255,0.06) !important;
+          color: rgba(255,255,255,0.45) !important;
+        }
+        .react-flow__controls button:last-child {
+          border-bottom: none !important;
         }
         .react-flow__controls button:hover {
-          background: #1e2228 !important;
-          color: rgba(255,255,255,0.8) !important;
+          background: #22272f !important;
+          color: rgba(255,255,255,0.85) !important;
         }
         .react-flow__controls button svg {
           fill: currentColor !important;
         }
         .react-flow__minimap {
-          border-radius: 0 !important;
+          border-radius: 10px !important;
+          overflow: hidden;
+          box-shadow: 0 4px 16px rgba(0,0,0,0.4) !important;
         }
         @keyframes focus-pulse {
           0%, 100% { opacity: 0.15; }
