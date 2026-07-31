@@ -157,9 +157,10 @@ app.use(
 app.use(express.urlencoded({ extended: false }));
 
 const isProduction = process.env.NODE_ENV === "production";
-if (isProduction) {
-  app.set("trust proxy", 1);
-}
+// Always trust the first proxy — Replit routes all traffic through a proxy
+// in both development and production, setting X-Forwarded-For on every request.
+// Without this, express-rate-limit throws ERR_ERL_UNEXPECTED_X_FORWARDED_FOR.
+app.set("trust proxy", 1);
 const sessionSecret = process.env.SESSION_SECRET;
 if (!sessionSecret) {
   throw new Error(

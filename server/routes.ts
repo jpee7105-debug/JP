@@ -69,9 +69,12 @@ export async function registerRoutes(
     );
   }
 
-  const empCount = await storage.getEmployeeCount();
-  if (empCount === 0) {
-    const passwordHash = await bcrypt.hash(adminPassword, 12);
+  // Always sync the admin account with the current ADMIN_PASSWORD.
+  // This ensures the stored hash stays current if the secret is rotated,
+  // and creates the account on first boot. Never logs the password value.
+  const existingAdmin = await storage.getEmployeeByEmail("admin@rabbithole.io");
+  const passwordHash = await bcrypt.hash(adminPassword, 12);
+  if (!existingAdmin) {
     await storage.createEmployee({
       email: "admin@rabbithole.io",
       passwordHash,
@@ -79,8 +82,10 @@ export async function registerRoutes(
       role: "Admin",
       isActive: true,
     });
-    // Never log the password value — not even in development.
-    console.log("[startup] Default admin account created. Log in at /admin with the configured ADMIN_PASSWORD.");
+    console.log("[startup] Admin account created. Log in at /admin with the configured ADMIN_PASSWORD.");
+  } else {
+    await storage.updateEmployee(existingAdmin.id, { passwordHash });
+    console.log("[startup] Admin account password hash synced with ADMIN_PASSWORD.");
   }
 
   try {
