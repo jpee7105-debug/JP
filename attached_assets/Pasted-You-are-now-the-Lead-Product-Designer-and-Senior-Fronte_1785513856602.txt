@@ -1,0 +1,223 @@
+You are now the Lead Product Designer and Senior Frontend Engineer for Rabbit Hole.
+
+IMPORTANT:
+
+Do NOT modify or replace the existing application.
+
+Instead, create a completely new prototype experience called Rabbit Hole V2.
+
+This should exist alongside the current application.
+
+Create a new route:
+
+/workspace-v2
+
+This route is a visual prototype only.
+
+It does not need a database connection.
+
+It should use realistic mock data.
+
+Its purpose is to discover the perfect user experience before implementation.
+
+------------------------------------------------------------
+
+VISION
+
+Rabbit Hole is evolving from a website into a visual knowledge workspace.
+
+The workspace should feel like:
+
+- Bloomberg Terminal
+- Arc Browser
+- Obsidian
+- Linear
+- Figma
+- Apple-level polish
+
+NOT
+
+- Reddit
+- Wikipedia
+- Notion clone
+- Generic dashboard
+- Conspiracy board
+
+Everything should feel intentional, premium, smooth, and immersive.
+
+------------------------------------------------------------
+
+LAYOUT
+
+The page should fill the entire browser.
+
+Top Navigation
+- Rabbit Hole logo
+- Board title
+- Global search
+- View selector
+- Perspective selector
+- User profile
+
+Left Sidebar
+
+Collapsible.
+
+Contains:
+
+• Overview
+• Graph
+• Timeline
+• People
+• Claims
+• Evidence
+• Sources
+• Organizations
+• Locations
+• Files
+• Images
+• AI
+• Settings
+
+Center
+
+This is the hero.
+
+A large interactive graph canvas.
+
+Use mock nodes.
+
+Create approximately:
+
+- 15 people
+- 20 events
+- 30 claims
+- 20 evidence items
+- 10 organizations
+
+Display animated connections.
+
+Allow:
+
+- zoom
+- pan
+- hover
+- node selection
+
+Everything else can remain mocked.
+
+Right Sidebar
+
+Context panel.
+
+When a node is selected it updates instantly.
+
+Display:
+
+Title
+
+Description
+
+Metadata
+
+Related Nodes
+
+Confidence
+
+Sources
+
+Timeline
+
+Notes
+
+Action buttons
+
+Bottom Timeline
+
+Persistent.
+
+Scrollable.
+
+Interactive.
+
+Selecting timeline items highlights graph nodes.
+
+Selecting graph nodes highlights timeline events.
+
+------------------------------------------------------------
+
+STYLE
+
+Dark.
+
+Elegant.
+
+Modern.
+
+No bright colors.
+
+No rounded cartoon UI.
+
+Glassmorphism where appropriate.
+
+Subtle shadows.
+
+Smooth transitions.
+
+60 FPS animations.
+
+Beautiful typography.
+
+Professional spacing.
+
+Every interaction should feel polished.
+
+------------------------------------------------------------
+
+ANIMATIONS
+
+Hovering a node:
+
+- fades unrelated nodes
+- brightens connected paths
+- slightly enlarges node
+- updates right panel
+
+Opening the sidebars:
+
+- smooth slide
+
+Timeline:
+
+- animated selection
+
+No jarring transitions.
+
+------------------------------------------------------------
+
+IMPORTANT
+
+Do not worry about implementation correctness.
+
+Prioritize experience.
+
+This page exists to answer:
+
+"What should Rabbit Hole feel like?"
+
+------------------------------------------------------------
+
+DELIVERABLE
+
+Create the complete prototype.
+
+Use mock data.
+
+Leave the existing application untouched.
+
+When finished, explain:
+
+1. Design decisions
+2. Components created
+3. Future implementation strategy
+4. What should be improved before connecting to the real backend

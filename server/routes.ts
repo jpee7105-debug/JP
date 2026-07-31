@@ -5,6 +5,7 @@ import { insertCommentSchema, insertDepthNodeSchema, insertClaimSchema, insertSo
 import { ZodError, z } from "zod";
 import bcrypt from "bcryptjs";
 import type { Employee, Person, Relationship } from "@shared/schema";
+import { toUserDTO, toEmployeeDTO } from "./dtos";
 import { timelineEntries } from "@shared/schema";
 import { autoSeedIfEmpty } from "./auto-seed";
 import { db } from "./storage";
@@ -59,10 +60,21 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
 
-  const empCount = await storage.getEmployeeCount();
-  if (empCount === 0) {
-    const defaultPassword = process.env.ADMIN_PASSWORD || "rabbithole2024";
-    const passwordHash = await bcrypt.hash(defaultPassword, 12);
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (!adminPassword) {
+    throw new Error(
+      "[startup] ADMIN_PASSWORD environment variable is required in all environments. " +
+      "Set it via Replit Secrets (development and production). " +
+      "Choose a strong password — it is never logged."
+    );
+  }
+
+  // Always sync the admin account with the current ADMIN_PASSWORD.
+  // This ensures the stored hash stays current if the secret is rotated,
+  // and creates the account on first boot. Never logs the password value.
+  const existingAdmin = await storage.getEmployeeByEmail("admin@rabbithole.io");
+  const passwordHash = await bcrypt.hash(adminPassword, 12);
+  if (!existingAdmin) {
     await storage.createEmployee({
       email: "admin@rabbithole.io",
       passwordHash,
@@ -70,13 +82,54 @@ export async function registerRoutes(
       role: "Admin",
       isActive: true,
     });
-    console.log(`[seed] Created default admin employee: admin@rabbithole.io (password: ${defaultPassword})`);
+    console.log("[startup] Admin account created. Log in at /admin with the configured ADMIN_PASSWORD.");
+  } else {
+    await storage.updateEmployee(existingAdmin.id, { passwordHash });
+    console.log("[startup] Admin account password hash synced with ADMIN_PASSWORD.");
   }
 
   try {
     await autoSeedIfEmpty();
   } catch (err) {
     console.error("[auto-seed] Error during auto-seed:", err);
+  }
+
+  // Single source of truth for billing state.
+  // Set BILLING_ENABLED=true in Replit Secrets when a payment provider is connected.
+  // All Pro/subscription checks read this flag — do not add billing logic elsewhere.
+  const BILLING_ENABLED = process.env.BILLING_ENABLED === "true";
+
+  // Partial update schemas for admin PUT routes — derived from insert schemas.
+  // All fields are optional (partial update pattern). Fields not listed in the
+  // insert schema are stripped by Zod, preventing mass-assignment.
+  const updateRabbitHoleSchema = insertRabbitHoleSchema.partial();
+  const updateDepthNodeSchema = insertDepthNodeSchema.partial();
+  const updateClaimSchema = insertClaimSchema.partial();
+  const updateSourceSchema = insertSourceSchema.partial();
+  const updateMediaSchema = insertMediaSchema.partial();
+  const updatePersonSchema = insertPersonSchema.partial();
+  const updateRelationshipSchema = insertRelationshipSchema.partial();
+  const updateGlobalTimelineItemSchema = insertGlobalTimelineItemSchema.partial();
+  const updateTimelineEntrySchema = insertTimelineEntrySchema.partial();
+  const updateStreamSchema = insertStreamSchema.partial();
+
+  /**
+   * Parses and validates pagination query parameters.
+   * Returns null when values are invalid — caller must return 400.
+   * NaN values fall back to defaults (20 limit, 0 offset) and then pass validation.
+   */
+  function parsePagination(
+    query: Record<string, unknown>,
+    opts: { maxLimit?: number } = {}
+  ): { limit: number; offset: number } | null {
+    const maxLimit = opts.maxLimit ?? 100;
+    const rawLimit = parseInt(query.limit as string);
+    const rawOffset = parseInt(query.offset as string);
+    const limit = isNaN(rawLimit) ? 20 : rawLimit;
+    const offset = isNaN(rawOffset) ? 0 : rawOffset;
+    if (offset < 0) return null;
+    if (limit < 1 || limit > maxLimit) return null;
+    return { limit, offset };
   }
 
   app.post("/api/admin/login", async (req, res) => {
@@ -97,9 +150,11 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Invalid email or password" });
       }
       await storage.updateEmployee(emp.id, { lastLoginAt: new Date() });
-      req.session.employeeId = emp.id;
-      const { passwordHash: _, ...safeEmp } = emp;
-      res.json(safeEmp);
+      req.session.regenerate((regenErr) => {
+        if (regenErr) return res.status(500).json({ message: "Session error. Please try again." });
+        req.session.employeeId = emp.id;
+        res.json(toEmployeeDTO(emp));
+      });
     } catch (err) {
       res.status(500).json({ message: "Failed to log in" });
     }
@@ -121,8 +176,7 @@ export async function registerRoutes(
     if (!emp || !emp.isActive) {
       return res.status(401).json({ message: "Employee not found or deactivated" });
     }
-    const { passwordHash: _, ...safeEmp } = emp;
-    res.json(safeEmp);
+    res.json(toEmployeeDTO(emp));
   });
 
   // ===== USER AUTH ROUTES =====
@@ -148,9 +202,11 @@ export async function registerRoutes(
         plan: "Free",
         subscriptionStatus: "none",
       });
-      req.session.userId = user.id;
-      const { passwordHash: _, ...safeUser } = user;
-      res.status(201).json(safeUser);
+      req.session.regenerate((regenErr) => {
+        if (regenErr) return res.status(500).json({ message: "Session error. Please try again." });
+        req.session.userId = user.id;
+        res.status(201).json(toUserDTO(user));
+      });
     } catch (err) {
       res.status(500).json({ message: "Failed to create account" });
     }
@@ -171,9 +227,11 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Invalid email or password" });
       }
       await storage.updateUser(user.id, { lastLoginAt: new Date() });
-      req.session.userId = user.id;
-      const { passwordHash: _, ...safeUser } = user;
-      res.json(safeUser);
+      req.session.regenerate((regenErr) => {
+        if (regenErr) return res.status(500).json({ message: "Session error. Please try again." });
+        req.session.userId = user.id;
+        res.json(toUserDTO(user));
+      });
     } catch (err) {
       res.status(500).json({ message: "Failed to log in" });
     }
@@ -195,8 +253,7 @@ export async function registerRoutes(
     if (!user) {
       return res.status(401).json({ message: "User not found" });
     }
-    const { passwordHash: _, ...safeUser } = user;
-    res.json(safeUser);
+    res.json(toUserDTO(user));
   });
 
   app.get("/api/holes", async (req, res) => {
@@ -320,7 +377,11 @@ export async function registerRoutes(
           subscriptionStatus = user.subscriptionStatus;
         }
       }
-      const hasFullAccess = userPlan === "Pro" && subscriptionStatus === "active";
+      // Phase 0: when billing is disabled, all users receive full access.
+      // TODO Phase 4 (Billing): remove the false branch and restore Pro-only check.
+      const hasFullAccess = BILLING_ENABLED
+        ? (userPlan === "Pro" && subscriptionStatus === "active")
+        : true;
 
       if (hasFullAccess) {
         res.json(nodes.map(n => ({ ...n, locked: false })));
@@ -370,7 +431,11 @@ export async function registerRoutes(
           loggedIn = true;
         }
       }
-      const hasFullAccess = userPlan === "Pro" && subscriptionStatus === "active";
+      // Phase 0: when billing is disabled, all users receive full access.
+      // TODO Phase 4 (Billing): remove the false branch and restore Pro-only check.
+      const hasFullAccess = BILLING_ENABLED
+        ? (userPlan === "Pro" && subscriptionStatus === "active")
+        : true;
 
       res.json({
         totalNodes,
@@ -471,10 +536,12 @@ export async function registerRoutes(
   app.put("/api/admin/holes/:id", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      if (isNaN(id) || id < 1) return res.status(400).json({ message: "Invalid id" });
+      const parsed = updateRabbitHoleSchema.parse(req.body);
       const before = await storage.getHoleById(id);
       if (!before) return res.status(404).json({ message: "Not found" });
 
-      if (req.body.status === "Published") {
+      if (parsed.status === "Published") {
         if (req.employee?.role !== "Admin") {
           return res.status(403).json({ message: "Only Admin can publish investigations" });
         }
@@ -489,15 +556,16 @@ export async function registerRoutes(
         }
       }
 
-      if (req.body.status === "Review" && before.status === "Draft") {
+      if (parsed.status === "Review" && before.status === "Draft") {
         // Editor can move Draft -> Review (or Admin)
-      } else if (req.body.status && req.body.status !== before.status) {
-        if (req.body.status === "Published" && req.employee?.role !== "Admin") {
+      } else if (parsed.status && parsed.status !== before.status) {
+        if (parsed.status === "Published" && req.employee?.role !== "Admin") {
           return res.status(403).json({ message: "Only Admin can publish investigations" });
         }
       }
 
-      const hole = await storage.updateHole(id, { ...req.body, lastEditedBy: getEditorName(req) });
+      // lastEditedBy is injected server-side, never from client body
+      const hole = await storage.updateHole(id, { ...parsed, lastEditedBy: getEditorName(req) });
       if (!hole) return res.status(404).json({ message: "Not found" });
       await storage.createAuditLog({
         holeId: hole.id, entityType: "rabbit_hole", entityId: hole.id,
@@ -506,6 +574,7 @@ export async function registerRoutes(
       });
       res.json(hole);
     } catch (err) {
+      if (err instanceof ZodError) return res.status(400).json({ message: "Validation failed", errors: err.errors });
       res.status(500).json({ message: "Failed to update rabbit hole" });
     }
   });
@@ -547,8 +616,10 @@ export async function registerRoutes(
   app.put("/api/admin/depth-nodes/:id", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      if (isNaN(id) || id < 1) return res.status(400).json({ message: "Invalid id" });
+      const parsed = updateDepthNodeSchema.parse(req.body);
       const before = await storage.getDepthNode(id);
-      const node = await storage.updateDepthNode(id, req.body);
+      const node = await storage.updateDepthNode(id, parsed);
       if (!node) return res.status(404).json({ message: "Not found" });
       await storage.createAuditLog({
         holeId: node.holeId, entityType: "depth_node", entityId: node.id,
@@ -556,6 +627,7 @@ export async function registerRoutes(
       });
       res.json(node);
     } catch (err) {
+      if (err instanceof ZodError) return res.status(400).json({ message: "Validation failed", errors: err.errors });
       res.status(500).json({ message: "Failed to update depth node" });
     }
   });
@@ -594,7 +666,9 @@ export async function registerRoutes(
   app.put("/api/admin/claims/:id", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const claim = await storage.updateClaim(id, req.body);
+      if (isNaN(id) || id < 1) return res.status(400).json({ message: "Invalid id" });
+      const parsed = updateClaimSchema.parse(req.body);
+      const claim = await storage.updateClaim(id, parsed);
       if (!claim) return res.status(404).json({ message: "Not found" });
       await storage.createAuditLog({
         holeId: claim.holeId, entityType: "claim", entityId: claim.id,
@@ -602,6 +676,7 @@ export async function registerRoutes(
       });
       res.json(claim);
     } catch (err) {
+      if (err instanceof ZodError) return res.status(400).json({ message: "Validation failed", errors: err.errors });
       res.status(500).json({ message: "Failed to update claim" });
     }
   });
@@ -640,7 +715,9 @@ export async function registerRoutes(
   app.put("/api/admin/sources/:id", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const source = await storage.updateSource(id, req.body);
+      if (isNaN(id) || id < 1) return res.status(400).json({ message: "Invalid id" });
+      const parsed = updateSourceSchema.parse(req.body);
+      const source = await storage.updateSource(id, parsed);
       if (!source) return res.status(404).json({ message: "Not found" });
       await storage.createAuditLog({
         holeId: source.holeId, entityType: "source", entityId: source.id,
@@ -648,6 +725,7 @@ export async function registerRoutes(
       });
       res.json(source);
     } catch (err) {
+      if (err instanceof ZodError) return res.status(400).json({ message: "Validation failed", errors: err.errors });
       res.status(500).json({ message: "Failed to update source" });
     }
   });
@@ -686,7 +764,9 @@ export async function registerRoutes(
   app.put("/api/admin/media/:id", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const m = await storage.updateMedia(id, req.body);
+      if (isNaN(id) || id < 1) return res.status(400).json({ message: "Invalid id" });
+      const parsed = updateMediaSchema.parse(req.body);
+      const m = await storage.updateMedia(id, parsed);
       if (!m) return res.status(404).json({ message: "Not found" });
       await storage.createAuditLog({
         holeId: m.holeId, entityType: "media", entityId: m.id,
@@ -694,6 +774,7 @@ export async function registerRoutes(
       });
       res.json(m);
     } catch (err) {
+      if (err instanceof ZodError) return res.status(400).json({ message: "Validation failed", errors: err.errors });
       res.status(500).json({ message: "Failed to update media" });
     }
   });
@@ -799,8 +880,7 @@ export async function registerRoutes(
   app.get("/api/admin/employees", requireEmployee, requireRole("Admin"), async (_req, res) => {
     try {
       const emps = await storage.getAllEmployees();
-      const safe = emps.map(({ passwordHash, ...rest }) => rest);
-      res.json(safe);
+      res.json(emps.map(toEmployeeDTO));
     } catch (err) {
       res.status(500).json({ message: "Failed to fetch employees" });
     }
@@ -830,13 +910,12 @@ export async function registerRoutes(
         role,
         isActive: true,
       });
-      const { passwordHash: _, ...safeEmp } = emp;
       await storage.createAuditLog({
         holeId: null as any, entityType: "employee", entityId: null as any,
         action: "create", editorName: getEditorName(req),
         changes: { email: emp.email, name: emp.name, role: emp.role },
       });
-      res.status(201).json(safeEmp);
+      res.status(201).json(toEmployeeDTO(emp));
     } catch (err) {
       res.status(500).json({ message: "Failed to create employee" });
     }
@@ -857,13 +936,12 @@ export async function registerRoutes(
       if (isActive !== undefined) updateData.isActive = isActive;
       const emp = await storage.updateEmployee(id, updateData);
       if (!emp) return res.status(404).json({ message: "Employee not found" });
-      const { passwordHash: _, ...safeEmp } = emp;
       await storage.createAuditLog({
         holeId: null as any, entityType: "employee", entityId: null as any,
         action: "update", editorName: getEditorName(req),
         changes: { employeeEmail: emp.email, ...updateData },
       });
-      res.json(safeEmp);
+      res.json(toEmployeeDTO(emp));
     } catch (err) {
       res.status(500).json({ message: "Failed to update employee" });
     }
@@ -1164,10 +1242,14 @@ export async function registerRoutes(
 
   app.put("/api/admin/people/:id", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
     try {
-      const updated = await storage.updatePerson(parseInt(req.params.id), { ...req.body, updatedByEmployeeId: req.session.employeeId });
+      const id = parseInt(req.params.id);
+      if (isNaN(id) || id < 1) return res.status(400).json({ message: "Invalid id" });
+      const parsed = updatePersonSchema.parse(req.body);
+      const updated = await storage.updatePerson(id, { ...parsed, updatedByEmployeeId: req.session.employeeId });
       if (!updated) return res.status(404).json({ message: "Person not found" });
       res.json(updated);
     } catch (err) {
+      if (err instanceof ZodError) return res.status(400).json({ message: "Validation failed", errors: err.errors });
       res.status(500).json({ message: "Failed to update person" });
     }
   });
@@ -1214,10 +1296,14 @@ export async function registerRoutes(
 
   app.put("/api/admin/relationships/:id", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
     try {
-      const updated = await storage.updateRelationship(parseInt(req.params.id), { ...req.body, updatedByEmployeeId: req.session.employeeId });
+      const id = parseInt(req.params.id);
+      if (isNaN(id) || id < 1) return res.status(400).json({ message: "Invalid id" });
+      const parsed = updateRelationshipSchema.parse(req.body);
+      const updated = await storage.updateRelationship(id, { ...parsed, updatedByEmployeeId: req.session.employeeId });
       if (!updated) return res.status(404).json({ message: "Relationship not found" });
       res.json(updated);
     } catch (err) {
+      if (err instanceof ZodError) return res.status(400).json({ message: "Validation failed", errors: err.errors });
       res.status(500).json({ message: "Failed to update relationship" });
     }
   });
@@ -1430,18 +1516,23 @@ export async function registerRoutes(
   app.put("/api/admin/streams/:id", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      if (isNaN(id) || id < 1) return res.status(400).json({ message: "Invalid id" });
+      const parsed = updateStreamSchema.parse(req.body);
       const existing = await storage.getStreamById(id);
       if (!existing) return res.status(404).json({ message: "Stream not found" });
       const role = req.employee!.role;
-      if (req.body.status === "Published" && role !== "Admin") {
+      if (parsed.status === "Published" && role !== "Admin") {
         return res.status(403).json({ message: "Only Admin can publish streams" });
       }
-      if (req.body.status === "Review" && existing.status !== "Draft" && role !== "Admin") {
+      if (parsed.status === "Review" && existing.status !== "Draft" && role !== "Admin") {
         return res.status(403).json({ message: "Can only submit Draft streams for Review" });
       }
-      const stream = await storage.updateStream(id, { ...req.body, updatedByEmployeeId: req.employee!.id });
+      const stream = await storage.updateStream(id, { ...parsed, updatedByEmployeeId: req.employee!.id });
       res.json(stream);
-    } catch { res.status(500).json({ message: "Failed to update stream" }); }
+    } catch (err) {
+      if (err instanceof ZodError) return res.status(400).json({ message: "Validation failed", errors: err.errors });
+      res.status(500).json({ message: "Failed to update stream" });
+    }
   });
 
   app.delete("/api/admin/streams/:id", requireEmployee, requireRole("Admin"), async (req, res) => {
@@ -1557,6 +1648,18 @@ export async function registerRoutes(
       if (!stream || stream.status !== "Published") return res.status(404).json({ message: "Stream not found" });
       const creator = await storage.getCreatorById(stream.creatorId);
       if (stream.visibility === "premium") {
+        if (!BILLING_ENABLED) {
+          // Billing is disabled: never expose premium embed URLs.
+          // Show a neutral "coming soon" state on the client via billingDisabled flag.
+          // TODO Phase 4 (Billing): remove this block when BILLING_ENABLED=true.
+          return res.json({
+            stream: { ...stream, embedUrl: "", premiumEmbedUrl: "" },
+            creator,
+            premium: true,
+            hasAccess: false,
+            billingDisabled: true,
+          });
+        }
         const userId = (req.session as any).userId;
         if (!userId) return res.json({ stream: { ...stream, embedUrl: "" }, creator, premium: true, hasAccess: false });
         const user = await storage.getUserById(userId);
@@ -1575,6 +1678,19 @@ export async function registerRoutes(
       const creator = await storage.getCreatorById(stream.creatorId);
       const replays = await storage.getReplaysByStream(stream.id);
       if (stream.visibility === "premium") {
+        if (!BILLING_ENABLED) {
+          // Billing is disabled: never expose premium replay embed URLs.
+          // Show a neutral "coming soon" state on the client via billingDisabled flag.
+          // TODO Phase 4 (Billing): remove this block when BILLING_ENABLED=true.
+          return res.json({
+            stream: { ...stream, embedUrl: "", premiumEmbedUrl: "" },
+            creator,
+            replays: [],
+            premium: true,
+            hasAccess: false,
+            billingDisabled: true,
+          });
+        }
         const userId = (req.session as any).userId;
         if (!userId) return res.json({ stream: { ...stream, embedUrl: "" }, creator, replays: [], premium: true, hasAccess: false });
         const user = await storage.getUserById(userId);
@@ -1651,7 +1767,9 @@ export async function registerRoutes(
     try {
       const workSlug = (req.query.workSlug as string) || "bible-kjv";
       const q = (req.query.q as string) || "";
-      const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+      const rawLimit = parseInt(req.query.limit as string);
+      const limit = isNaN(rawLimit) ? 20 : rawLimit;
+      if (limit < 1 || limit > 100) return res.status(400).json({ message: "Invalid limit: must be 1–100" });
       if (!q || q.length < 2) return res.json([]);
       const results = await storage.searchLibrary(workSlug, q, limit);
       res.json(results);
@@ -1677,8 +1795,9 @@ export async function registerRoutes(
 
   app.get("/api/timeline", async (req, res) => {
     try {
-      const limit = parseInt(req.query.limit as string) || 20;
-      const offset = parseInt(req.query.offset as string) || 0;
+      const pagination = parsePagination(req.query as Record<string, unknown>, { maxLimit: 100 });
+      if (!pagination) return res.status(400).json({ message: "Invalid pagination: limit must be 1–100, offset must be ≥ 0" });
+      const { limit, offset } = pagination;
       const tag = req.query.tag as string | undefined;
       const investigationId = req.query.investigationId ? parseInt(req.query.investigationId as string) : undefined;
       const items = await storage.getGlobalTimelineItems("Published", limit, offset, tag, investigationId);
@@ -1707,8 +1826,15 @@ export async function registerRoutes(
   app.get("/api/admin/timeline", requireEmployee, async (req, res) => {
     try {
       const status = req.query.status as string | undefined;
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
-      const offset = req.query.offset ? parseInt(req.query.offset as string) : undefined;
+      // Apply pagination validation only when params are explicitly provided
+      let limit: number | undefined;
+      let offset: number | undefined;
+      if (req.query.limit !== undefined || req.query.offset !== undefined) {
+        const pagination = parsePagination(req.query as Record<string, unknown>, { maxLimit: 500 });
+        if (!pagination) return res.status(400).json({ message: "Invalid pagination: limit must be 1–500, offset must be ≥ 0" });
+        limit = pagination.limit;
+        offset = pagination.offset;
+      }
       const tag = req.query.tag as string | undefined;
       const investigationId = req.query.investigationId ? parseInt(req.query.investigationId as string) : undefined;
       const items = await storage.getGlobalTimelineItems(status, limit, offset, tag, investigationId);
@@ -1732,10 +1858,14 @@ export async function registerRoutes(
   app.put("/api/admin/timeline/:id", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const item = await storage.updateGlobalTimelineItem(id, { ...req.body, updatedBy: getEditorName(req) });
+      if (isNaN(id) || id < 1) return res.status(400).json({ message: "Invalid id" });
+      const parsed = updateGlobalTimelineItemSchema.parse(req.body);
+      // updatedBy is injected server-side, not accepted from client body
+      const item = await storage.updateGlobalTimelineItem(id, { ...parsed, updatedBy: getEditorName(req) });
       if (!item) return res.status(404).json({ message: "Not found" });
       res.json(item);
     } catch (err) {
+      if (err instanceof ZodError) return res.status(400).json({ message: "Validation failed", errors: err.errors });
       res.status(500).json({ message: "Failed to update timeline item" });
     }
   });
@@ -1802,10 +1932,14 @@ export async function registerRoutes(
   app.put("/api/admin/timeline-entries/:id", requireEmployee, requireRole("Admin", "Editor"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const entry = await storage.updateTimelineEntry(id, { ...req.body, updatedBy: getEditorName(req) });
+      if (isNaN(id) || id < 1) return res.status(400).json({ message: "Invalid id" });
+      const parsed = updateTimelineEntrySchema.parse(req.body);
+      // updatedBy is injected server-side, not accepted from client body
+      const entry = await storage.updateTimelineEntry(id, { ...parsed, updatedBy: getEditorName(req) });
       if (!entry) return res.status(404).json({ message: "Not found" });
       res.json(entry);
     } catch (err) {
+      if (err instanceof ZodError) return res.status(400).json({ message: "Validation failed", errors: err.errors });
       res.status(500).json({ message: "Failed to update timeline entry" });
     }
   });

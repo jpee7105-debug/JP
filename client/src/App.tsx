@@ -37,6 +37,8 @@ import Guide from "@/pages/Guide";
 import Pricing from "@/pages/Pricing";
 import AdminTimeline from "@/pages/AdminTimeline";
 import Timeline from "@/pages/Timeline";
+import WorkspaceV2 from "@/pages/WorkspaceV2";
+import WorkspaceReal from "@/pages/WorkspaceReal";
 
 interface OnboardingContextType {
   restartTour: () => void;
@@ -94,9 +96,22 @@ function AdminRouter() {
 function AppRouter() {
   const [location] = useLocation();
   const isAdmin = location.startsWith("/admin");
+  const isV2 = location.startsWith("/workspace-v2");
 
   if (isAdmin) {
     return <AdminRouter />;
+  }
+
+  // V2 workspace is full-screen — bypass Navbar and global layout.
+  // /workspace-v2          → mock demonstration
+  // /workspace-v2/:slug    → real investigation data
+  if (isV2) {
+    return (
+      <Switch>
+        <Route path="/workspace-v2/:slug" component={WorkspaceReal} />
+        <Route path="/workspace-v2" component={WorkspaceV2} />
+      </Switch>
+    );
   }
 
   return (
@@ -109,6 +124,7 @@ function AppRouter() {
 
 function App() {
   const onboarding = useOnboarding();
+  const [currentPath] = useLocation();
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -117,14 +133,16 @@ function App() {
           <div className="min-h-screen bg-background text-foreground">
             <Toaster />
             <AppRouter />
-            <OnboardingTour
-              active={onboarding.tourActive}
-              step={onboarding.tourStep}
-              onNext={onboarding.nextStep}
-              onPrev={onboarding.prevStep}
-              onComplete={onboarding.completeTour}
-              onSkip={onboarding.completeTour}
-            />
+            {!currentPath.startsWith("/workspace-v2") && (
+              <OnboardingTour
+                active={onboarding.tourActive}
+                step={onboarding.tourStep}
+                onNext={onboarding.nextStep}
+                onPrev={onboarding.prevStep}
+                onComplete={onboarding.completeTour}
+                onSkip={onboarding.completeTour}
+              />
+            )}
           </div>
         </OnboardingContext.Provider>
       </TooltipProvider>

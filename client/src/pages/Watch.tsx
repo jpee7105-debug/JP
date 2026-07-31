@@ -11,6 +11,8 @@ interface StreamData {
   creator: Creator;
   premium: boolean;
   hasAccess: boolean;
+  /** True when BILLING_ENABLED=false on the server. Client shows "coming soon" instead of upgrade wall. */
+  billingDisabled?: boolean;
 }
 
 function formatTime(date: string | Date | null) {
@@ -128,7 +130,7 @@ export default function Watch() {
     );
   }
 
-  const { stream, creator, premium, hasAccess } = streamData;
+  const { stream, creator, premium, hasAccess, billingDisabled } = streamData;
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground" data-testid="page-watch">
@@ -145,7 +147,22 @@ export default function Watch() {
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 data-testid="player-iframe"
               />
+            ) : billingDisabled ? (
+              /* Billing disabled: show neutral placeholder — never expose premium URL */
+              /* TODO Phase 4 (Billing): remove this block when BILLING_ENABLED=true */
+              <div className="w-full h-full flex flex-col items-center justify-center gap-6" style={{ background: "linear-gradient(135deg, #161a1e 0%, #111418 50%, #161a1e 100%)" }} data-testid="billing-coming-soon">
+                <div className="p-4 rounded-full bg-white/5 border border-white/10">
+                  <Radio className="w-10 h-10 text-white/30" />
+                </div>
+                <div className="text-center">
+                  <h3 className="font-display text-2xl font-bold mb-2 text-white/70">Coming Soon</h3>
+                  <p className="font-mono text-sm text-white/40 max-w-md px-4">
+                    Premium streaming will be available when subscriptions launch.
+                  </p>
+                </div>
+              </div>
             ) : (
+              /* TODO Phase 4 (Billing): restore this upgrade wall when BILLING_ENABLED=true */
               <div className="w-full h-full flex flex-col items-center justify-center gap-6" style={{ background: "linear-gradient(135deg, #161a1e 0%, #111418 50%, #161a1e 100%)" }} data-testid="premium-wall">
                 <div className="p-4 rounded-full bg-primary/20 border border-primary/30">
                   <Lock className="w-10 h-10 text-primary" />

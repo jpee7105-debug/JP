@@ -1,0 +1,83 @@
+We have reviewed the current Rabbit Hole codebase.
+
+Do not build a new Board Engine or modify the database yet.
+
+The existing application already has investigations, depth nodes, claims,
+sources, media, people, relationships, timelines, graph positioning, and a
+working Connections graph.
+
+The next task is to connect the visual /workspace-v2 prototype to REAL existing
+investigation data in a read-only proof of concept.
+
+Create a new route:
+
+/workspace-v2/:slug
+
+Keep the existing /workspace-v2 mock demonstration available.
+
+Before connecting data, refactor WorkspaceV2.tsx into maintainable components:
+
+client/src/features/workspace/
+  WorkspaceLayout.tsx
+  WorkspaceHeader.tsx
+  WorkspaceSidebar.tsx
+  WorkspaceGraph.tsx
+  WorkspaceNode.tsx
+  WorkspaceDetailsPanel.tsx
+  WorkspaceTimeline.tsx
+  workspace.types.ts
+  workspace.adapters.ts
+  mockWorkspaceData.ts
+
+Preserve the existing visual appearance and interactions during the refactor.
+
+For /workspace-v2/:slug, load existing data from:
+
+- GET /api/holes/:slug
+- GET /api/holes/:slug/depth-nodes
+- GET /api/holes/:slug/claims
+- GET /api/holes/:slug/sources
+- GET /api/holes/:slug/media
+- GET /api/people
+- GET /api/relationships
+
+Transform the existing data into workspace nodes:
+
+- Rabbit hole → central investigation node
+- Depth nodes → section or topic nodes
+- Claims → claim nodes
+- Sources → source nodes
+- Media → evidence/media nodes
+- People connected to the rabbit hole → person nodes
+- Investigation and depth-node timeline records → event nodes
+
+Generate workspace connections using existing information:
+
+- Investigation contains depth node
+- Depth node contains claim
+- Depth node references source
+- Depth node contains media
+- Claims connect to supporting or counterpoint sources using their existing
+  evidence and counterpoints fields
+- Existing published relationship records connect people and investigations
+- Timeline events connect to their investigation or depth node
+
+Requirements:
+
+1. Do not create new tables.
+2. Do not modify existing data.
+3. Do not add creation or editing yet.
+4. Do not add AI, imports, billing, or collaboration.
+5. Add proper loading, error, and empty states.
+6. The right details panel must display the selected real record.
+7. The bottom timeline must use real investigation timeline data.
+8. The graph must continue supporting zoom, pan, drag, hover highlighting,
+   click selection, and timeline focusing.
+9. Search should function across the loaded nodes.
+10. Sidebar categories should filter visible node types.
+11. Preserve the current public site, admin CMS, and /connections page.
+12. Run npm run check and npm run build.
+13. Report every file changed and any existing data that could not be represented.
+
+This is a read-only integration proof. Its purpose is to determine how closely
+the current data model already supports the future Board experience.
