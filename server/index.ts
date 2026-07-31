@@ -5,6 +5,8 @@ import { createServer } from "http";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import pg from "pg";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 
 const PgSession = connectPgSimple(session);
 const sessionPool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
@@ -24,6 +26,71 @@ declare module "express-session" {
     employeeId: string;
   }
 }
+
+const isDev = process.env.NODE_ENV !== "production";
+
+// ── Helmet security headers (Item 10) ──────────────────────────────────────
+// Applied as the very first middleware so all responses carry security headers.
+// CSP is pre-configured for Leaflet tiles, Vite HMR, Tailwind inline styles.
+// crossOriginEmbedderPolicy disabled — Leaflet requires cross-origin resources.
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: [
+          "'self'",
+          // unsafe-eval required by Vite in development only
+          ...(isDev ? ["'unsafe-inline'", "'unsafe-eval'"] : []),
+        ],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        // unsafe-inline required by Tailwind CSS and shadcn/ui component styles
+        imgSrc: [
+          "'self'",
+          "data:",
+          "blob:",
+          "https://*.basemaps.cartocdn.com",  // Leaflet CartoDB dark tiles
+          "https://*.tile.openstreetmap.org", // Fallback OSM tiles
+        ],
+        connectSrc: [
+          "'self'",
+          ...(isDev ? ["ws:", "wss:"] : []),  // Vite HMR WebSocket
+        ],
+        fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"],
+        objectSrc: ["'none'"],
+        mediaSrc: ["'self'"],
+        frameSrc: ["'none'"],
+        ...(isDev ? {} : { upgradeInsecureRequests: [] }),
+      },
+    },
+    strictTransportSecurity: isDev
+      ? false
+      : { maxAge: 63072000, includeSubDomains: true, preload: true },
+    crossOriginEmbedderPolicy: false,
+  })
+);
+
+// ── Rate limiters (Item 9) ──────────────────────────────────────────────────
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15-minute window
+  max: 20,                   // 20 attempts per window per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true, // successful logins don't count toward limit
+  message: { message: "Too many attempts. Please try again in 15 minutes." },
+});
+
+const signupLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1-hour window
+  max: 10,                   // 10 signups per hour per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many registrations from this address. Please try again later." },
+});
+
+app.use("/api/auth/login", authLimiter);
+app.use("/api/auth/signup", signupLimiter);
+app.use("/api/admin/login", authLimiter);
 
 app.use(
   express.json({
