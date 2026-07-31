@@ -5,9 +5,6 @@ import { createServer } from "http";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import pg from "pg";
-// import { runMigrations } from 'stripe-replit-sync';
-// import { getStripeSync } from './stripeClient';
-// import { WebhookHandlers } from './webhookHandlers';
 
 const PgSession = connectPgSimple(session);
 const sessionPool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
