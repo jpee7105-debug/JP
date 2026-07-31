@@ -25,9 +25,6 @@ declare module "express-session" {
   }
 }
 
-// Stripe webhook disabled
-// app.post('/api/stripe/webhook', ...);
-
 app.use(
   express.json({
     verify: (req, _res, buf) => {
@@ -105,8 +102,6 @@ app.use((req, res, next) => {
 
   next();
 });
-
-// Stripe disabled — re-enable by restoring imports and initStripe() call
 
 (async () => {
 
