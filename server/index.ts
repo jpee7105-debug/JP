@@ -92,6 +92,60 @@ app.use("/api/auth/login", authLimiter);
 app.use("/api/auth/signup", signupLimiter);
 app.use("/api/admin/login", authLimiter);
 
+// ── Trusted-origin CSRF protection (Item 5) ────────────────────────────────
+// For all state-changing methods, verifies the Origin (or Referer) header
+// matches the application's own domain. Stateless — no token management.
+// Safe methods (GET, HEAD, OPTIONS) are exempt.
+// In development, requests with no Origin header are allowed (curl / API clients).
+// In production, an Origin header is required on all state-changing requests.
+function trustedOriginMiddleware(req: Request, res: Response, next: NextFunction) {
+  const SAFE_METHODS = ["GET", "HEAD", "OPTIONS"];
+  if (SAFE_METHODS.includes(req.method)) return next();
+
+  const origin = req.headers.origin;
+  const referer = req.headers.referer;
+  const host = req.headers.host;
+
+  // Build the set of allowed origins from the runtime environment
+  const allowedOrigins = new Set<string>();
+  if (host) {
+    allowedOrigins.add(`http://${host}`);
+    allowedOrigins.add(`https://${host}`);
+  }
+  const replitDomains = process.env.REPLIT_DOMAINS;
+  if (replitDomains) {
+    for (const domain of replitDomains.split(",")) {
+      allowedOrigins.add(`https://${domain.trim()}`);
+    }
+  }
+
+  // Allow requests with no origin header only in development
+  if (!origin && !referer) {
+    if (isDev) return next();
+    return res.status(403).json({ message: "Origin header required" });
+  }
+
+  let requestOrigin: string;
+  try {
+    requestOrigin = origin || new URL(referer!).origin;
+  } catch {
+    return res.status(403).json({ message: "Forbidden: invalid origin" });
+  }
+
+  const isAllowed = Array.from(allowedOrigins).some((allowed) =>
+    requestOrigin === allowed || requestOrigin.startsWith(allowed)
+  );
+
+  if (!isAllowed) {
+    console.warn(`[csrf] Rejected request from origin: ${requestOrigin}`);
+    return res.status(403).json({ message: "Forbidden: untrusted origin" });
+  }
+
+  next();
+}
+
+app.use(trustedOriginMiddleware);
+
 app.use(
   express.json({
     verify: (req, _res, buf) => {
