@@ -1,0 +1,73 @@
+Implement Phase A from DESIGN_SYSTEM_V2_PLAN.md only.
+
+The goal is to create the shared Rabbit Hole V2 design foundation while preserving all existing functionality and page layouts.
+
+Before making changes:
+
+1. Create a git checkpoint commit named:
+   pre-design-system-v2-phase-a
+2. Run:
+   npm run check
+   npm run build
+3. Record any pre-existing failures.
+
+Phase A requirements:
+
+1. Extract the approved visual tokens from client/src/features/workspace/workspace.types.ts into centrally controlled CSS custom properties in client/src/index.css.
+2. Make the V2 dark theme the intentional global foundation instead of relying on individual page overrides.
+3. Preserve the current appearance of /workspace-v2 and /workspace-v2/:slug.
+4. Update the workspace to consume the shared global tokens instead of maintaining a separate hardcoded token system where practical.
+5. Establish the approved typography system:
+
+   * Space Grotesk for display headings
+   * Inter for body text
+   * JetBrains Mono for metadata, labels, IDs, dates, and confidence values
+6. Create or standardize the shared components identified in DESIGN_SYSTEM_V2_PLAN.md:
+
+   * Card
+   * MonoBadge
+   * ConfidenceBar
+   * Skeleton
+   * EmptyState
+   * StatusDot
+   * SectionHeader
+   * PremiumGate
+7. Keep these components reusable and accessible.
+8. Add consistent shared styles for:
+
+   * backgrounds
+   * surfaces
+   * borders
+   * text hierarchy
+   * muted text
+   * accent states
+   * focus states
+   * shadows
+   * radii
+   * transitions
+9. Do not redesign individual public pages yet.
+10. Do not redesign Navbar or AdminLayout yet.
+11. Do not modify backend code, APIs, database schema, routes, or application behavior.
+12. Do not remove existing page-specific styles unless they are safely replaced by an equivalent shared token.
+13. Do not perform Phases B through H.
+
+Verification:
+
+* Run npm run check.
+* Run npm run build.
+* Verify /workspace-v2 visually matches its appearance before the refactor.
+* Verify the homepage, Discover, Login, investigation page, Connections, and /admin still render without broken layouts.
+* Check desktop and mobile widths.
+* Report any page whose existing hardcoded styles conflict with the new foundation, but do not redesign that page yet.
+
+At completion, provide:
+
+* Files changed
+* Tokens introduced
+* Components created or standardized
+* Existing duplicate styles removed
+* Test and build results
+* Visual regressions found
+* Follow-up issues that belong in Phase B or later
+
+Implement Phase A only.

@@ -1,0 +1,64 @@
+Create a document named DESIGN_SYSTEM_V2_PLAN.md.
+
+The visual quality and design language of /workspace-v2 is now the standard for the entire Rabbit Hole application.
+
+Review:
+
+* client/src/features/workspace/
+* client/src/index.css
+* shared UI components
+* Navbar.tsx
+* AdminLayout.tsx
+* every public and admin page
+
+The goal is to extract the strongest parts of /workspace-v2 into a reusable global design system instead of copying styles page by page.
+
+Define:
+
+1. Global color tokens
+2. Background and surface hierarchy
+3. Typography hierarchy
+4. Spacing system
+5. Borders, radii, shadows, and glass effects
+6. Buttons and interaction states
+7. Cards, panels, forms, tables, and modals
+8. Navigation and application shells
+9. Loading, empty, error, and skeleton states
+10. Animation and transition standards
+11. Graph and data-visualization styling
+12. Responsive and mobile rules
+13. Accessibility requirements
+
+Identify hardcoded visual values in the workspace and explain how they should move into shared CSS variables, Tailwind utilities, or reusable components.
+
+Create this migration order:
+
+Phase A — Shared design foundation
+Phase B — Navbar and application shells
+Phase C — Homepage, Discover, and Search
+Phase D — Investigation page and Depth Reader
+Phase E — Connections, Timeline, People, and Library
+Phase F — Login, Signup, Account, Guide, and Pricing
+Phase G — Admin CMS
+Phase H — Live, Creator, Watch, Replay, and lower-priority pages
+
+For every page, document:
+
+* What currently works
+* What visually feels outdated
+* Which reusable V2 components it should use
+* Whether its layout should stay or change
+* Risk of functional or visual regressions
+
+Constraints:
+
+* Do not modify application code yet.
+* Do not change the backend or database.
+* Do not remove existing features.
+* Do not redesign all pages in one implementation task.
+* Preserve the full-screen workspace experience.
+* Avoid generic SaaS dashboard styling.
+* Avoid conspiracy-board clichés.
+* The entire product should feel like one premium connected-knowledge and intelligence platform.
+
+Only create DESIGN_SYSTEM_V2_PLAN.md.
