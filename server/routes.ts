@@ -59,10 +59,18 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
 
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (!adminPassword) {
+    throw new Error(
+      "[startup] ADMIN_PASSWORD environment variable is required in all environments. " +
+      "Set it via Replit Secrets (development and production). " +
+      "Choose a strong password — it is never logged."
+    );
+  }
+
   const empCount = await storage.getEmployeeCount();
   if (empCount === 0) {
-    const defaultPassword = process.env.ADMIN_PASSWORD || "rabbithole2024";
-    const passwordHash = await bcrypt.hash(defaultPassword, 12);
+    const passwordHash = await bcrypt.hash(adminPassword, 12);
     await storage.createEmployee({
       email: "admin@rabbithole.io",
       passwordHash,
@@ -70,7 +78,8 @@ export async function registerRoutes(
       role: "Admin",
       isActive: true,
     });
-    console.log(`[seed] Created default admin employee: admin@rabbithole.io (password: ${defaultPassword})`);
+    // Never log the password value — not even in development.
+    console.log("[startup] Default admin account created. Log in at /admin with the configured ADMIN_PASSWORD.");
   }
 
   try {

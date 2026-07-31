@@ -42,9 +42,12 @@ const isProduction = process.env.NODE_ENV === "production";
 if (isProduction) {
   app.set("trust proxy", 1);
 }
-const sessionSecret = process.env.SESSION_SECRET || (isProduction ? undefined : "rabbit-hole-dev-session-secret");
+const sessionSecret = process.env.SESSION_SECRET;
 if (!sessionSecret) {
-  throw new Error("SESSION_SECRET environment variable is required in production");
+  throw new Error(
+    "[startup] SESSION_SECRET environment variable is required in all environments. " +
+    "Set it via Replit Secrets. Minimum 32 random characters."
+  );
 }
 
 app.use(

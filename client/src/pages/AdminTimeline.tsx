@@ -166,12 +166,12 @@ function TimelineForm({ formData, setFormData, onSave, onCancel, saving, error, 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label className="block font-mono text-[10px] text-muted-foreground uppercase mb-1">Latitude</label>
-          <input type="text" value={formData.lat} onChange={e => setFormData({ ...formData, lat: e.target.value })}
+          <input type="text" value={formData.lat ?? ""} onChange={e => setFormData({ ...formData, lat: e.target.value })}
             className="w-full bg-white/5 border border-white/10 p-2.5 text-sm font-mono focus:outline-none focus:border-primary/50" data-testid="input-timeline-lat" />
         </div>
         <div>
           <label className="block font-mono text-[10px] text-muted-foreground uppercase mb-1">Longitude</label>
-          <input type="text" value={formData.lng} onChange={e => setFormData({ ...formData, lng: e.target.value })}
+          <input type="text" value={formData.lng ?? ""} onChange={e => setFormData({ ...formData, lng: e.target.value })}
             className="w-full bg-white/5 border border-white/10 p-2.5 text-sm font-mono focus:outline-none focus:border-primary/50" data-testid="input-timeline-lng" />
         </div>
         <div>
