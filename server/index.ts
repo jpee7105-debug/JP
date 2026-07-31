@@ -224,8 +224,12 @@ app.use((req, res, next) => {
   next();
 });
 
-(async () => {
-
+/**
+ * Create and configure the application.
+ * Exported so the test suite can import it without starting an HTTP server.
+ * In test mode (NODE_ENV=test), Vite static middleware is not attached.
+ */
+export async function createApp() {
   app.get("/__repl", (_req, res) => {
     res.sendStatus(200);
   });
@@ -235,32 +239,31 @@ app.use((req, res, next) => {
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
-
     console.error("Internal Server Error:", err);
-
-    if (res.headersSent) {
-      return next(err);
-    }
-
+    if (res.headersSent) return next(err);
     return res.status(status).json({ message });
   });
 
   if (process.env.NODE_ENV === "production") {
     serveStatic(app);
-  } else {
+  } else if (process.env.NODE_ENV !== "test") {
+    // Skip Vite in test mode — it requires a browser environment
     const { setupVite } = await import("./vite");
     await setupVite(httpServer, app);
   }
 
-  const port = parseInt(process.env.PORT || "5000", 10);
-  httpServer.listen(
-    {
-      port,
-      host: "0.0.0.0",
-      reusePort: true,
-    },
-    () => {
-      log(`serving on port ${port}`);
-    },
-  );
-})();
+  return httpServer;
+}
+
+export { app };
+
+// Auto-start when not in test mode
+if (process.env.NODE_ENV !== "test") {
+  createApp().then((server) => {
+    const port = parseInt(process.env.PORT || "5000", 10);
+    server.listen(
+      { port, host: "0.0.0.0", reusePort: true },
+      () => { log(`serving on port ${port}`); },
+    );
+  });
+}
