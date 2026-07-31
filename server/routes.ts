@@ -107,8 +107,11 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Invalid email or password" });
       }
       await storage.updateEmployee(emp.id, { lastLoginAt: new Date() });
-      req.session.employeeId = emp.id;
-      res.json(toEmployeeDTO(emp));
+      req.session.regenerate((regenErr) => {
+        if (regenErr) return res.status(500).json({ message: "Session error. Please try again." });
+        req.session.employeeId = emp.id;
+        res.json(toEmployeeDTO(emp));
+      });
     } catch (err) {
       res.status(500).json({ message: "Failed to log in" });
     }
@@ -156,8 +159,11 @@ export async function registerRoutes(
         plan: "Free",
         subscriptionStatus: "none",
       });
-      req.session.userId = user.id;
-      res.status(201).json(toUserDTO(user));
+      req.session.regenerate((regenErr) => {
+        if (regenErr) return res.status(500).json({ message: "Session error. Please try again." });
+        req.session.userId = user.id;
+        res.status(201).json(toUserDTO(user));
+      });
     } catch (err) {
       res.status(500).json({ message: "Failed to create account" });
     }
@@ -178,8 +184,11 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Invalid email or password" });
       }
       await storage.updateUser(user.id, { lastLoginAt: new Date() });
-      req.session.userId = user.id;
-      res.json(toUserDTO(user));
+      req.session.regenerate((regenErr) => {
+        if (regenErr) return res.status(500).json({ message: "Session error. Please try again." });
+        req.session.userId = user.id;
+        res.json(toUserDTO(user));
+      });
     } catch (err) {
       res.status(500).json({ message: "Failed to log in" });
     }
