@@ -306,40 +306,26 @@ export function adaptHoleToWorkspace(
   }
 
   // ── 8. People connected via relationship records ───────────────────────────
-  const addedPeople = new Set<number>();
+  // Only include a person when a relationship record explicitly links them to
+  // this investigation (fromType/toType === "hole" with this hole's id on one
+  // side and "person" on the other). Person↔person records without a hole
+  // anchor are not surfaced here — they do not prove relevance to this hole.
+  // If no such records exist the person set is empty; zero nodes are shown.
+  const connectedPersonIds = new Set<number>();
   for (const rel of relationships) {
-    const involvesPerson =
-      (rel.fromType === "person" || rel.toType === "person") &&
-      (rel.fromType === "hole" || rel.toType === "hole" ||
-       rel.fromType === "person" || rel.toType === "person");
-
-    if (rel.fromType === "person") {
-      addedPeople.add(rel.fromId);
+    const fromIsThisHole = rel.fromType === "hole" && rel.fromId === hole.id;
+    const toIsThisHole   = rel.toType   === "hole" && rel.toId   === hole.id;
+    if (fromIsThisHole && rel.toType === "person") {
+      connectedPersonIds.add(rel.toId);
     }
-    if (rel.toType === "person") {
-      addedPeople.add(rel.toId);
+    if (toIsThisHole && rel.fromType === "person") {
+      connectedPersonIds.add(rel.fromId);
     }
-    // Also include any person↔person relationship
-    if (!involvesPerson) continue;
-  }
-
-  // Also add people referenced by any relationship touching this hole
-  const holeRelationships = relationships.filter(
-    r =>
-      (r.fromType === "hole" && r.fromId === hole.id) ||
-      (r.toType === "hole" && r.toId === hole.id) ||
-      r.fromType === "person" ||
-      r.toType === "person",
-  );
-  for (const rel of holeRelationships) {
-    if (rel.fromType === "person") addedPeople.add(rel.fromId);
-    if (rel.toType === "person") addedPeople.add(rel.toId);
   }
 
   const personNodeIds: Record<number, string> = {};
   for (const person of allPeople) {
-    if (!addedPeople.has(person.id) && addedPeople.size > 0) continue;
-    // If there are no relationships at all, still show all published people
+    if (!connectedPersonIds.has(person.id)) continue;
     const personNodeId = `person-${person.id}`;
     personNodeIds[person.id] = personNodeId;
     nodes.push({

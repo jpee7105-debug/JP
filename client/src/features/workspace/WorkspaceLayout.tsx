@@ -129,6 +129,21 @@ export function WorkspaceLayout({ title, nodes, edges, isReal = false }: Workspa
 
         {/* Center graph canvas */}
         <div style={{ flex: 1, position: "relative", overflow: "hidden", minWidth: 0 }}>
+          {/* Empty-state overlay when a kind filter is active but no nodes of that kind exist */}
+          {kindFilter !== null && (nodeCounts[kindFilter] ?? 0) === 0 && (
+            <div style={{ position: "absolute", inset: 0, zIndex: 10, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, pointerEvents: "none" }}>
+              <div style={{ padding: "16px 24px", background: "rgba(15,15,24,0.92)", backdropFilter: "blur(12px)", border: `1px solid ${C.border}`, borderRadius: 8, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                <span style={{ color: KIND_META[kindFilter].palette[2], lineHeight: 1 }}>{KIND_META[kindFilter].icon}</span>
+                <span style={{ color: C.textDim, fontSize: 12, fontFamily: "'Inter',sans-serif" }}>
+                  No {KIND_META[kindFilter].label.toLowerCase()} nodes in this investigation
+                </span>
+                <span style={{ color: C.textMuted, fontSize: 10, fontFamily: "'JetBrains Mono',monospace", textAlign: "center", maxWidth: 260, lineHeight: 1.6 }}>
+                  This investigation has no explicit {KIND_META[kindFilter].label.toLowerCase()} records connected to it in the database.
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Active node tooltip bar */}
           <div style={{ position: "absolute", top: 10, left: 10, zIndex: 5, display: "flex", gap: 6, alignItems: "center" }}>
             {activeNode && (
