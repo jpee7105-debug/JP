@@ -38,6 +38,7 @@ import Pricing from "@/pages/Pricing";
 import AdminTimeline from "@/pages/AdminTimeline";
 import Timeline from "@/pages/Timeline";
 import WorkspaceV2 from "@/pages/WorkspaceV2";
+import WorkspaceReal from "@/pages/WorkspaceReal";
 
 interface OnboardingContextType {
   restartTour: () => void;
@@ -101,9 +102,16 @@ function AppRouter() {
     return <AdminRouter />;
   }
 
-  // V2 workspace is full-screen — bypass Navbar and global layout
+  // V2 workspace is full-screen — bypass Navbar and global layout.
+  // /workspace-v2          → mock demonstration
+  // /workspace-v2/:slug    → real investigation data
   if (isV2) {
-    return <WorkspaceV2 />;
+    return (
+      <Switch>
+        <Route path="/workspace-v2/:slug" component={WorkspaceReal} />
+        <Route path="/workspace-v2" component={WorkspaceV2} />
+      </Switch>
+    );
   }
 
   return (
