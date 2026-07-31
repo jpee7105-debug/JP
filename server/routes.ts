@@ -89,6 +89,11 @@ export async function registerRoutes(
     console.error("[auto-seed] Error during auto-seed:", err);
   }
 
+  // Single source of truth for billing state.
+  // Set BILLING_ENABLED=true in Replit Secrets when a payment provider is connected.
+  // All Pro/subscription checks read this flag — do not add billing logic elsewhere.
+  const BILLING_ENABLED = process.env.BILLING_ENABLED === "true";
+
   app.post("/api/admin/login", async (req, res) => {
     try {
       const { email, password } = req.body;
@@ -334,7 +339,11 @@ export async function registerRoutes(
           subscriptionStatus = user.subscriptionStatus;
         }
       }
-      const hasFullAccess = userPlan === "Pro" && subscriptionStatus === "active";
+      // Phase 0: when billing is disabled, all users receive full access.
+      // TODO Phase 4 (Billing): remove the false branch and restore Pro-only check.
+      const hasFullAccess = BILLING_ENABLED
+        ? (userPlan === "Pro" && subscriptionStatus === "active")
+        : true;
 
       if (hasFullAccess) {
         res.json(nodes.map(n => ({ ...n, locked: false })));
@@ -384,7 +393,11 @@ export async function registerRoutes(
           loggedIn = true;
         }
       }
-      const hasFullAccess = userPlan === "Pro" && subscriptionStatus === "active";
+      // Phase 0: when billing is disabled, all users receive full access.
+      // TODO Phase 4 (Billing): remove the false branch and restore Pro-only check.
+      const hasFullAccess = BILLING_ENABLED
+        ? (userPlan === "Pro" && subscriptionStatus === "active")
+        : true;
 
       res.json({
         totalNodes,
@@ -1568,6 +1581,18 @@ export async function registerRoutes(
       if (!stream || stream.status !== "Published") return res.status(404).json({ message: "Stream not found" });
       const creator = await storage.getCreatorById(stream.creatorId);
       if (stream.visibility === "premium") {
+        if (!BILLING_ENABLED) {
+          // Billing is disabled: never expose premium embed URLs.
+          // Show a neutral "coming soon" state on the client via billingDisabled flag.
+          // TODO Phase 4 (Billing): remove this block when BILLING_ENABLED=true.
+          return res.json({
+            stream: { ...stream, embedUrl: "", premiumEmbedUrl: "" },
+            creator,
+            premium: true,
+            hasAccess: false,
+            billingDisabled: true,
+          });
+        }
         const userId = (req.session as any).userId;
         if (!userId) return res.json({ stream: { ...stream, embedUrl: "" }, creator, premium: true, hasAccess: false });
         const user = await storage.getUserById(userId);
@@ -1586,6 +1611,19 @@ export async function registerRoutes(
       const creator = await storage.getCreatorById(stream.creatorId);
       const replays = await storage.getReplaysByStream(stream.id);
       if (stream.visibility === "premium") {
+        if (!BILLING_ENABLED) {
+          // Billing is disabled: never expose premium replay embed URLs.
+          // Show a neutral "coming soon" state on the client via billingDisabled flag.
+          // TODO Phase 4 (Billing): remove this block when BILLING_ENABLED=true.
+          return res.json({
+            stream: { ...stream, embedUrl: "", premiumEmbedUrl: "" },
+            creator,
+            replays: [],
+            premium: true,
+            hasAccess: false,
+            billingDisabled: true,
+          });
+        }
         const userId = (req.session as any).userId;
         if (!userId) return res.json({ stream: { ...stream, embedUrl: "" }, creator, replays: [], premium: true, hasAccess: false });
         const user = await storage.getUserById(userId);
