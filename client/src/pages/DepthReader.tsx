@@ -224,14 +224,14 @@ export default function DepthReader() {
             <span className="font-mono text-xs text-muted-foreground">
               {currentIndex + 1} / {access?.hasFullAccess === false ? `${nodes.length} (of ${access.totalNodes})` : nodes.length}
             </span>
-            <span className={`font-mono text-xs ${progress >= 100 ? "text-green-500" : "text-primary"}`}>
+            <span className={`font-mono text-xs ${progress >= 100 ? "text-[#4FC87A]" : "text-primary"}`}>
               {progress >= 100 && <CheckCircle2 className="w-3 h-3 inline mr-1" />}
               {progress}%
             </span>
           </div>
         </div>
         <div className="h-0.5 bg-white/5">
-          <div className={`h-full transition-all duration-500 ${progress >= 100 ? "bg-green-500" : "bg-primary"}`} style={{ width: `${progress}%` }} />
+          <div className={`h-full transition-all duration-500 ${progress >= 100 ? "bg-[#4FC87A]" : "bg-primary"}`} style={{ width: `${progress}%` }} />
         </div>
       </div>
 
@@ -248,7 +248,7 @@ export default function DepthReader() {
                   key={node.id}
                   onClick={() => !locked && !transitioning && setCurrentIndex(i)}
                   disabled={locked}
-                  className={`w-full text-left px-3 py-2.5 mb-1 flex items-center gap-3 text-sm transition-colors ${locked ? "text-muted-foreground/30 cursor-not-allowed" : isCurrent ? "bg-primary/10 text-primary border-l-2 border-primary" : isComplete ? "text-green-500/70 hover:text-green-400" : "text-muted-foreground hover:text-white"}`}
+                  className={`w-full text-left px-3 py-2.5 mb-1 flex items-center gap-3 text-sm transition-colors ${locked ? "text-muted-foreground/30 cursor-not-allowed" : isCurrent ? "bg-primary/10 text-primary border-l-2 border-primary" : isComplete ? "text-[#4FC87A]/70 hover:text-[#4FC87A]" : "text-muted-foreground hover:text-white"}`}
                   data-testid={`nav-node-${node.id}`}
                 >
                   <span className="flex-shrink-0 w-5 h-5 flex items-center justify-center">
@@ -304,7 +304,7 @@ export default function DepthReader() {
                       NODE {currentIndex + 1}
                     </span>
                     {completedNodes[currentNode.id] && (
-                      <span className="font-mono text-xs text-green-500 bg-green-500/10 px-2 py-1 flex items-center gap-1">
+                      <span className="font-mono text-xs text-[#4FC87A] bg-[#4FC87A]/10 px-2 py-1 flex items-center gap-1">
                         <CheckCircle2 className="w-3 h-3" /> COMPLETED
                       </span>
                     )}
@@ -409,7 +409,7 @@ export default function DepthReader() {
                     <button
                       onClick={() => { markComplete(); }}
                       disabled={transitioning}
-                      className="flex items-center gap-2 font-mono text-sm bg-green-500/10 border border-green-500/30 text-green-500 px-6 py-2.5 hover:bg-green-500/20 transition-colors disabled:opacity-50"
+                      className="flex items-center gap-2 font-mono text-sm bg-[#4FC87A]/10 border border-[#4FC87A]/30 text-[#4FC87A] px-6 py-2.5 hover:bg-[#4FC87A]/20 transition-colors disabled:opacity-50"
                       data-testid="button-finish"
                     >
                       <CheckCircle2 className="w-4 h-4" /> COMPLETE INVESTIGATION

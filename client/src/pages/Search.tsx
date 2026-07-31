@@ -6,8 +6,8 @@ import type { RabbitHole, Source, Claim, Person } from "@shared/schema";
 
 function statusColor(status: string) {
   switch (status) {
-    case "Verified": return "text-green-500 bg-green-500/10";
-    case "Unsolved": return "text-yellow-500 bg-yellow-500/10";
+    case "Verified": return "text-[#4FC87A] bg-[#4FC87A]/10";
+    case "Unsolved": return "text-[#E8923A] bg-[#E8923A]/10";
     case "Active": return "text-primary bg-primary/10";
     case "Specialist": return "text-primary bg-primary/10";
     default: return "text-muted-foreground bg-white/5";
@@ -16,9 +16,9 @@ function statusColor(status: string) {
 
 function stanceStyle(stance: string) {
   switch (stance) {
-    case "Verified": return "text-green-500 bg-green-500/10";
-    case "Disputed": return "text-yellow-500 bg-yellow-500/10";
-    case "Speculative": return "text-orange-500 bg-orange-500/10";
+    case "Verified": return "text-[#4FC87A] bg-[#4FC87A]/10";
+    case "Disputed": return "text-[#E8923A] bg-[#E8923A]/10";
+    case "Speculative": return "text-[#9B6EFF] bg-[#9B6EFF]/10";
     default: return "text-muted-foreground bg-white/5";
   }
 }
@@ -139,9 +139,9 @@ export default function SearchPage() {
               {(activeTab === "all" || activeTab === "sources") && sources.map(source => (
                 <div key={`source-${source.id}`} className="border border-white/10 p-5 hover:border-primary/20 transition-colors" data-testid={`search-result-source-${source.id}`}>
                   <div className="flex items-center gap-2 mb-2">
-                    <FileText className="w-4 h-4 text-blue-400" />
-                    <span className="font-mono text-[10px] text-blue-400">SOURCE</span>
-                    <span className={`font-mono text-[10px] px-2 py-0.5 ${source.type === 'document' ? 'bg-green-500/10 text-green-500' : source.type === 'book' ? 'bg-blue-500/10 text-blue-400' : 'bg-orange-500/10 text-orange-400'}`}>
+                    <FileText className="w-4 h-4 text-[#5BA3E8]" />
+                    <span className="font-mono text-[10px] text-[#5BA3E8]">SOURCE</span>
+                    <span className={`font-mono text-[10px] px-2 py-0.5 ${source.type === 'document' ? 'bg-[#4FC87A]/10 text-[#4FC87A]' : source.type === 'book' ? 'bg-[#5BA3E8]/10 text-[#5BA3E8]' : 'bg-[#E8923A]/10 text-[#E8923A]'}`}>
                       {source.type.toUpperCase()}
                     </span>
                   </div>
@@ -155,8 +155,8 @@ export default function SearchPage() {
               {(activeTab === "all" || activeTab === "claims") && claims.map(claim => (
                 <div key={`claim-${claim.id}`} className="border border-white/10 p-5 hover:border-primary/20 transition-colors" data-testid={`search-result-claim-${claim.id}`}>
                   <div className="flex items-center gap-2 mb-2">
-                    <Scale className="w-4 h-4 text-yellow-500" />
-                    <span className="font-mono text-[10px] text-yellow-500">CLAIM</span>
+                    <Scale className="w-4 h-4 text-[#E8923A]" />
+                    <span className="font-mono text-[10px] text-[#E8923A]">CLAIM</span>
                     <span className={`font-mono text-[10px] px-2 py-0.5 ${stanceStyle(claim.stance)}`}>{claim.stance.toUpperCase()}</span>
                   </div>
                   <p className="font-display text-base font-semibold">{claim.statement}</p>
@@ -167,8 +167,8 @@ export default function SearchPage() {
               {(activeTab === "all" || activeTab === "people") && people.map(person => (
                 <Link key={`person-${person.id}`} href={`/people/${person.handle || person.id}`} className="block border border-white/10 p-5 hover:border-primary/30 transition-colors group" data-testid={`search-result-person-${person.id}`}>
                   <div className="flex items-center gap-2 mb-2">
-                    <User className="w-4 h-4 text-blue-400" />
-                    <span className="font-mono text-[10px] px-2 py-0.5 bg-blue-400/10 text-blue-400 border border-blue-400/20">PERSON</span>
+                    <User className="w-4 h-4 text-[#5BA3E8]" />
+                    <span className="font-mono text-[10px] px-2 py-0.5 bg-[#5BA3E8]/10 text-[#5BA3E8] border border-[#5BA3E8]/25">PERSON</span>
                     {person.nationality && (
                       <span className="font-mono text-[10px] px-1.5 py-0.5 text-muted-foreground bg-white/5">{person.nationality}</span>
                     )}

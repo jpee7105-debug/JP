@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Search, GitBranch, Database, Clock, Tag, ArrowRight } from "lucide-react";
+import { Search, GitBranch, Database, Clock, Tag, ArrowRight, LayoutDashboard } from "lucide-react";
 import heroBg from "@/assets/images/hero-bg.png";
 import networkBg from "@/assets/images/network.png";
 import type { RabbitHole, Category } from "@shared/schema";
@@ -18,10 +18,10 @@ function timeAgo(date: string | Date) {
 
 function statusColor(status: string) {
   switch (status) {
-    case "Verified": return { color: "text-green-400", bg: "bg-green-500/8" };
-    case "Unsolved": return { color: "text-yellow-400", bg: "bg-yellow-500/8" };
-    case "Active": return { color: "text-primary", bg: "bg-primary/8" };
-    case "Specialist": return { color: "text-primary", bg: "bg-primary/8" };
+    case "Verified": return { color: "text-[#4FC87A]", bg: "bg-[#4FC87A]/10" };
+    case "Unsolved": return { color: "text-[#E8923A]", bg: "bg-[#E8923A]/10" };
+    case "Active": return { color: "text-primary", bg: "bg-primary/10" };
+    case "Specialist": return { color: "text-primary", bg: "bg-primary/10" };
     default: return { color: "text-muted-foreground", bg: "bg-white/4" };
   }
 }
@@ -184,6 +184,30 @@ export default function Home() {
               ))}
             </div>
           )}
+        </div>
+
+        {/* Workspace CTA */}
+        <div className="mb-10 relative overflow-hidden rounded-xl bg-card/50 border border-primary/20 p-8" data-testid="workspace-cta">
+          <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 80% 50%, rgba(108,99,255,0.08) 0%, transparent 65%)" }} />
+          <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center gap-6">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="font-mono text-[10px] px-2 py-0.5 bg-[#9B6EFF]/10 text-[#9B6EFF] border border-[#9B6EFF]/25">PREVIEW</span>
+                <span className="font-mono text-[10px] text-muted-foreground/50">DEMONSTRATION DATA</span>
+              </div>
+              <h3 className="font-display text-2xl font-bold tracking-tight mb-2">Explore the Workspace</h3>
+              <p className="text-muted-foreground/70 text-sm leading-relaxed max-w-lg">
+                An interactive investigation canvas — visualise nodes, claims, people, and evidence as a connected relationship graph. Open any investigation to explore its structure.
+              </p>
+            </div>
+            <Link
+              href="/workspace-v2"
+              className="flex-shrink-0 flex items-center gap-2 px-5 py-3 bg-primary/10 border border-primary/30 text-primary font-mono text-xs hover:bg-primary/20 transition-colors rounded-lg"
+              data-testid="link-workspace-cta"
+            >
+              <LayoutDashboard className="w-4 h-4" /> Open Workspace →
+            </Link>
+          </div>
         </div>
 
         <div className="flex items-center justify-between mb-7">

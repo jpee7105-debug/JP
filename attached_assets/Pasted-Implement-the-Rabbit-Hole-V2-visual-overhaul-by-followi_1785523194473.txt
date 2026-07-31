@@ -1,0 +1,120 @@
+Implement the Rabbit Hole V2 visual overhaul by following DESIGN_SYSTEM_V2_PLAN.md sequentially.
+
+The attached /workspace-v2 screenshots are the visual source of truth. The entire application should reach this same level of polish and feel like one cohesive premium connected-knowledge platform.
+
+Do not attempt the overhaul as one uncontrolled rewrite. Work through the documented phases in order, completing, verifying, and committing each phase separately.
+
+EXECUTION ORDER
+
+Phase A — Shared design foundation
+Phase B — Navbar and application shells
+Phase C — Homepage, Discover, and Search
+Phase D — Investigation page and Depth Reader
+Phase E — Connections, Timeline, People, and Library
+Phase F — Login, Signup, Account, Guide, and Pricing
+
+STOP after Phase F.
+
+Do not begin Phase G, the Admin CMS overhaul, or Phase H, the lower-priority media pages. Those phases require separate review and approval.
+
+BEFORE STARTING
+
+1. Read DESIGN_SYSTEM_V2_PLAN.md completely.
+2. Review the attached /workspace-v2 visual references.
+3. Create a git checkpoint commit:
+   pre-rabbit-hole-v2-visual-overhaul
+4. Run:
+   npm run check
+   npm run build
+5. Record any pre-existing failures.
+
+RULES FOR EVERY PHASE
+
+1. Implement only the scope assigned to that phase.
+2. Preserve all existing functionality, data, routes, and backend behavior.
+3. Do not modify the database schema or server APIs.
+4. Reuse centralized design tokens and shared components.
+5. Do not copy large blocks of hardcoded workspace styles into individual pages.
+6. Keep /workspace-v2 and /workspace-v2/:slug visually intact.
+7. Avoid generic SaaS-dashboard styling.
+8. Avoid conspiracy-board clichés.
+9. Preserve page-specific strengths while bringing each page into the V2 visual system.
+10. Check desktop, tablet, and mobile layouts.
+11. Maintain accessible contrast, keyboard navigation, focus states, and readable text.
+12. Do not remove functionality simply because it is visually difficult to restyle.
+
+AFTER EVERY PHASE
+
+1. Run:
+   npm run check
+   npm run build
+2. Visually inspect every page affected by that phase.
+3. Confirm unaffected pages still render.
+4. Fix regressions before continuing.
+5. Create a separate git commit using this format:
+   design-v2-phase-a-foundation
+   design-v2-phase-b-shells
+   design-v2-phase-c-public-discovery
+   design-v2-phase-d-investigations
+   design-v2-phase-e-knowledge-pages
+   design-v2-phase-f-account-pages
+6. Record:
+
+   * Files changed
+   * Components added or updated
+   * Duplicate styles removed
+   * Visual regressions found and fixed
+   * Unresolved concerns
+
+FAILURE RULES
+
+Stop immediately and report instead of continuing if:
+
+* npm run check fails
+* npm run build fails
+* An existing feature stops functioning
+* A page loses meaningful content or controls
+* The database or backend would need to change
+* The workspace appearance regresses
+* The required change falls outside DESIGN_SYSTEM_V2_PLAN.md
+
+FINAL VERIFICATION AFTER PHASE F
+
+Verify these routes individually:
+
+* /
+* /discover
+* /search
+* /workspace-v2
+* /workspace-v2/:slug
+* /rabbithole/:slug
+* /rabbithole/:slug/read
+* /connections
+* /timeline
+* /people/:handle
+* /library
+* /login
+* /signup
+* /account
+* /guide
+* /pricing
+* /admin
+
+The admin interface does not need to match V2 yet, but it must remain functional and visually unbroken.
+
+FINAL REPORT
+
+Provide:
+
+1. Every phase completed
+2. Every commit created
+3. Every file changed, grouped by phase
+4. Shared components and tokens introduced
+5. Pages visually overhauled
+6. Tests and build results after each phase
+7. Responsive checks performed
+8. Functional or visual regressions found and resolved
+9. Remaining inconsistencies
+10. Recommendations for the later Admin CMS overhaul
+
+Do not begin Phase G or Phase H.

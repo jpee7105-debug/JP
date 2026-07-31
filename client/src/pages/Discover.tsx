@@ -16,10 +16,10 @@ function timeAgo(date: string | Date) {
 
 function statusColor(status: string) {
   switch (status) {
-    case "Verified": return { color: "text-green-400", bg: "bg-green-500/8" };
-    case "Unsolved": return { color: "text-yellow-400", bg: "bg-yellow-500/8" };
-    case "Active": return { color: "text-primary", bg: "bg-primary/8" };
-    case "Specialist": return { color: "text-primary", bg: "bg-primary/8" };
+    case "Verified": return { color: "text-[#4FC87A]", bg: "bg-[#4FC87A]/10" };
+    case "Unsolved": return { color: "text-[#E8923A]", bg: "bg-[#E8923A]/10" };
+    case "Active": return { color: "text-primary", bg: "bg-primary/10" };
+    case "Specialist": return { color: "text-primary", bg: "bg-primary/10" };
     default: return { color: "text-muted-foreground", bg: "bg-white/4" };
   }
 }

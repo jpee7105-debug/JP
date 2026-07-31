@@ -56,15 +56,15 @@ const sections: GuideSection[] = [
         <h4 className="font-display font-semibold text-sm mt-6">Stance</h4>
         <div className="space-y-2 ml-1">
           <div className="flex items-start gap-3">
-            <span className="font-mono text-xs px-2 py-0.5 bg-green-500/10 text-green-400 border border-green-500/20 mt-0.5">SUPPORTED</span>
+            <span className="font-mono text-xs px-2 py-0.5 bg-[#4FC87A]/10 text-[#4FC87A] border border-[#4FC87A]/25 mt-0.5">SUPPORTED</span>
             <span className="text-sm">The claim has strong evidence backing it. Multiple credible sources corroborate the assertion.</span>
           </div>
           <div className="flex items-start gap-3">
-            <span className="font-mono text-xs px-2 py-0.5 bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 mt-0.5">DISPUTED</span>
+            <span className="font-mono text-xs px-2 py-0.5 bg-[#E8923A]/10 text-[#E8923A] border border-[#E8923A]/25 mt-0.5">DISPUTED</span>
             <span className="text-sm">The claim has conflicting evidence. Credible sources disagree, or the evidence is open to interpretation.</span>
           </div>
           <div className="flex items-start gap-3">
-            <span className="font-mono text-xs px-2 py-0.5 bg-orange-500/10 text-orange-400 border border-orange-500/20 mt-0.5">SPECULATIVE</span>
+            <span className="font-mono text-xs px-2 py-0.5 bg-[#9B6EFF]/10 text-[#9B6EFF] border border-[#9B6EFF]/25 mt-0.5">SPECULATIVE</span>
             <span className="text-sm">The claim is based on inference or limited evidence. It represents a plausible interpretation but lacks definitive proof.</span>
           </div>
         </div>

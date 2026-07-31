@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
-import { Search, Home, Compass, Menu, X, Network, LogIn, UserPlus, User, LogOut, Radio, BookOpen, HelpCircle, Clock } from "lucide-react";
+import { Search, Home, Compass, Menu, X, Network, LogIn, UserPlus, User, LogOut, Radio, BookOpen, HelpCircle, Clock, LayoutDashboard } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 const navLinks = [
@@ -11,6 +11,7 @@ const navLinks = [
   { href: "/library", label: "Library", icon: BookOpen },
   { href: "/timeline", label: "Timeline", icon: Clock },
   { href: "/search", label: "Search", icon: Search },
+  { href: "/workspace-v2", label: "Workspace", icon: LayoutDashboard },
 ];
 
 export default function Navbar() {
@@ -36,7 +37,7 @@ export default function Navbar() {
               <Link
                 key={href}
                 href={href}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono uppercase rounded-lg transition-all ${isActive ? "text-foreground bg-white/8" : "text-muted-foreground/70 hover:text-foreground hover:bg-white/5"}`}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono uppercase rounded-lg transition-all ${isActive ? "text-primary bg-primary/10" : "text-muted-foreground/70 hover:text-foreground hover:bg-white/5"}`}
                 data-testid={`nav-${label.toLowerCase()}`}
               >
                 <Icon className="w-3.5 h-3.5" />
@@ -47,7 +48,7 @@ export default function Navbar() {
 
           <Link
             href="/guide"
-            className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs transition-all ${location === "/guide" ? "text-foreground bg-white/8" : "text-muted-foreground/40 hover:text-muted-foreground"}`}
+            className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs transition-all ${location === "/guide" ? "text-primary bg-primary/10" : "text-muted-foreground/40 hover:text-muted-foreground"}`}
             data-testid="nav-guide"
           >
             <HelpCircle className="w-3.5 h-3.5" />
@@ -59,7 +60,7 @@ export default function Navbar() {
             <>
               <Link
                 href="/account"
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono uppercase rounded-lg transition-all ${location === "/account" ? "text-foreground bg-white/8" : "text-muted-foreground/70 hover:text-foreground hover:bg-white/5"}`}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono uppercase rounded-lg transition-all ${location === "/account" ? "text-primary bg-primary/10" : "text-muted-foreground/70 hover:text-foreground hover:bg-white/5"}`}
                 data-testid="nav-account"
               >
                 <User className="w-3.5 h-3.5" />
@@ -78,7 +79,7 @@ export default function Navbar() {
             <>
               <Link
                 href="/login"
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono uppercase rounded-lg transition-all ${location === "/login" ? "text-foreground bg-white/8" : "text-muted-foreground/70 hover:text-foreground hover:bg-white/5"}`}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono uppercase rounded-lg transition-all ${location === "/login" ? "text-primary bg-primary/10" : "text-muted-foreground/70 hover:text-foreground hover:bg-white/5"}`}
                 data-testid="nav-login"
               >
                 <LogIn className="w-3.5 h-3.5" />
@@ -114,7 +115,7 @@ export default function Navbar() {
                   key={href}
                   href={href}
                   onClick={() => setMobileOpen(false)}
-                  className={`flex items-center gap-3 px-6 py-3.5 text-sm font-mono uppercase transition-colors ${isActive ? "text-foreground bg-white/5" : "text-muted-foreground/70 hover:text-foreground"}`}
+                  className={`flex items-center gap-3 px-6 py-3.5 text-sm font-mono uppercase transition-colors ${isActive ? "text-primary bg-primary/10" : "text-muted-foreground/70 hover:text-foreground"}`}
                   data-testid={`nav-mobile-${label.toLowerCase()}`}
                 >
                   <Icon className="w-4 h-4" />
@@ -126,7 +127,7 @@ export default function Navbar() {
             <Link
               href="/guide"
               onClick={() => setMobileOpen(false)}
-              className={`flex items-center gap-3 px-6 py-3.5 text-sm font-mono uppercase transition-colors ${location === "/guide" ? "text-foreground bg-white/5" : "text-muted-foreground/70 hover:text-foreground"}`}
+              className={`flex items-center gap-3 px-6 py-3.5 text-sm font-mono uppercase transition-colors ${location === "/guide" ? "text-primary bg-primary/10" : "text-muted-foreground/70 hover:text-foreground"}`}
               data-testid="nav-mobile-guide"
             >
               <HelpCircle className="w-4 h-4" />

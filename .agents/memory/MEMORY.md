@@ -1,2 +1,3 @@
 - [Workspace V2 architecture](workspace-v2-arch.md) — refactored into features/workspace/; mock demo at /workspace-v2, real data at /workspace-v2/:slug
 - [Admin password sync](admin-password-sync.md) — admin hash must always be synced at startup, not only on first boot; trust proxy always enabled
+- [Design system V2 token migration](design-system-v2-tokens.md) — Phases A–F complete; V2 hex palette for all status/stance colors; never use Tailwind green/yellow/orange for status states

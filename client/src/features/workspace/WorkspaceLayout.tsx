@@ -115,6 +115,15 @@ export function WorkspaceLayout({ title, nodes, edges, isReal = false }: Workspa
         isReal={isReal}
       />
 
+      {/* Demo banner — shown only when viewing demonstration data */}
+      {!isReal && (
+        <div style={{ flexShrink: 0, height: 30, background: "rgba(232,146,58,0.08)", borderBottom: "1px solid rgba(232,146,58,0.22)", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+          <span style={{ color: "#E8923A", fontSize: 9, fontFamily: "'JetBrains Mono',monospace", letterSpacing: "0.12em", fontWeight: 700 }}>⚗ DEMO</span>
+          <span style={{ color: "rgba(232,146,58,0.7)", fontSize: 10, fontFamily: "'Inter',sans-serif" }}>This workspace uses demonstration data — not connected to live investigations.</span>
+          <a href="/discover" style={{ color: "#E8923A", fontSize: 10, fontFamily: "'Inter',sans-serif", textDecoration: "underline", opacity: 0.8 }}>Browse real investigations →</a>
+        </div>
+      )}
+
       {/* Main area */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
 

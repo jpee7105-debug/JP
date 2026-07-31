@@ -1,19 +1,7 @@
 import { useMemo } from "react";
 import { X, Circle, ExternalLink, GitBranch } from "lucide-react";
 import { C, KIND_META, type WNode, type WEdge } from "./workspace.types";
-
-// ─── Confidence bar ───────────────────────────────────────────────────────────
-export function ConfidenceBar({ value }: { value: number }) {
-  const color = value >= 80 ? "#4FC87A" : value >= 60 ? "#E8923A" : "#E85A5A";
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-      <div style={{ flex: 1, height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 2 }}>
-        <div style={{ width: `${value}%`, height: "100%", background: color, borderRadius: 2, transition: "width 0.4s ease" }} />
-      </div>
-      <span style={{ color, fontSize: 11, fontFamily: "'JetBrains Mono',monospace", minWidth: 32 }}>{value}%</span>
-    </div>
-  );
-}
+import { ConfidenceBar } from "@/components/ConfidenceBar";
 
 // ─── Right detail panel ───────────────────────────────────────────────────────
 interface RightPanelProps {

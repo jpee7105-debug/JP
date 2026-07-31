@@ -45,7 +45,7 @@ const FamilyNode = memo(({ data, selected }: NodeProps) => {
           alt=""
           style={{
             width: size, height: size, borderRadius: "50%",
-            border: `${highlight ? 2 : 1}px solid ${isCurrent ? "hsl(0 72% 30%)" : highlight ? "#3b82f6" : "rgba(255,255,255,0.2)"}`,
+            border: `${highlight ? 2 : 1}px solid ${isCurrent ? "#6C63FF" : highlight ? "#5BA3E8" : "rgba(255,255,255,0.2)"}`,
             objectFit: "cover",
           }}
         />
@@ -53,12 +53,12 @@ const FamilyNode = memo(({ data, selected }: NodeProps) => {
         <div
           style={{
             width: size, height: size, borderRadius: "50%",
-            background: isCurrent ? "hsla(0,72%,30%,0.15)" : "#161a1e",
-            border: `${highlight ? 2 : 1}px solid ${isCurrent ? "hsl(0 72% 30%)" : highlight ? "#3b82f6" : "rgba(255,255,255,0.2)"}`,
+            background: isCurrent ? "rgba(108,99,255,0.12)" : "#0F0F18",
+            border: `${highlight ? 2 : 1}px solid ${isCurrent ? "#6C63FF" : highlight ? "#5BA3E8" : "rgba(255,255,255,0.2)"}`,
             display: "flex", alignItems: "center", justifyContent: "center",
           }}
         >
-          <User style={{ width: size * 0.45, height: size * 0.45, color: isCurrent ? "hsl(0 72% 30%)" : "rgba(255,255,255,0.3)" }} />
+          <User style={{ width: size * 0.45, height: size * 0.45, color: isCurrent ? "#6C63FF" : "rgba(255,255,255,0.3)" }} />
         </div>
       )}
 

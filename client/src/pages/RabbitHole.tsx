@@ -5,7 +5,8 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { 
   GitBranch, ChevronLeft, CheckCircle2, AlertTriangle, FileText, 
   Loader2, ChevronRight, ChevronDown, Shield, BookOpen, ExternalLink,
-  Layers, Scale, Database, Tag, Headphones, DollarSign, Play, Lock, Crown
+  Layers, Scale, Database, Tag, Headphones, DollarSign, Play, Lock, Crown,
+  LayoutDashboard
 } from "lucide-react";
 import ThreadComment from "@/components/RedThread";
 import RichText from "@/components/RichText";
@@ -23,11 +24,11 @@ type AccessInfo = {
 function statusBadge(status: string) {
   switch (status) {
     case "Verified":
-      return <span className="text-green-500 border border-green-500/30 px-2 py-1 flex items-center gap-1 text-xs font-mono"><CheckCircle2 className="w-3 h-3" /> VERIFIED</span>;
+      return <span className="text-[#4FC87A] border border-[#4FC87A]/30 px-2 py-1 flex items-center gap-1 text-xs font-mono"><CheckCircle2 className="w-3 h-3" /> VERIFIED</span>;
     case "Specialist":
       return <span className="text-primary border border-primary/30 px-2 py-1 flex items-center gap-1 text-xs font-mono"><Shield className="w-3 h-3" /> SPECIALIST</span>;
     case "Unsolved":
-      return <span className="text-yellow-500 border border-yellow-500/30 px-2 py-1 flex items-center gap-1 text-xs font-mono"><AlertTriangle className="w-3 h-3" /> UNSOLVED</span>;
+      return <span className="text-[#E8923A] border border-[#E8923A]/30 px-2 py-1 flex items-center gap-1 text-xs font-mono"><AlertTriangle className="w-3 h-3" /> UNSOLVED</span>;
     default:
       return <span className="text-primary border border-primary/30 px-2 py-1 flex items-center gap-1 text-xs font-mono">ACTIVE</span>;
   }
@@ -35,18 +36,18 @@ function statusBadge(status: string) {
 
 function stanceColor(stance: string) {
   switch (stance) {
-    case "Verified": return { text: "text-green-500", bg: "bg-green-500/10", border: "border-green-500/20" };
-    case "Disputed": return { text: "text-yellow-500", bg: "bg-yellow-500/10", border: "border-yellow-500/20" };
-    case "Speculative": return { text: "text-orange-500", bg: "bg-orange-500/10", border: "border-orange-500/20" };
+    case "Verified": return { text: "text-[#4FC87A]", bg: "bg-[#4FC87A]/10", border: "border-[#4FC87A]/25" };
+    case "Disputed": return { text: "text-[#E8923A]", bg: "bg-[#E8923A]/10", border: "border-[#E8923A]/25" };
+    case "Speculative": return { text: "text-[#9B6EFF]", bg: "bg-[#9B6EFF]/10", border: "border-[#9B6EFF]/25" };
     default: return { text: "text-muted-foreground", bg: "bg-white/5", border: "border-white/10" };
   }
 }
 
 function sourceTypeColor(type: string) {
   switch (type) {
-    case "document": return "bg-green-500/10 text-green-500";
-    case "book": return "bg-blue-500/10 text-blue-400";
-    case "theory": return "bg-orange-500/10 text-orange-400";
+    case "document": return "bg-[#4FC87A]/10 text-[#4FC87A]";
+    case "book": return "bg-[#5BA3E8]/10 text-[#5BA3E8]";
+    case "theory": return "bg-[#E8923A]/10 text-[#E8923A]";
     default: return "bg-white/5 text-muted-foreground";
   }
 }
@@ -143,7 +144,7 @@ export default function RabbitHolePage() {
     const w = rect.width;
     const h = rect.height;
 
-    ctx.fillStyle = '#1a1c1e';
+    ctx.fillStyle = '#08080D';
     ctx.fillRect(0, 0, w, h);
 
     ctx.strokeStyle = 'rgba(255,255,255,0.03)';
@@ -208,7 +209,7 @@ export default function RabbitHolePage() {
       ? `hsl(${primaryColor})`
       : primaryColor || '#e11d48';
 
-    drawDiamond(cx, cy, centerSize, 'rgba(225,29,72,0.2)', primaryHex);
+    drawDiamond(cx, cy, centerSize, 'rgba(108,99,255,0.2)', primaryHex);
 
     positions.slice(1).forEach(node => {
       drawDiamond(node.x, node.y, nodeSize, 'rgba(255,255,255,0.05)', 'rgba(255,255,255,0.3)');
@@ -337,11 +338,20 @@ export default function RabbitHolePage() {
                   <span className="flex items-center gap-1.5"><Scale className="w-3 h-3" /> {claimsList.length} Claims</span>
                   <span className="flex items-center gap-1.5"><Database className="w-3 h-3" /> {sourcesList.length} Sources</span>
                 </div>
-                {depthNodesList.length > 0 && (
-                  <Link href={`/rabbithole/${slug}/read`} className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg font-mono text-xs hover:bg-primary/85 transition-colors" data-testid="button-start-reading">
-                    <BookOpen className="w-3 h-3" /> Start reading
+                <div className="flex items-center gap-2">
+                  {depthNodesList.length > 0 && (
+                    <Link href={`/rabbithole/${slug}/read`} className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg font-mono text-xs hover:bg-primary/85 transition-colors" data-testid="button-start-reading">
+                      <BookOpen className="w-3 h-3" /> Start reading
+                    </Link>
+                  )}
+                  <Link
+                    href={`/workspace-v2/${slug}`}
+                    className="flex items-center gap-2 border border-primary/30 text-primary px-4 py-2 rounded-lg font-mono text-xs hover:bg-primary/10 transition-colors"
+                    data-testid="button-open-workspace"
+                  >
+                    <LayoutDashboard className="w-3 h-3" /> Open in Workspace
                   </Link>
-                )}
+                </div>
               </div>
             </div>
           </header>

@@ -5,17 +5,21 @@ import {
 } from "lucide-react";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
+// Base surface/text/accent values reference the global CSS custom properties
+// defined in index.css (--v2-*). Node-type palette arrays remain as literal hex
+// because they are used in array destructuring and graph-specific colour logic
+// that cannot easily consume CSS vars at runtime.
 export const C = {
-  bg:        "#08080D",
-  surface:   "#0F0F18",
-  surfaceEl: "#13131F",
-  border:    "rgba(255,255,255,0.06)",
-  borderHi:  "rgba(255,255,255,0.14)",
-  accent:    "#6C63FF",
-  accentDim: "rgba(108,99,255,0.18)",
-  text:      "#DDDDF0",
-  textDim:   "#6B6B8A",
-  textMuted: "#3E3E58",
+  bg:        "var(--v2-bg)",
+  surface:   "var(--v2-surface)",
+  surfaceEl: "var(--v2-surface-el)",
+  border:    "var(--v2-border)",
+  borderHi:  "var(--v2-border-hi)",
+  accent:    "var(--v2-accent)",
+  accentDim: "var(--v2-accent-dim)",
+  text:      "var(--v2-text)",
+  textDim:   "var(--v2-text-dim)",
+  textMuted: "var(--v2-text-muted)",
   // Node type palette: [bg, border, accent]
   person:        ["#0D1F35", "#1E4D7A", "#5BA3E8"] as [string, string, string],
   event:         ["#0D1F14", "#1E5C2E", "#4FC87A"] as [string, string, string],

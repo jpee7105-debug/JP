@@ -43,10 +43,10 @@ function getInitialViewMode(): ViewMode {
 
 function labelColor(label: string) {
   switch (label) {
-    case "Verified": return "#4ade80";
-    case "Disputed": return "#f59e0b";
-    case "Speculative": return "#ef4444";
-    default: return "#6b7280";
+    case "Verified": return "#4FC87A";
+    case "Disputed": return "#E8923A";
+    case "Speculative": return "#E85A5A";
+    default: return "#6B6B8A";
   }
 }
 
@@ -79,7 +79,7 @@ const CaseNode = memo(({ data, selected }: NodeProps) => {
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ position: "absolute", top: 0, left: 0 }}>
         <polygon
           points={`${half},2 ${size - 2},${half} ${half},${size - 2} 2,${half}`}
-          fill="#1c2028"
+          fill="#0F0F18"
           stroke={strokeColor}
           strokeWidth={strokeW}
         />
@@ -123,10 +123,10 @@ const PersonNode = memo(({ data, selected }: NodeProps) => {
 
   const opacity = isFaded ? 0.15 : 1;
   const borderColor = isFocused
-    ? "#60a5fa"
+    ? "#7BB8F0"
     : highlight
-      ? "#3b82f6"
-      : "rgba(59,130,246,0.4)";
+      ? "#5BA3E8"
+      : "rgba(91,163,232,0.4)";
 
   return (
     <div
@@ -142,8 +142,8 @@ const PersonNode = memo(({ data, selected }: NodeProps) => {
             position: "absolute",
             inset: -8,
             background: isFocused
-              ? "radial-gradient(circle, rgba(59,130,246,0.25) 0%, transparent 70%)"
-              : "radial-gradient(circle, rgba(59,130,246,0.35) 0%, transparent 70%)",
+              ? "radial-gradient(circle, rgba(91,163,232,0.25) 0%, transparent 70%)"
+              : "radial-gradient(circle, rgba(91,163,232,0.35) 0%, transparent 70%)",
             borderRadius: "50%",
           }}
         />
@@ -154,7 +154,7 @@ const PersonNode = memo(({ data, selected }: NodeProps) => {
           width: size,
           height: size,
           borderRadius: "50%",
-          background: "#1c2028",
+          background: "#0F0F18",
           border: `${highlight || isFocused ? 2 : 1}px solid ${borderColor}`,
           boxSizing: "border-box",
         }}
@@ -254,7 +254,7 @@ const RelationshipEdge = memo(({
                 fontFamily: "'JetBrains Mono', monospace",
                 fontSize: "9px",
                 color: "rgba(255,255,255,0.7)",
-                backgroundColor: "rgba(17,20,24,0.95)",
+                backgroundColor: "rgba(8,8,13,0.95)",
                 padding: "2px 6px",
                 textTransform: "uppercase",
                 letterSpacing: "0.05em",
