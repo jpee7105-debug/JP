@@ -5,6 +5,7 @@ import { insertCommentSchema, insertDepthNodeSchema, insertClaimSchema, insertSo
 import { ZodError, z } from "zod";
 import bcrypt from "bcryptjs";
 import type { Employee, Person, Relationship } from "@shared/schema";
+import { toUserDTO, toEmployeeDTO } from "./dtos";
 import { timelineEntries } from "@shared/schema";
 import { autoSeedIfEmpty } from "./auto-seed";
 import { db } from "./storage";
@@ -107,8 +108,7 @@ export async function registerRoutes(
       }
       await storage.updateEmployee(emp.id, { lastLoginAt: new Date() });
       req.session.employeeId = emp.id;
-      const { passwordHash: _, ...safeEmp } = emp;
-      res.json(safeEmp);
+      res.json(toEmployeeDTO(emp));
     } catch (err) {
       res.status(500).json({ message: "Failed to log in" });
     }
@@ -130,8 +130,7 @@ export async function registerRoutes(
     if (!emp || !emp.isActive) {
       return res.status(401).json({ message: "Employee not found or deactivated" });
     }
-    const { passwordHash: _, ...safeEmp } = emp;
-    res.json(safeEmp);
+    res.json(toEmployeeDTO(emp));
   });
 
   // ===== USER AUTH ROUTES =====
@@ -158,8 +157,7 @@ export async function registerRoutes(
         subscriptionStatus: "none",
       });
       req.session.userId = user.id;
-      const { passwordHash: _, ...safeUser } = user;
-      res.status(201).json(safeUser);
+      res.status(201).json(toUserDTO(user));
     } catch (err) {
       res.status(500).json({ message: "Failed to create account" });
     }
@@ -181,8 +179,7 @@ export async function registerRoutes(
       }
       await storage.updateUser(user.id, { lastLoginAt: new Date() });
       req.session.userId = user.id;
-      const { passwordHash: _, ...safeUser } = user;
-      res.json(safeUser);
+      res.json(toUserDTO(user));
     } catch (err) {
       res.status(500).json({ message: "Failed to log in" });
     }
@@ -204,8 +201,7 @@ export async function registerRoutes(
     if (!user) {
       return res.status(401).json({ message: "User not found" });
     }
-    const { passwordHash: _, ...safeUser } = user;
-    res.json(safeUser);
+    res.json(toUserDTO(user));
   });
 
   app.get("/api/holes", async (req, res) => {
@@ -808,8 +804,7 @@ export async function registerRoutes(
   app.get("/api/admin/employees", requireEmployee, requireRole("Admin"), async (_req, res) => {
     try {
       const emps = await storage.getAllEmployees();
-      const safe = emps.map(({ passwordHash, ...rest }) => rest);
-      res.json(safe);
+      res.json(emps.map(toEmployeeDTO));
     } catch (err) {
       res.status(500).json({ message: "Failed to fetch employees" });
     }
@@ -839,13 +834,12 @@ export async function registerRoutes(
         role,
         isActive: true,
       });
-      const { passwordHash: _, ...safeEmp } = emp;
       await storage.createAuditLog({
         holeId: null as any, entityType: "employee", entityId: null as any,
         action: "create", editorName: getEditorName(req),
         changes: { email: emp.email, name: emp.name, role: emp.role },
       });
-      res.status(201).json(safeEmp);
+      res.status(201).json(toEmployeeDTO(emp));
     } catch (err) {
       res.status(500).json({ message: "Failed to create employee" });
     }
@@ -866,13 +860,12 @@ export async function registerRoutes(
       if (isActive !== undefined) updateData.isActive = isActive;
       const emp = await storage.updateEmployee(id, updateData);
       if (!emp) return res.status(404).json({ message: "Employee not found" });
-      const { passwordHash: _, ...safeEmp } = emp;
       await storage.createAuditLog({
         holeId: null as any, entityType: "employee", entityId: null as any,
         action: "update", editorName: getEditorName(req),
         changes: { employeeEmail: emp.email, ...updateData },
       });
-      res.json(safeEmp);
+      res.json(toEmployeeDTO(emp));
     } catch (err) {
       res.status(500).json({ message: "Failed to update employee" });
     }
